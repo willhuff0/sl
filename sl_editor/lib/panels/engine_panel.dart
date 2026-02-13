@@ -1,6 +1,7 @@
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
+import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_engine/sl_engine.dart' as engine;
 import 'package:web/web.dart' as web;
 
@@ -16,6 +17,8 @@ class _EngineViewState extends State<EnginePanel> {
   void initState() {
     ui_web.platformViewRegistry.registerViewFactory('sl-engine-view', (int viewId, {Object? params}) {
       final canvas = web.HTMLCanvasElement();
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
       engine.initialize(canvas);
       return canvas;
     });
@@ -24,6 +27,11 @@ class _EngineViewState extends State<EnginePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(viewType: 'sl-engine-view');
+    return Stack(
+      children: [
+        Positioned.fill(child: HtmlElementView(viewType: 'sl-engine-view')),
+        Positioned.fill(child: CursorsWidget()),
+      ],
+    );
   }
 }

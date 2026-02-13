@@ -1,15 +1,16 @@
 name: sl_shared
 description: A starting point for Dart libraries or applications.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/willhuff0/sl
 
 environment:
   sdk: ^3.10.8
 
-# Add regular dependencies here.
 dependencies:
-  # path: ^1.9.0
+  uuid: ^4.5.2
+  json_annotation: ^4.10.0
 
 dev_dependencies:
+  build_runner: ^2.10.5
+  json_serializable: ^6.12.0
   lints: ^6.0.0
-  test: ^1.25.6

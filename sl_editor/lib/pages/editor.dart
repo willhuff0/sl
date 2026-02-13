@@ -1,12 +1,66 @@
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/data.dart';
-import 'package:sl_editor/widgets/panels/console_panel.dart';
-import 'package:sl_editor/widgets/panels/engine_panel.dart';
-import 'package:sl_editor/widgets/panels/node_graph_panel.dart';
+import 'package:sl_editor/panels/asset_panel.dart';
+import 'package:sl_editor/panels/console_panel.dart';
+import 'package:sl_editor/panels/engine_panel.dart';
+import 'package:sl_editor/panels/node_graph_panel.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
+import 'package:sl_engine/sl_engine.dart';
 
-import '../widgets/panels/asset_panel.dart';
+class EditorClientLoader extends StatefulWidget {
+  const EditorClientLoader({super.key});
+
+  @override
+  State<EditorClientLoader> createState() => _EditorClientLoaderState();
+}
+
+class _EditorClientLoaderState extends State<EditorClientLoader> {
+  Client? _client;
+
+  @override
+  void initState() {
+    _load();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _client?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    _client = await Client.connect(serverUri: Uri.parse('ws://localhost:8080/joinRoom?room=test-room'));
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _client == null
+        ? Column(
+            crossAxisAlignment: .center,
+            mainAxisAlignment: .center,
+            children: [
+              Text(
+                'Connecting...',
+                style: TextStyle(
+                  color: ShadTheme.of(context).colorScheme.foreground.withValues(alpha: 0.6),
+                ),
+              ),
+              SizedBox(height: 8.0),
+              SizedBox(
+                width: 100.0,
+                height: 4.0,
+                child: ShadProgress(),
+              ),
+            ],
+          )
+        : EditorPage();
+  }
+}
 
 class EditorPage extends StatelessWidget {
   const EditorPage({super.key});
@@ -16,36 +70,65 @@ class EditorPage extends StatelessWidget {
     return Column(
       children: [
         WindowTitleBar(
-          height: 48.0,
+          height: 38.0,
           leading: [
-            Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: ShadMenubar(
-                items: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text('SL'),
-                  ),
-                  ShadMenubarItem(
-                    items: [],
-                    child: Text('File'),
-                  ),
-                  ShadMenubarItem(
-                    items: [],
-                    child: Text('Edit'),
-                  ),
-                  ShadMenubarItem(
-                    items: [],
-                    child: Text('View'),
-                  ),
-                ],
+            ShadMenubar(
+              border: ShadBorder(
+                left: ShadBorderSide.none,
+                top: ShadBorderSide.none,
+                bottom: ShadBorderSide.none,
+                right: ShadBorderSide(
+                  color: ShadTheme.of(context).colorScheme.border,
+                  width: 2.0,
+                  strokeAlign: BorderSide.strokeAlignOutside,
+                ),
               ),
+              selectOnHover: false,
+              items: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 14.0, right: 8.0),
+                  child: Text(
+                    'SL',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
+                    ),
+                  ],
+                  child: Text('File'),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
+                    ),
+                  ],
+                  child: Text('Edit'),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
+                    ),
+                  ],
+                  child: Text('View'),
+                ),
+              ],
             ),
           ],
           trailing: [
             _ShareButton(),
             _AccountButton(),
           ],
+        ),
+        ShadSeparator.horizontal(
+          margin: EdgeInsets.zero,
         ),
         Expanded(
           child: ShadResizablePanelGroup(
@@ -60,7 +143,7 @@ class EditorPage extends StatelessWidget {
                     ShadResizablePanel(
                       id: 'node-graph',
                       defaultSize: 0.5,
-                      child: NodeGraphPanel(root: exampleNodeGraph),
+                      child: NodeGraphPanel(root: rootNode),
                     ),
                     ShadResizablePanel(
                       id: 'asset',

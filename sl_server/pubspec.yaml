@@ -1,7 +1,8 @@
 name: sl_server
 description: A server app using the shelf package and Docker.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/willhuff0/sl
+publish_to: none
 
 environment:
   sdk: ^3.10.8
@@ -9,8 +10,14 @@ environment:
 dependencies:
   shelf: ^1.4.2
   shelf_router: ^1.1.2
+  shelf_web_socket: ^3.0.0
+  uuid: ^4.5.2
+  web_socket_channel: ^3.0.3
+  sl_shared:
+    path: ../sl_shared
+  path: ^1.9.1
+  vector_math: ^2.2.0
 
 dev_dependencies:
   http: ^1.2.2
   lints: ^6.0.0
-  test: ^1.25.6

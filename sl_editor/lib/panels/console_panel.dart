@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' show Scrollbar, SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/smooth_scroll_controller.dart';
+import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_engine/logger.dart';
 
 class ConsolePanel extends StatelessWidget {
@@ -11,48 +12,58 @@ class ConsolePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ShadCard(
-            padding: EdgeInsets.symmetric(vertical: 6.0),
-            child: Row(
-              children: [
-                SizedBox(width: 8.0),
-                Text('Console'),
-                Expanded(child: Container()),
-                ShadBreadcrumbDropdown(
-                  items: [
-                    ShadBreadcrumbDropMenuItem(
-                      child: Text('Clear'),
-                      onPressed: () {
-                        Logger.clear();
-                      },
-                    ),
-                  ],
-                  showDropdownArrow: false,
-                  anchor: ShadAnchor(
-                    childAlignment: Alignment.topRight,
-                    overlayAlignment: Alignment.bottomRight,
-                  ),
-                  child: Icon(
-                    LucideIcons.ellipsis,
-                    color: ShadTheme.of(context).colorScheme.foreground,
-                    size: 24.0,
-                  ),
-                ),
-                SizedBox(width: 8.0),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ShadCard(
+          border: ShadBorder(
+            bottom: ShadBorderSide(
+              color: ShadTheme.of(context).colorScheme.border,
+              width: 2.0,
+              strokeAlign: BorderSide.strokeAlignOutside,
             ),
           ),
-          SizedBox(height: 4.0),
-          Expanded(
+          padding: EdgeInsets.symmetric(vertical: 6.0),
+          child: Row(
+            children: [
+              SizedBox(width: 8.0),
+              Text('Console'),
+              Expanded(child: Container()),
+              MyShadDropdown(
+                items: [
+                  ShadBreadcrumbDropMenuItem(
+                    child: Text('Clear'),
+                    onPressed: () {
+                      Logger.clear();
+                    },
+                  ),
+                  ShadSeparator.horizontal(
+                    margin: EdgeInsets.symmetric(vertical: 4.0),
+                  ),
+                  _ToggleCollapseButton(),
+                ],
+                showDropdownArrow: false,
+                anchor: ShadAnchor(
+                  childAlignment: Alignment.topRight,
+                  overlayAlignment: Alignment.bottomRight,
+                ),
+                child: Icon(
+                  LucideIcons.ellipsis,
+                  color: ShadTheme.of(context).colorScheme.foreground,
+                  size: 24.0,
+                ),
+              ),
+              SizedBox(width: 8.0),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: _LogsWidget(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -95,6 +106,9 @@ class _LogsWidgetState extends State<_LogsWidget> {
     Logger.log("test debug message");
     Logger.log("test debug message");
     Logger.log("test debug message");
+    Logger.log(
+      "test debug message test debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug message",
+    );
     Logger.log(
       "test debug message test debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug message",
     );
@@ -243,6 +257,29 @@ class _LogWidget extends StatelessWidget {
               ),
             ),
             SizedBox(width: 8.0),
+            if (log.count > 1) ...[
+              Container(
+                margin: EdgeInsets.zero,
+                padding: EdgeInsets.all(5.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24.0),
+                  color: colorScheme.muted.withValues(alpha: 0.5),
+                ),
+                constraints: BoxConstraints(
+                  minWidth: 24.0,
+                  minHeight: 24.0,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  log.count.toString(),
+                  style: TextStyle(
+                    color: colorScheme.foreground.withValues(alpha: 0.5),
+                    fontSize: 12.0,
+                  ),
+                ),
+              ),
+              SizedBox(width: 8.0),
+            ],
             Text(
               DateFormat('HH:mm:ss.SSS').format(log.timestamp),
               style: TextStyle(
@@ -253,6 +290,35 @@ class _LogWidget extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ToggleCollapseButton extends StatefulWidget {
+  const _ToggleCollapseButton({super.key});
+
+  @override
+  State<_ToggleCollapseButton> createState() => _ToggleCollapseButtonState();
+}
+
+class _ToggleCollapseButtonState extends State<_ToggleCollapseButton> {
+  @override
+  Widget build(BuildContext context) {
+    return ShadBreadcrumbDropMenuItem(
+      child: Row(
+        children: [
+          Text('Collapse'),
+          SizedBox(width: 8.0),
+          SizedBox(
+            width: 24.0,
+            height: 14.0,
+            child: Logger.isCollapse() ? Icon(LucideIcons.check) : null,
+          ),
+        ],
+      ),
+      onPressed: () {
+        setState(() => Logger.setCollapse(!Logger.isCollapse()));
+      },
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:sl_editor/data.dart';
+import 'package:sl_engine/node.dart';
 
 class NodeGraphPanel extends StatefulWidget {
   final Node root;
@@ -32,51 +32,57 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4.0, right: 4.0, bottom: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ShadCard(
-            padding: EdgeInsets.symmetric(vertical: 7.0),
-            child: Row(
-              children: [
-                SizedBox(width: 8.0),
-                Text('Node Hierarchy'),
-                Expanded(child: Container()),
-                ShadBreadcrumbDropdown(
-                  items: [
-                    ShadBreadcrumbDropMenuItem(
-                      child: Text('Cube'),
-                      onPressed: () {},
-                    ),
-                  ],
-                  showDropdownArrow: true,
-                  arrowGap: 0.0,
-                  anchor: ShadAnchor(
-                    childAlignment: Alignment.topRight,
-                    overlayAlignment: Alignment.bottomRight,
-                  ),
-                  child: Icon(
-                    LucideIcons.plus,
-                    color: ShadTheme.of(context).colorScheme.foreground,
-                    size: 22.0,
-                  ),
-                ),
-                SizedBox(width: 8.0),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ShadCard(
+          border: ShadBorder(
+            bottom: ShadBorderSide(
+              color: ShadTheme.of(context).colorScheme.border,
+              width: 2.0,
+              strokeAlign: BorderSide.strokeAlignOutside,
             ),
           ),
-          SizedBox(height: 4.0),
-          Expanded(
+          padding: EdgeInsets.symmetric(vertical: 7.0),
+          child: Row(
+            children: [
+              SizedBox(width: 8.0),
+              Text('Node Hierarchy'),
+              Expanded(child: Container()),
+              ShadBreadcrumbDropdown(
+                items: [
+                  ShadBreadcrumbDropMenuItem(
+                    child: Text('Cube'),
+                    onPressed: () {},
+                  ),
+                ],
+                showDropdownArrow: true,
+                arrowGap: 0.0,
+                anchor: ShadAnchor(
+                  childAlignment: Alignment.topRight,
+                  overlayAlignment: Alignment.bottomRight,
+                ),
+                child: Icon(
+                  LucideIcons.plus,
+                  color: ShadTheme.of(context).colorScheme.foreground,
+                  size: 22.0,
+                ),
+              ),
+              SizedBox(width: 8.0),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
             child: _NodeTreeWidget(
               root: widget.root,
               expanded: expanded,
               selected: selected,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
