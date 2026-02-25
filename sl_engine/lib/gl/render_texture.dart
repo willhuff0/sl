@@ -6,21 +6,28 @@ import 'package:web/web.dart';
 
 class RenderTexture {
   WebGLTexture? _texture;
+  WebGLRenderbuffer? _depthBuffer;
   WebGLFramebuffer? _framebuffer;
 
   final int internalFormat;
   final int format;
   final int type;
+  final int? depthFormat;
 
   RenderTexture({
     this.internalFormat = GL.RGBA16F,
     this.format = GL.RGBA,
     this.type = GL.HALF_FLOAT,
+    this.depthFormat,
   });
 
   void resize(int width, int height) {
-    if (_texture != null) gl.deleteTexture(_texture);
     if (_framebuffer != null) gl.deleteFramebuffer(_framebuffer);
+    if (_texture != null) gl.deleteTexture(_texture);
+    if (_depthBuffer != null) gl.deleteRenderbuffer(_depthBuffer);
+
+    _framebuffer = gl.createFramebuffer()!;
+    gl.bindFramebuffer(GL.FRAMEBUFFER, _framebuffer);
 
     _texture = gl.createTexture()!;
     gl.activeTexture(GL.TEXTURE0);
@@ -29,10 +36,14 @@ class RenderTexture {
     gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
     gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
     gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
-
-    _framebuffer = gl.createFramebuffer()!;
-    gl.bindFramebuffer(GL.FRAMEBUFFER, _framebuffer);
     gl.framebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT0, GL.TEXTURE_2D, _texture, 0);
+
+    if (depthFormat != null) {
+      _depthBuffer = gl.createRenderbuffer()!;
+      gl.bindRenderbuffer(GL.RENDERBUFFER, _depthBuffer);
+      gl.renderbufferStorage(GL.RENDERBUFFER, depthFormat!, width, height);
+      gl.framebufferRenderbuffer(GL.FRAMEBUFFER, GL.DEPTH_ATTACHMENT, GL.RENDERBUFFER, _depthBuffer);
+    }
 
     switch (gl.checkFramebufferStatus(GL.FRAMEBUFFER)) {
       case GL.FRAMEBUFFER_COMPLETE:

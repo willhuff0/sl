@@ -96,14 +96,14 @@ typedef Vector4Bool = (bool, bool, bool, bool);
 final _uniformTypeInfos = {
   // float
   GL.FLOAT: _UniformTypeInfo('float (dart double)', {double, int}, (location, num value) => gl.uniform1f(location, value)),
-  GL.FLOAT_VEC2: _UniformTypeInfo('vec2f', {Vector2}, (location, Vector2 value) => gl.uniform2f(location, value.x, value.y)),
-  GL.FLOAT_VEC3: _UniformTypeInfo('vec3f', {Vector3}, (location, Vector3 value) => gl.uniform3f(location, value.x, value.y, value.z)),
-  GL.FLOAT_VEC4: _UniformTypeInfo('vec4f', {Vector4}, (location, Vector4 value) => gl.uniform4f(location, value.x, value.y, value.z, value.w)),
+  GL.FLOAT_VEC2: _UniformTypeInfo('vec2', {Vector2}, (location, Vector2 value) => gl.uniform2f(location, value.x, value.y)),
+  GL.FLOAT_VEC3: _UniformTypeInfo('vec3', {Vector3}, (location, Vector3 value) => gl.uniform3f(location, value.x, value.y, value.z)),
+  GL.FLOAT_VEC4: _UniformTypeInfo('vec4', {Vector4}, (location, Vector4 value) => gl.uniform4f(location, value.x, value.y, value.z, value.w)),
   // int
   GL.INT: _UniformTypeInfo('int', {int}, (location, int value) => gl.uniform1i(location, value)),
-  GL.INT_VEC2: _UniformTypeInfo('vec2i', {Vector2Int}, (location, Vector2Int value) => gl.uniform2f(location, value.$1, value.$2)),
-  GL.INT_VEC3: _UniformTypeInfo('vec3i', {Vector3Int}, (location, Vector3Int value) => gl.uniform3f(location, value.$1, value.$2, value.$3)),
-  GL.INT_VEC4: _UniformTypeInfo('vec4i', {Vector4Int}, (location, Vector4Int value) => gl.uniform4f(location, value.$1, value.$2, value.$3, value.$4)),
+  GL.INT_VEC2: _UniformTypeInfo('ivec2', {Vector2Int}, (location, Vector2Int value) => gl.uniform2i(location, value.$1, value.$2)),
+  GL.INT_VEC3: _UniformTypeInfo('ivec3', {Vector3Int}, (location, Vector3Int value) => gl.uniform3i(location, value.$1, value.$2, value.$3)),
+  GL.INT_VEC4: _UniformTypeInfo('ivec4', {Vector4Int}, (location, Vector4Int value) => gl.uniform4i(location, value.$1, value.$2, value.$3, value.$4)),
   // bool
   GL.BOOL: _UniformTypeInfo('bool', {bool}, (location, bool value) => gl.uniform1i(location, value ? 1 : 0)),
   GL.BOOL_VEC2: _UniformTypeInfo('vec2bool', {Vector2Bool}, (location, Vector2Bool value) => gl.uniform2i(location, value.$1 ? 1 : 0, value.$2 ? 1 : 0)),
@@ -116,6 +116,11 @@ final _uniformTypeInfos = {
   // sampler
   GL.SAMPLER_2D: _UniformTypeInfo('Sampler 2D (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
   GL.SAMPLER_CUBE: _UniformTypeInfo('Sampler Cube (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
+  // unsigned int
+  GL.UNSIGNED_INT: _UniformTypeInfo('uint', {int}, (location, int value) => gl.uniform1ui(location, value)),
+  GL.UNSIGNED_INT_VEC2: _UniformTypeInfo('uvec2', {Vector2Int}, (location, Vector2Int value) => gl.uniform2ui(location, value.$1, value.$2)),
+  GL.UNSIGNED_INT_VEC3: _UniformTypeInfo('uvec3', {Vector3Int}, (location, Vector3Int value) => gl.uniform3ui(location, value.$1, value.$2, value.$3)),
+  GL.UNSIGNED_INT_VEC4: _UniformTypeInfo('uvec4', {Vector4Int}, (location, Vector4Int value) => gl.uniform4ui(location, value.$1, value.$2, value.$3, value.$4)),
 };
 
 class Shader {

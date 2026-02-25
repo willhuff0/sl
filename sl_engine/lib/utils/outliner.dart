@@ -18,8 +18,8 @@ class Outliner {
     final outliner = Outliner._();
 
     outliner._flatShader = (await Shader.load('shaders/outliner/flat'))!;
-    outliner._blurShader = (await Shader.loadSeparate('shaders/outliner/fullscreen', 'shaders/outliner/blur'))!;
-    outliner._blitShader = (await Shader.loadSeparate('shaders/outliner/fullscreen', 'shaders/outliner/blit'))!;
+    outliner._blurShader = (await Shader.loadSeparate('shaders/fullscreen', 'shaders/outliner/blur'))!;
+    outliner._blitShader = (await Shader.loadSeparate('shaders/fullscreen', 'shaders/outliner/blit'))!;
 
     outliner._blurShader.bind();
     outliner._blurShader.setUniform('u_inputTexture', 0);
@@ -51,15 +51,6 @@ class Outliner {
     _unblurredRenderTexture.resize(width, height);
     _blurredRenderTexture0.resize(width, height);
     _blurredRenderTexture1.resize(width, height);
-  }
-
-  void test(Mesh mesh, Matrix4 modelMat) {
-    gl.blendFunc(GL.ONE, GL.ONE);
-    mesh.bind();
-    _flatShader.bind();
-    _flatShader.setUniform('u_modelMat', modelMat);
-    mesh.draw();
-    gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
   }
 
   void render(Mesh mesh, Matrix4 modelMat, Vector4 color) {
@@ -98,6 +89,7 @@ class Outliner {
 
     _blurredRenderTexture1.unbindFramebuffer();
     gl.enable(GL.BLEND);
+    gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
     gl.viewport(0, 0, canvas.width, canvas.height);
     _unblurredRenderTexture.bindTexture(GL.TEXTURE0);
     _blurredRenderTexture1.bindTexture(GL.TEXTURE1);
