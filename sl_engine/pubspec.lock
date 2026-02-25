@@ -209,6 +209,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.2"
+  http:
+    dependency: "direct main"
+    description:
+      name: http
+      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
   http_multi_server:
     dependency: transitive
     description:
@@ -290,7 +298,7 @@ packages:
     source: hosted
     version: "2.2.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
@@ -481,6 +489,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  webgpu_interop:
+    dependency: "direct main"
+    description:
+      name: webgpu_interop
+      sha256: "810e9879d7b822cdf5120621890f71921c57d93609d28790ad3e399d215090ed"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.1"
   yaml:
     dependency: transitive
     description:

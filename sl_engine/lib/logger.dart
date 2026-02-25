@@ -21,11 +21,7 @@ class Log {
     required this.severity,
     this.count = 1,
   });
-  Log.copy(Log other)
-    : message = other.message,
-      timestamp = other.timestamp,
-      severity = other.severity,
-      count = other.count;
+  Log.copy(Log other) : message = other.message, timestamp = other.timestamp, severity = other.severity, count = other.count;
 
   bool canCollapseWith(String otherMessage, LogSeverity otherSeverity) {
     return message == otherMessage && severity == otherSeverity;
@@ -55,6 +51,7 @@ class Logger {
       ),
     );
     _logController.add(_logs.last);
+    print('[SL ${severity.name}] $message');
   }
 
   static void setMaxLogs(int maxLogs) {
