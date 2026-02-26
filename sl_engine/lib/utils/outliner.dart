@@ -2,6 +2,8 @@ import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/node.dart';
+import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 
 class Outliner {
@@ -53,18 +55,21 @@ class Outliner {
     _blurredRenderTexture1.resize(width, height);
   }
 
-  void render(Mesh mesh, Matrix4 modelMat, Vector4 color) {
+  void render(Set<Node> nodes, Vector4 color) {
     // render flat
-    mesh.bind();
     _flatShader.bind();
-    _flatShader.setUniform('u_modelMat', modelMat);
 
     gl.disable(GL.BLEND);
     _unblurredRenderTexture.bindFramebuffer();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT);
-    mesh.draw();
+
+    for (final root in nodes) {
+      Renderer.drawNodeAndChildren(root, bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      });
+    }
 
     // blur
     _blurShader.bind();

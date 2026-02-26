@@ -12,6 +12,19 @@ class Renderer {
     meshes.add(mesh);
   }
 
+  static void drawNodeAndChildren(Node node, {required void Function(Node node) bindUniformsCallback}) {
+    for (final child in node.children) {
+      drawNodeAndChildren(child, bindUniformsCallback: bindUniformsCallback);
+    }
+
+    bindUniformsCallback(node);
+    final meshes = _nodes[node] ?? [];
+    for (final mesh in meshes) {
+      mesh.bind();
+      mesh.draw();
+    }
+  }
+
   static UnmodifiableListView<Mesh> getNodeMeshes(Node node) {
     return UnmodifiableListView(_nodes[node] ?? []);
   }

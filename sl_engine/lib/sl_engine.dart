@@ -1,35 +1,31 @@
 import 'dart:js_interop';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';
+import 'package:sl_engine/selector.dart';
 import 'package:sl_engine/utils/clicker.dart';
-import 'package:sl_engine/utils/outliner.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
 
+final Node root = Node(name: 'Example Scene');
 late final List<Node> _cubes;
-late final Outliner _outliner;
 late final Clicker _clicker;
 
 late final Shader _shader;
-
-Node? _selected;
 
 void initialize(web.HTMLCanvasElement canvas_) async {
   initGl(canvas_);
   SL.init();
 
-  _outliner = await Outliner.create();
-  _outliner.canvasSizeChanged(canvas.width, canvas.height);
-
   _clicker = await Clicker.create();
   _clicker.canvasSizeChanged(canvas.width, canvas.height);
+
+  await Selector.init();
 
   gl.enable(GL.DEPTH_TEST);
   gl.enable(GL.BLEND);
@@ -44,6 +40,7 @@ void initialize(web.HTMLCanvasElement canvas_) async {
         pos: Vector3(cos(i * 0.6) * 3.0, sin(i * 0.05 + 0.2) * 0.1, sin(i * 0.6) * 3.0),
       );
       Renderer.addMeshToNode(node, mesh);
+      root.addChild(node);
       return node;
     },
   );
@@ -51,7 +48,10 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   _shader = (await Shader.load('shaders/test'))!;
 
   canvas.onClick.listen((event) {
-    _selected = _clicker.click(event.clientX, event.clientY);
+    final rect = canvas.getBoundingClientRect();
+    final x = event.clientX - rect.left.toInt();
+    final y = event.clientY - rect.top.toInt();
+    Selector.selectOnly(_clicker.click(x, y));
   });
 
   web.window.requestAnimationFrame(frame.toJS);
@@ -65,8 +65,8 @@ void frame(num time) {
     canvas.height = height;
     gl.viewport(0, 0, width, height);
 
-    _outliner.canvasSizeChanged(width, height);
-    _clicker.canvasSizeChanged(canvas.width, canvas.height);
+    Selector.canvasSizeChanged(width, height);
+    _clicker.canvasSizeChanged(width, height);
   }
   final aspectRatio = width / height;
 
@@ -96,7 +96,7 @@ void frame(num time) {
       _shader.setUniform('u_modelMat', node.getMatrix());
     },
   );
-  if (_selected != null) _outliner.render(Renderer.getNodeMeshes(_selected!).first, _selected!.getMatrix(), Vector4(1.0, 0.7, 0.0, 1.0));
+  Selector.drawSelectionOutline();
 
   web.window.requestAnimationFrame(frame.toJS);
 }

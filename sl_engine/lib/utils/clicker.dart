@@ -62,11 +62,7 @@ class Clicker {
     final dartPixels = pixels.toDart;
     final id = (dartPixels[0], dartPixels[1], dartPixels[2]);
 
-    print('x $x, y $y');
-    print((dartPixels[0], dartPixels[1], dartPixels[2], dartPixels[3]));
-
     _renderTexture.unbindFramebuffer();
-    print('width ${canvas.width}, height: ${canvas.height}');
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(GL.BLEND);
 

@@ -36,6 +36,8 @@ class Logger {
   static var _collapse = true;
 
   static void log(String message, [LogSeverity severity = .debug]) {
+    message = message.trim();
+
     if (_collapse && _logs.isNotEmpty && _logs.first.canCollapseWith(message, severity)) {
       _logs.first.count++;
       return;

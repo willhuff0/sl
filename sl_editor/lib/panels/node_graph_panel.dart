@@ -1,18 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_engine/node.dart';
+import 'package:sl_engine/selector.dart';
 
 class NodeGraphPanel extends StatefulWidget {
   final Node root;
   final Set<Node>? expanded;
-  final Set<Node>? selected;
 
   const NodeGraphPanel({
     super.key,
     required this.root,
     this.expanded,
-    this.selected,
   });
 
   @override
@@ -21,12 +22,10 @@ class NodeGraphPanel extends StatefulWidget {
 
 class _NodeGraphPanelState extends State<NodeGraphPanel> {
   late final Set<Node> expanded;
-  late final Set<Node> selected;
 
   @override
   void initState() {
     expanded = widget.expanded ?? {};
-    selected = widget.selected ?? {};
     super.initState();
   }
 
@@ -78,7 +77,6 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
             child: _NodeTreeWidget(
               root: widget.root,
               expanded: expanded,
-              selected: selected,
             ),
           ),
         ),
@@ -90,13 +88,11 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
 class _NodeTreeWidget extends StatefulWidget {
   final Node root;
   final Set<Node> expanded;
-  final Set<Node> selected;
 
   const _NodeTreeWidget({
     super.key,
     required this.root,
     required this.expanded,
-    required this.selected,
   });
 
   @override
@@ -104,9 +100,23 @@ class _NodeTreeWidget extends StatefulWidget {
 }
 
 class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
+  late final StreamSubscription _onSelectionChangedSubscription;
+
+  @override
+  void initState() {
+    _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) => setState(() {}));
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _onSelectionChangedSubscription.cancel();
+    super.dispose();
+  }
+
   List<Widget> _recurseNode(Node node, int depth) {
     final bool isExpanded = widget.expanded.contains(node);
-    final bool isSelected = widget.selected.contains(node);
+    final bool isSelected = Selector.getSelected().contains(node);
     return [
       _NodeWidget(
         node: node,
@@ -122,24 +132,21 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
           }
         },
         isSelected: isSelected,
-        areAnyChildrenSelectedAndIsCollapsed: !isExpanded && node.children.any(widget.selected.contains),
+        areAnyChildrenSelectedAndIsCollapsed: !isExpanded && node.children.any(Selector.getSelected().contains),
         onSelect: () {
           if (!mounted) return;
           if (HardwareKeyboard.instance.isControlPressed) {
             // Multiselect
             if (isSelected) {
-              setState(() => widget.selected.remove(node));
+              Selector.removeNode(node);
             } else {
-              setState(() => widget.selected.add(node));
+              Selector.addNode(node);
             }
           } else {
-            if (widget.selected.isEmpty || widget.selected.length > 1 || (!isSelected && widget.selected.length == 1)) {
-              setState(() {
-                widget.selected.clear();
-                widget.selected.add(node);
-              });
+            if (Selector.getSelected().isEmpty || Selector.getSelected().length > 1 || (!isSelected && Selector.getSelected().length == 1)) {
+              Selector.selectOnly(node);
             } else {
-              setState(() => widget.selected.clear());
+              Selector.clear();
             }
           }
         },
@@ -152,7 +159,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        setState(() => widget.selected.clear());
+        Selector.clear();
       },
       child: Container(
         color: Color(0x00000000),
