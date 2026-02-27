@@ -1,5 +1,4 @@
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';
@@ -66,9 +65,12 @@ class Outliner {
     gl.clear(GL.COLOR_BUFFER_BIT);
 
     for (final root in nodes) {
-      Renderer.drawNodeAndChildren(root, bindUniformsCallback: (node) {
-        _flatShader.setUniform('u_modelMat', node.getMatrix());
-      });
+      Renderer.drawNodeAndChildren(
+        root,
+        bindUniformsCallback: (node) {
+          _flatShader.setUniform('u_modelMat', node.getMatrix());
+        },
+      );
     }
 
     // blur

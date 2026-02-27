@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/selector.dart';
 
 class NodeGraphPanel extends StatefulWidget {
   final Node root;
@@ -136,14 +136,11 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
         onSelect: () {
           if (!mounted) return;
           if (HardwareKeyboard.instance.isControlPressed) {
-            // Multiselect
-            if (isSelected) {
-              Selector.removeNode(node);
-            } else {
-              Selector.addNode(node);
-            }
+            Selector.toggleNode(node);
           } else {
-            if (Selector.getSelected().isEmpty || Selector.getSelected().length > 1 || (!isSelected && Selector.getSelected().length == 1)) {
+            if (Selector.getSelected().isEmpty ||
+                Selector.getSelected().length > 1 ||
+                (!isSelected && Selector.getSelected().length == 1)) {
               Selector.selectOnly(node);
             } else {
               Selector.clear();

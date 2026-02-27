@@ -2,10 +2,11 @@ import 'dart:js_interop';
 import 'dart:math';
 
 import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/selector.dart';
+import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/utils/clicker.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/utils/renderer.dart';
@@ -17,6 +18,8 @@ late final List<Node> _cubes;
 late final Clicker _clicker;
 
 late final Shader _shader;
+
+late final GLTF? _testGltf;
 
 void initialize(web.HTMLCanvasElement canvas_) async {
   initGl(canvas_);
@@ -47,11 +50,29 @@ void initialize(web.HTMLCanvasElement canvas_) async {
 
   _shader = (await Shader.load('shaders/test'))!;
 
+  _testGltf = await GLTF.load('models/gltf/arrow.gltf');
+  _testGltf!.root.lScale = Vector3(0.05, 0.05, 0.05);
+  root.addChild(_testGltf!.root);
+
   canvas.onClick.listen((event) {
     final rect = canvas.getBoundingClientRect();
     final x = event.clientX - rect.left.toInt();
     final y = event.clientY - rect.top.toInt();
-    Selector.selectOnly(_clicker.click(x, y));
+
+    final node = _clicker.click(x, y);
+
+    if (event.ctrlKey) {
+      if (node == null) {
+        return;
+      }
+      Selector.toggleNode(node);
+    } else {
+      if (node == null) {
+        Selector.clear();
+        return;
+      }
+      Selector.selectOnly(node);
+    }
   });
 
   web.window.requestAnimationFrame(frame.toJS);
@@ -89,6 +110,8 @@ void frame(num time) {
   for (final cube in _cubes) {
     cube.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
   }
+
+  _testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
 
   _shader.bind();
   Renderer.renderWithCustomShader(

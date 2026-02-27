@@ -82,51 +82,6 @@ class _LogsWidgetState extends State<_LogsWidget> {
 
   @override
   void initState() {
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log(
-      "test debug message test debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug message",
-    );
-    Logger.log(
-      "test debug message test debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug messagetest debug message",
-    );
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test debug message");
-    Logger.log("test info message", .info);
-    Logger.log("test warning message", .warning);
-    Logger.log("test error message", .error);
     _scrollController = SmoothScrollController();
     _subscription = Logger.getStream().listen(_onLog);
     super.initState();

@@ -53,7 +53,7 @@ final _cubeIndices = Uint16List.fromList([
   20, 21, 22, 22, 23, 20, // Left
 ]);
 
-final class CubeMesh extends Mesh {
+final class CubeMesh implements Mesh {
   late final WebGLVertexArrayObject _vao;
   late final Buffer _vertexBuffer;
   late final Buffer _indexBuffer;

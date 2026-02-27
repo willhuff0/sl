@@ -2,10 +2,10 @@ import 'dart:js_interop';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/logger.dart';
+import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart';
 import 'package:path/path.dart' as p;
-import 'package:http/http.dart' as http;
 
 final Map<String, WebGLShader> _cache = {};
 
@@ -26,7 +26,8 @@ Future<WebGLShader?> _loadShader(String path, [GLenum? type]) async {
   final shader = gl.createShader(type ?? _inferShaderType(path));
   if (shader == null) return null;
 
-  final source = (await http.get(Uri.parse(path))).body;
+  final source = await ResourceLoader.loadString(path);
+  if (source == null) return null;
   gl.shaderSource(shader, source);
 
   gl.compileShader(shader);

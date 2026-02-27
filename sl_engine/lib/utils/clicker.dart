@@ -1,5 +1,4 @@
 import 'dart:js_interop';
-import 'dart:math';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/render_texture.dart';

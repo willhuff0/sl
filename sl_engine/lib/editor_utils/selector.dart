@@ -3,8 +3,7 @@ import 'dart:collection';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/utils/outliner.dart';
-import 'package:sl_engine/utils/renderer.dart';
+import 'package:sl_engine/editor_utils/outliner.dart';
 import 'package:vector_math/vector_math.dart';
 
 class Selector {
@@ -42,14 +41,25 @@ class Selector {
     _onSelectionChangedController.add(_selected);
   }
 
+  static void toggleNode(Node node) {
+    if (_selected.contains(node)) {
+      _selected.remove(node);
+    } else {
+      _selected.add(node);
+    }
+    _onSelectionChangedController.add(_selected);
+  }
+
   static void addNode(Node node) {
     _selected.add(node);
     _onSelectionChangedController.add(_selected);
   }
+
   static void removeNode(Node node) {
     _selected.remove(node);
     _onSelectionChangedController.add(_selected);
   }
+
   static void clear() {
     _selected.clear();
     _onSelectionChangedController.add(_selected);
