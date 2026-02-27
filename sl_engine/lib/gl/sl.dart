@@ -7,15 +7,21 @@ import 'package:vector_math/vector_math.dart';
 
 class SLUniforms {
   final Matrix4 viewProjMat;
+  final Matrix4 viewMat;
+  final Vector3 viewPos;
 
   SLUniforms({
     required this.viewProjMat,
+    required this.viewMat,
+    required this.viewPos,
   });
 
   JSAny toJS() {
     final builder = BytesBuilder();
 
     builder.add(viewProjMat.storage.buffer.asUint8List());
+    builder.add(viewMat.storage.buffer.asUint8List());
+    builder.add(viewPos.storage.buffer.asUint8List());
 
     return builder.toBytes().toJS;
   }

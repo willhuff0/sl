@@ -1,10 +1,12 @@
 import 'dart:js_interop';
 import 'dart:math';
 
+import 'package:sl_engine/editor_utils/fly_camera.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/utils/clicker.dart';
@@ -21,9 +23,12 @@ late final Shader _shader;
 
 late final GLTF? _testGltf;
 
+late final FlyCamera _flyCamera;
+
 void initialize(web.HTMLCanvasElement canvas_) async {
   initGl(canvas_);
   SL.init();
+  Input.init(editorMode: true);
 
   _clicker = await Clicker.create();
   _clicker.canvasSizeChanged(canvas.width, canvas.height);
@@ -54,6 +59,11 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   _testGltf!.root.lScale = Vector3(0.05, 0.05, 0.05);
   root.addChild(_testGltf!.root);
 
+  _flyCamera = FlyCamera(
+    position: Vector3(0.0, 4.0, 5.0),
+    yaw: -90.0,
+  );
+
   canvas.onClick.listen((event) {
     final rect = canvas.getBoundingClientRect();
     final x = event.clientX - rect.left.toInt();
@@ -78,7 +88,19 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   web.window.requestAnimationFrame(frame.toJS);
 }
 
+num? _lastTime;
 void frame(num time) {
+  double dt;
+  if (_lastTime == null) {
+    dt = 0.0;
+  } else {
+    dt = (time - _lastTime!) / 1000.0;
+  }
+  _lastTime = time;
+
+  final (viewPos, viewMat, projMat) = _flyCamera.tick(dt);
+  final viewProjMat = projMat * viewMat;
+
   final width = canvas.clientWidth;
   final height = canvas.clientHeight;
   if (canvas.width != width || canvas.height != height) {
@@ -89,26 +111,20 @@ void frame(num time) {
     Selector.canvasSizeChanged(width, height);
     _clicker.canvasSizeChanged(width, height);
   }
-  final aspectRatio = width / height;
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
   gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
 
-  final projectionMatrix = makePerspectiveMatrix(radians(60.0), aspectRatio, 0.1, 100.0);
-  final viewMatrix = makeViewMatrix(
-    Vector3(0.0, 4.0, 5.0), // Camera position
-    Vector3(0.0, -1.0, 0.0), // Target
-    Vector3(0.0, 1.0, 0.0), // Up
-  );
-
   SL.setUniforms(
     SLUniforms(
-      viewProjMat: projectionMatrix * viewMatrix,
+      viewProjMat: viewProjMat,
+      viewMat: viewMat,
+      viewPos: viewPos,
     ),
   );
 
   for (final cube in _cubes) {
-    cube.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
+    cube.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
   }
 
   _testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
@@ -117,9 +133,11 @@ void frame(num time) {
   Renderer.renderWithCustomShader(
     bindUniformsCallback: (node) {
       _shader.setUniform('u_modelMat', node.getMatrix());
+      _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
     },
   );
   Selector.drawSelectionOutline();
 
+  Input.postTick();
   web.window.requestAnimationFrame(frame.toJS);
 }
