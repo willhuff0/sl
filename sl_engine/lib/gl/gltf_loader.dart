@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/buffer.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_engine/logger.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/utils/renderer.dart';
 import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
@@ -284,11 +284,10 @@ class GLTF {
             }
 
             final index = attributeInfo.$1;
-            var byteOffset = 0;
 
             final accessor = accessors[accessorIndex];
             final bufferViewIndex = accessor['bufferView'];
-            byteOffset += accessor['byteOffset'] as int? ?? 0;
+            final byteOffset = accessor['byteOffset'] as int? ?? 0;
             final componentSize = _componentSizes[accessor['type']] ?? attributeInfo.$2;
             final componentType = accessor['componentType'];
             final normalized = accessor['normalized'] ?? false;
@@ -297,7 +296,6 @@ class GLTF {
             // TODO: sparse
 
             final bufferView = bufferViews[bufferViewIndex];
-            byteOffset += bufferView['byteOffset'] as int? ?? 0;
             final byteStride = bufferView['byteStride'] as int? ?? 0;
 
             final gpuBuffer = await getAndBindGpuBufferFromView(bufferViewIndex);
@@ -326,14 +324,15 @@ class GLTF {
 
           meshTopology = primitive['mode'] as int? ?? GL.TRIANGLES;
 
-          Renderer.addMeshToNode(
-            result,
-            _GLTFMeshPrimitive._(
-              vao: meshVao,
-              topology: meshTopology,
-              offset: meshOffset,
-              count: meshCount,
-              indexType: meshIndexType,
+          result.addComponent(
+            MeshComponent(
+              mesh: _GLTFMeshPrimitive._(
+                vao: meshVao,
+                topology: meshTopology,
+                offset: meshOffset,
+                count: meshCount,
+                indexType: meshIndexType,
+              ),
             ),
           );
         }

@@ -7,7 +7,8 @@ import 'package:vector_math/vector_math.dart';
 const _sprintMultiplier = 2.5;
 
 class FlyCamera {
-  double sensitivity;
+  double lookSensitivity;
+  double scrollSensitivity;
   double speed;
   double fov;
   double near;
@@ -17,8 +18,11 @@ class FlyCamera {
   double _pitch;
   double _yaw;
 
+  var _scrollSpeedMultiplier = 1.0;
+
   FlyCamera({
-    this.sensitivity = 45.0,
+    this.lookSensitivity = 45.0,
+    this.scrollSensitivity = 0.1,
     this.speed = 5.0,
     this.fov = 70.0,
     this.near = 0.1,
@@ -28,16 +32,21 @@ class FlyCamera {
     double? yaw,
   }) : _position = position ?? Vector3.zero(),
        _pitch = pitch ?? 0.0,
-       _yaw = yaw ?? 0.0;
+       _yaw = yaw ?? 0.0 {
+    Input.onFocusChanged.listen((focused) {
+      _scrollSpeedMultiplier = 1.0;
+    });
+  }
 
   (Vector3, Matrix4 view, Matrix4 proj) tick(double dt) {
     final aspectRatio = canvas.width / canvas.height;
 
     // scroll
+    _scrollSpeedMultiplier = max(_scrollSpeedMultiplier - Input.getMouseScrollDelta() * scrollSensitivity, 0.1);
 
     // look
-    _pitch = max(min(_pitch - Input.getMouseDelta().y * sensitivity / 800.0, 89.99), -89.99);
-    _yaw += Input.getMouseDelta().x * sensitivity / 800.0;
+    _pitch = min(max(_pitch - Input.getMouseDelta().y * lookSensitivity / 800.0, -89.99), 89.99);
+    _yaw += Input.getMouseDelta().x * lookSensitivity / 800.0;
 
     final forward = Vector3(
       cos(radians(_pitch)) * cos(radians(_yaw)),
@@ -60,7 +69,7 @@ class FlyCamera {
 
     final sprint = Input.isKeyHeld(Key.shiftLeft) ? _sprintMultiplier : 1.0;
 
-    _position += move * (speed * sprint * dt);
+    _position += move * (speed * _scrollSpeedMultiplier * sprint * dt);
 
     return (
       _position,

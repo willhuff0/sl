@@ -36,10 +36,9 @@
 					"attributes":{
 						"POSITION":0,
 						"NORMAL":1,
-						"TEXCOORD_0":2,
-						"TANGENT":3
+						"TEXCOORD_0":2
 					},
-					"indices":4
+					"indices":3
 				}
 			]
 		}
@@ -75,12 +74,6 @@
 		},
 		{
 			"bufferView":3,
-			"componentType":5126,
-			"count":85,
-			"type":"VEC4"
-		},
-		{
-			"bufferView":4,
 			"componentType":5123,
 			"count":240,
 			"type":"SCALAR"
@@ -107,20 +100,14 @@
 		},
 		{
 			"buffer":0,
-			"byteLength":1360,
-			"byteOffset":2720,
-			"target":34962
-		},
-		{
-			"buffer":0,
 			"byteLength":480,
-			"byteOffset":4080,
+			"byteOffset":2720,
 			"target":34963
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":4560,
+			"byteLength":3200,
 			"uri":"arrow.bin"
 		}
 	]

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:js_interop';
 
@@ -17,6 +18,8 @@ class Input {
   static var _mouseScrollDelta = 0.0;
 
   static late bool _hasFocus;
+  static final _onFocusChangedController = StreamController<bool>.broadcast();
+  static final onFocusChanged = _onFocusChangedController.stream;
 
   static void init({bool editorMode = false}) {
     _codeToKey = Map.fromEntries(Key.values.map((key) => MapEntry(key.code, key)));
@@ -117,6 +120,7 @@ class Input {
   static void _onPointerLockChange() {
     if (web.document.pointerLockElement == canvas) {
       _hasFocus = true;
+      _onFocusChangedController.add(_hasFocus);
     } else {
       _down.clear();
       _held.clear();
@@ -126,6 +130,7 @@ class Input {
       _mouseScrollDelta = 0.0;
 
       _hasFocus = false;
+      _onFocusChangedController.add(_hasFocus);
     }
   }
 
@@ -138,7 +143,7 @@ class Input {
   static void _onWheel(web.WheelEvent event) {
     if (!_hasFocus) return;
 
-    _mouseScrollDelta += event.deltaY;
+    _mouseScrollDelta += event.deltaY / 100.0;
   }
 }
 

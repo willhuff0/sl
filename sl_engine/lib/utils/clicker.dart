@@ -46,7 +46,7 @@ class Clicker {
 
     final Map<Vector3Int, Node> idToNode = {};
     var i = 1;
-    Renderer.renderWithCustomShader(
+    Renderer.renderAll(
       bindUniformsCallback: (node) {
         final id = _convertIndexToId(i++);
         idToNode[id] = node;

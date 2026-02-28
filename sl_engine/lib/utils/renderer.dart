@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/node.dart';
 
@@ -12,9 +13,30 @@ class Renderer {
     meshes.add(mesh);
   }
 
-  static void drawNodeAndChildren(Node node, {required void Function(Node node) bindUniformsCallback}) {
+  static void removeMeshFromNode(Node node, Mesh mesh) {
+    var meshes = _nodes[node];
+    meshes?.remove(mesh);
+    if (meshes?.isEmpty ?? true) {
+      _nodes.remove(node);
+    }
+  }
+
+  static void renderUnregisteredNode(Node node, {required void Function(Node node) bindUniformsCallback}) {
     for (final child in node.children) {
-      drawNodeAndChildren(child, bindUniformsCallback: bindUniformsCallback);
+      renderUnregisteredNode(child, bindUniformsCallback: bindUniformsCallback);
+    }
+
+    bindUniformsCallback(node);
+    final meshes = node.components.whereType<MeshComponent>().map((component) => component.mesh);
+    for (final mesh in meshes) {
+      mesh.bind();
+      mesh.draw();
+    }
+  }
+
+  static void renderNode(Node node, {required void Function(Node node) bindUniformsCallback}) {
+    for (final child in node.children) {
+      renderNode(child, bindUniformsCallback: bindUniformsCallback);
     }
 
     bindUniformsCallback(node);
@@ -29,7 +51,7 @@ class Renderer {
     return UnmodifiableListView(_nodes[node] ?? []);
   }
 
-  static void renderWithCustomShader({
+  static void renderAll({
     required void Function(Node node) bindUniformsCallback,
   }) {
     _nodes.forEach((node, meshes) {

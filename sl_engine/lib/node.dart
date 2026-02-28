@@ -1,9 +1,21 @@
+import 'dart:collection';
+
 import 'package:vector_math/vector_math.dart';
+
+abstract class Component {
+  late Node? _node;
+
+  Node get node => _node!;
+
+  void enterScene();
+  void exitScene();
+}
 
 class Node {
   String name;
-  Node? parent;
-  final Set<Node> children = {};
+  Node? _parent;
+  final Set<Node> _children = {};
+  final List<Component> _components = [];
 
   Vector3 _lPos = Vector3.zero();
   Quaternion _lRot = Quaternion.identity();
@@ -18,6 +30,18 @@ class Node {
     if (pos != null) _lPos = pos;
     if (rot != null) _lRot = rot;
     if (scale != null) _lScale = scale;
+  }
+
+  Node? get parent {
+    return _parent;
+  }
+
+  UnmodifiableSetView<Node> get children {
+    return UnmodifiableSetView(_children);
+  }
+
+  UnmodifiableListView<Component> get components {
+    return UnmodifiableListView(_components);
   }
 
   Vector3 get lPos {
@@ -48,7 +72,7 @@ class Node {
   }
 
   Vector3 get wPos {
-    if (parent == null) return _lPos;
+    if (_parent == null) return _lPos;
     if (_wDirty) {
       _updateWorldFromParent();
       _wDirty = false;
@@ -57,7 +81,7 @@ class Node {
   }
 
   Quaternion get wRot {
-    if (parent == null) return _lRot;
+    if (_parent == null) return _lRot;
     if (_wDirty) {
       _updateWorldFromParent();
       _wDirty = false;
@@ -66,7 +90,7 @@ class Node {
   }
 
   Vector3 get wScale {
-    if (parent == null) return _lScale;
+    if (_parent == null) return _lScale;
     if (_wDirty) {
       _updateWorldFromParent();
       _wDirty = false;
@@ -75,19 +99,19 @@ class Node {
   }
 
   void _updateWorldFromParent() {
-    final scaledLPos = Vector3.copy(_lPos)..multiply(parent!.wScale);
-    final rotatedLPos = parent!.wRot.rotate(scaledLPos);
+    final scaledLPos = Vector3.copy(_lPos)..multiply(_parent!.wScale);
+    final rotatedLPos = _parent!.wRot.inverted().rotate(scaledLPos);
 
-    _wPos = parent!.wPos + rotatedLPos;
-    _wRot = parent!.wRot * _lRot;
+    _wPos = _parent!.wPos + rotatedLPos;
+    _wRot = _parent!.wRot * _lRot;
 
-    _wScale = Vector3.copy(parent!.wScale);
+    _wScale = Vector3.copy(_parent!.wScale);
     _wScale.multiply(_lScale);
   }
 
   void _markWDirty() {
     _wDirty = true;
-    for (final child in children) {
+    for (final child in _children) {
       child._markWDirty();
     }
   }
@@ -97,12 +121,40 @@ class Node {
   }
 
   void addChild(Node child) {
-    children.add(child);
-    child.parent = this;
+    _children.add(child);
+    child._parent = this;
   }
 
   void removeChild(Node child) {
-    children.remove(child);
-    child.parent = null;
+    _children.remove(child);
+    child._parent = null;
+  }
+
+  void addComponent(Component component) {
+    _components.add(component);
+    component._node = this;
+  }
+
+  void removeComponent(int index) {
+    final component = _components.removeAt(index);
+    component._node = null;
+  }
+
+  void enterScene() {
+    for (final child in _children) {
+      child.enterScene();
+    }
+    for (final component in components) {
+      component.enterScene();
+    }
+  }
+
+  void exitScene() {
+    for (final child in _children) {
+      child.exitScene();
+    }
+    for (final component in components) {
+      component.exitScene();
+    }
   }
 }

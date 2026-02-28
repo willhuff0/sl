@@ -2,6 +2,7 @@ import 'dart:js_interop';
 import 'dart:math';
 
 import 'package:sl_engine/editor_utils/fly_camera.dart';
+import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/gl/mesh.dart';
@@ -30,6 +31,8 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   SL.init();
   Input.init(editorMode: true);
 
+  await DebugDraw.init();
+
   _clicker = await Clicker.create();
   _clicker.canvasSizeChanged(canvas.width, canvas.height);
 
@@ -57,11 +60,11 @@ void initialize(web.HTMLCanvasElement canvas_) async {
 
   _testGltf = await GLTF.load('models/gltf/arrow.gltf');
   _testGltf!.root.lScale = Vector3(0.05, 0.05, 0.05);
-  root.addChild(_testGltf!.root);
 
   _flyCamera = FlyCamera(
     position: Vector3(0.0, 4.0, 5.0),
     yaw: -90.0,
+    pitch: -45.0,
   );
 
   canvas.onClick.listen((event) {
@@ -84,6 +87,8 @@ void initialize(web.HTMLCanvasElement canvas_) async {
       Selector.selectOnly(node);
     }
   });
+
+  root.enterScene();
 
   web.window.requestAnimationFrame(frame.toJS);
 }
@@ -129,8 +134,17 @@ void frame(num time) {
 
   _testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
 
+  root.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
+
   _shader.bind();
-  Renderer.renderWithCustomShader(
+  Renderer.renderAll(
+    bindUniformsCallback: (node) {
+      _shader.setUniform('u_modelMat', node.getMatrix());
+      _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
+    },
+  );
+  Renderer.renderUnregisteredNode(
+    _testGltf!.root,
     bindUniformsCallback: (node) {
       _shader.setUniform('u_modelMat', node.getMatrix());
       _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());

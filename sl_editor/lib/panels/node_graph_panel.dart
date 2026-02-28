@@ -121,7 +121,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
       _NodeWidget(
         node: node,
         depth: depth,
-        isExpandable: node.children.isNotEmpty,
+        isExpandable: node._children.isNotEmpty,
         isExpanded: isExpanded,
         onExpand: () {
           if (!mounted) return;
@@ -132,7 +132,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
           }
         },
         isSelected: isSelected,
-        areAnyChildrenSelectedAndIsCollapsed: !isExpanded && node.children.any(Selector.getSelected().contains),
+        areAnyChildrenSelectedAndIsCollapsed: !isExpanded && node._children.any(Selector.getSelected().contains),
         onSelect: () {
           if (!mounted) return;
           if (HardwareKeyboard.instance.isControlPressed) {
@@ -148,7 +148,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
           }
         },
       ),
-      if (isExpanded) ...node.children.expand((c) => _recurseNode(c, depth + 1)),
+      if (isExpanded) ...node._children.expand((c) => _recurseNode(c, depth + 1)),
     ];
   }
 
