@@ -54,7 +54,7 @@ class Outliner {
     _blurredRenderTexture1.resize(width, height);
   }
 
-  void render(Set<Node> nodes, Vector4 color) {
+  void draw(Set<Node> nodes, Vector4 color) {
     // render flat
     _flatShader.bind();
 

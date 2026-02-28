@@ -10,7 +10,6 @@ import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/editor_utils/selector.dart';
-import 'package:sl_engine/utils/clicker.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
@@ -18,8 +17,6 @@ import 'package:web/web.dart' as web;
 
 final Node root = Node(name: 'Example Scene');
 late final List<Node> _cubes;
-late final Clicker _clicker;
-
 late final Shader _shader;
 
 late final GLTF? _testGltf;
@@ -32,9 +29,6 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   Input.init(editorMode: true);
 
   await DebugDraw.init();
-
-  _clicker = await Clicker.create();
-  _clicker.canvasSizeChanged(canvas.width, canvas.height);
 
   await Selector.init();
 
@@ -58,7 +52,8 @@ void initialize(web.HTMLCanvasElement canvas_) async {
 
   _shader = (await Shader.load('shaders/test'))!;
 
-  _testGltf = await GLTF.load('models/gltf/arrow.gltf');
+  _testGltf = await GLTF.load('models/arrow.glb');
+  // _testGltf = await GLTF.load('models/gltf/arrow.gltf');
   _testGltf!.root.lScale = Vector3(0.05, 0.05, 0.05);
 
   _flyCamera = FlyCamera(
@@ -66,27 +61,6 @@ void initialize(web.HTMLCanvasElement canvas_) async {
     yaw: -90.0,
     pitch: -45.0,
   );
-
-  canvas.onClick.listen((event) {
-    final rect = canvas.getBoundingClientRect();
-    final x = event.clientX - rect.left.toInt();
-    final y = event.clientY - rect.top.toInt();
-
-    final node = _clicker.click(x, y);
-
-    if (event.ctrlKey) {
-      if (node == null) {
-        return;
-      }
-      Selector.toggleNode(node);
-    } else {
-      if (node == null) {
-        Selector.clear();
-        return;
-      }
-      Selector.selectOnly(node);
-    }
-  });
 
   root.enterScene();
 
@@ -114,7 +88,6 @@ void frame(num time) {
     gl.viewport(0, 0, width, height);
 
     Selector.canvasSizeChanged(width, height);
-    _clicker.canvasSizeChanged(width, height);
   }
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
@@ -134,7 +107,7 @@ void frame(num time) {
 
   _testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
 
-  root.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
+  // root.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
 
   _shader.bind();
   Renderer.renderAll(
@@ -150,7 +123,7 @@ void frame(num time) {
       _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
     },
   );
-  Selector.drawSelectionOutline();
+  Selector.draw();
 
   Input.postTick();
   web.window.requestAnimationFrame(frame.toJS);

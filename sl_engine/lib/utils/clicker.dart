@@ -56,6 +56,87 @@ class Clicker {
       },
     );
 
+    final jsPixels = JSUint8Array.withLength(4);
+    gl.readPixels(x, y, 1, 1, GL.RGBA, GL.UNSIGNED_BYTE, jsPixels);
+    final pixels = jsPixels.toDart;
+    final id = (pixels[0], pixels[1], pixels[2]);
+
+    _renderTexture.unbindFramebuffer();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.enable(GL.BLEND);
+
+    return idToNode[id];
+  }
+
+  Set<Node> overlap(int startX, int startY, int width, int height) {
+    _uniqueShader.bind();
+
+    _renderTexture.bindFramebuffer();
+    gl.disable(GL.BLEND);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+
+    final Map<Vector3Int, Node> idToNode = {};
+    var i = 1;
+    Renderer.renderAll(
+      bindUniformsCallback: (node) {
+        final id = _convertIndexToId(i++);
+        idToNode[id] = node;
+
+        _uniqueShader.setUniform('u_modelMat', node.getMatrix());
+        _uniqueShader.setUniform('u_id', id);
+      },
+    );
+
+    final jsPixels = JSUint8Array.withLength(width * height * 4);
+    gl.readPixels(startX, startY, width, height, GL.RGBA, GL.UNSIGNED_BYTE, jsPixels);
+    final pixels = jsPixels.toDart;
+
+    final ids = <Vector3Int>{};
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final startIndex = (y * width + x) * 4;
+        final id = (
+          pixels[startIndex + 0],
+          pixels[startIndex + 1],
+          pixels[startIndex + 2],
+        );
+        ids.add(id);
+      }
+    }
+
+    _renderTexture.unbindFramebuffer();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.enable(GL.BLEND);
+
+    return ids.map((id) => idToNode[id]).nonNulls.toSet();
+  }
+
+  Node? clickUnregisteredNodes(int x, int y, Iterable<Node> roots) {
+    _uniqueShader.bind();
+
+    _renderTexture.bindFramebuffer();
+    gl.disable(GL.BLEND);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+
+    final Map<Vector3Int, Node> idToNode = {};
+    var i = 1;
+    for (final root in roots) {
+      Renderer.renderUnregisteredNode(
+        root,
+        bindUniformsCallback: (node) {
+          final id = _convertIndexToId(i++);
+          idToNode[id] = node;
+
+          _uniqueShader.setUniform('u_modelMat', node.getMatrix());
+          _uniqueShader.setUniform('u_id', id);
+        },
+      );
+    }
+
     final pixels = JSUint8Array.withLength(4);
     gl.readPixels(x, canvas.height - y, 1, 1, GL.RGBA, GL.UNSIGNED_BYTE, pixels);
     final dartPixels = pixels.toDart;

@@ -8,6 +8,11 @@ typedef GL = web.WebGL2RenderingContext;
 late final Canvas canvas;
 late final GL gl;
 
+late final int canvasColorFormat;
+late final int canvasColorType;
+late final int canvasDepthBits;
+late final int canvasSampleCount;
+
 void initGl(Canvas canvas_) {
   canvas = canvas_;
   final context =
@@ -22,4 +27,11 @@ void initGl(Canvas canvas_) {
           as web.WebGL2RenderingContext?;
   if (context == null) throw Exception('Failed to get WebGL2 context!');
   gl = context;
+
+  gl.getExtension('EXT_color_buffer_float');
+
+  canvasColorFormat = (gl.getParameter(GL.IMPLEMENTATION_COLOR_READ_FORMAT) as JSNumber).toDartInt;
+  canvasColorType = (gl.getParameter(GL.IMPLEMENTATION_COLOR_READ_TYPE) as JSNumber).toDartInt;
+  canvasDepthBits = (gl.getParameter(GL.DEPTH_BITS) as JSNumber).toDartInt;
+  canvasSampleCount = (gl.getParameter(GL.SAMPLES) as JSNumber).toDartInt;
 }

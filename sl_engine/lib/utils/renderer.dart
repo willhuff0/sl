@@ -26,8 +26,10 @@ class Renderer {
       renderUnregisteredNode(child, bindUniformsCallback: bindUniformsCallback);
     }
 
-    bindUniformsCallback(node);
     final meshes = node.components.whereType<MeshComponent>().map((component) => component.mesh);
+    if (meshes.isEmpty) return;
+
+    bindUniformsCallback(node);
     for (final mesh in meshes) {
       mesh.bind();
       mesh.draw();
@@ -55,6 +57,7 @@ class Renderer {
     required void Function(Node node) bindUniformsCallback,
   }) {
     _nodes.forEach((node, meshes) {
+      if (!node.enabled) return;
       bindUniformsCallback(node);
       for (final mesh in meshes) {
         mesh.bind();

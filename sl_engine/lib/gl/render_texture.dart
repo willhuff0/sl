@@ -88,5 +88,6 @@ class RenderTexture {
   }
 
   WebGLTexture getTexture() => _texture!;
+  WebGLRenderbuffer? getDepthBuffer() => _depthBuffer;
   WebGLFramebuffer getFramebuffer() => _framebuffer!;
 }

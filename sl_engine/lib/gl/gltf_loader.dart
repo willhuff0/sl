@@ -99,31 +99,49 @@ class GLTF {
         final buffer = response.buffer;
         final bytes = buffer.asByteData();
 
-        final magic = bytes.getUint32(0, Endian.little);
+        var offset = -4;
+
+        final magic = bytes.getUint32(offset += 4, Endian.little);
         if (magic != 0x46546C67) {
           Logger.log('Tried to load a GLTF \'$path\' which is malformed (incorrect magic number).', .warning);
           return null;
         }
 
-        final version = bytes.getUint32(4, Endian.little);
+        final version = bytes.getUint32(offset += 4, Endian.little);
         if (version != 2) {
           Logger.log('Tried to load a GLTF \'$path\' with unsupported version \'$version\'. Use version \'2.0\'.', .warning);
           return null;
         }
 
-        final length = bytes.getUint32(8, Endian.little);
+        final fileLength = bytes.getUint32(offset += 4, Endian.little);
 
-        final jsonChunkLength = bytes.getUint32(12, Endian.little);
-        final jsonChunkType = bytes.getUint32(16, Endian.little);
+        final jsonChunkLength = bytes.getUint32(offset += 4, Endian.little);
+        final jsonChunkType = bytes.getUint32(offset += 4, Endian.little);
         if (jsonChunkType != 0x4E4F534A) {
           Logger.log('Tried to load a GLTF \'$path\' which is malformed (first chunk is not json).', .warning);
           return null;
         }
-        final jsonChunkData = buffer.asUint8List(20, jsonChunkLength);
+
+        final jsonChunkData = buffer.asUint8List(offset + 4, jsonChunkLength);
         final jsonChunkText = utf8.decode(jsonChunkData);
         json = jsonDecode(jsonChunkText);
 
-        glbBuffer = buffer.asUint8List(jsonChunkLength, length - jsonChunkLength - 20);
+        offset += jsonChunkLength;
+
+        if (offset + 4 >= fileLength - 1) {
+          // binary chunk not present
+          break;
+        }
+
+        final binaryChunkLength = bytes.getUint32(offset += 4, Endian.little);
+        final binaryChunkType = bytes.getUint32(offset += 4, Endian.little);
+        if (binaryChunkType != 0x004E4942) {
+          Logger.log('Tried to load a GLTF \'$path\' which is malformed (second chunk is not binary).', .warning);
+          return null;
+        }
+
+        offset += 4;
+        glbBuffer = buffer.asUint8List(offset, binaryChunkLength);
         break;
       case '.gltf':
         final response = await ResourceLoader.loadString(path);
@@ -208,7 +226,7 @@ class GLTF {
       var cache = bufferViewIndexToGpuBuffer[index];
       if (cache == null) {
         final bufferView = bufferViews[index];
-        final byteOffset = bufferView['byteOffset'] ?? 0;
+        final byteOffset = bufferView['byteOffset'] as int? ?? 0;
         final byteLength = bufferView['byteLength'];
         final bufferIndex = bufferView['buffer'] as int;
         final bytes = await getBufferBytes(bufferIndex);
@@ -220,7 +238,7 @@ class GLTF {
         }
         cache = bufferViewIndexToGpuBuffer[index] = Buffer(target);
         cache.bind();
-        cache.write(bytes.buffer.asUint8List(byteOffset, byteLength).toJS, GL.STATIC_DRAW);
+        cache.write(bytes.buffer.asUint8List(bytes.offsetInBytes + byteOffset, byteLength).toJS, GL.STATIC_DRAW);
       } else {
         cache.bind();
       }

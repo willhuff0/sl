@@ -8,12 +8,12 @@ class MeshComponent extends Component {
   MeshComponent({required this.mesh});
 
   @override
-  void enterScene() {
+  void onEnable() {
     Renderer.addMeshToNode(node, mesh);
   }
 
   @override
-  void exitScene() {
+  void onDisable() {
     Renderer.removeMeshFromNode(node, mesh);
   }
 }

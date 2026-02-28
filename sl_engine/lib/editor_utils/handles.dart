@@ -1,0 +1,108 @@
+import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/gltf_loader.dart';
+import 'package:sl_engine/gl/render_texture.dart';
+import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/node.dart';
+import 'package:sl_engine/utils/renderer.dart';
+import 'package:vector_math/vector_math.dart';
+
+final _handleScale = Vector3(0.025, 0.025, 0.025);
+final _handleScreenProportion = 0.1;
+
+final _forwardHandleColor = Vector4(0.0, 0.0, 1.0, 1.0);
+final _rightHandleColor = Vector4(1.0, 0.0, 0.0, 1.0);
+final _upHandleColor = Vector4(0.0, 1.0, 0.0, 1.0);
+
+class Handles {
+  late final Shader _flatShader;
+  late final Shader _blitShader;
+
+  late final RenderTexture _renderTexture;
+
+  late final Node _root;
+  late final Node _forwardHandle;
+  late final Node _rightHandle;
+  late final Node _upHandle;
+
+  Handles._();
+  static Future<Handles> create() async {
+    final handles = Handles._();
+
+    handles._flatShader = (await Shader.load('shaders/handles/flat'))!;
+    handles._blitShader = (await Shader.loadSeparate('shaders/fullscreen', 'shaders/handles/blit'))!;
+    handles._renderTexture = RenderTexture(
+      internalFormat: GL.RGBA8,
+      format: GL.RGBA,
+      type: GL.UNSIGNED_BYTE,
+      depthFormat: GL.DEPTH_COMPONENT24,
+    );
+    handles._root = (await GLTF.load('models/arrow.glb'))!.root;
+    handles._forwardHandle = handles._root.children[0];
+    handles._rightHandle = handles._root.children[1];
+    handles._upHandle = handles._root.children[2];
+
+    handles._blitShader.bind();
+    handles._blitShader.setUniform('u_texture', 0);
+
+    handles._root.lScale = _handleScale;
+
+    return handles;
+  }
+
+  void canvasSizeChanged(int width, int height) {
+    _renderTexture.resize(width, height);
+  }
+
+  (Node forward, Node right, Node up) getHandles(Vector3 position, Quaternion rotation) {
+    _root.lPos = position;
+    _root.lRot = rotation;
+    return (_forwardHandle, _rightHandle, _upHandle);
+  }
+
+  void drawHandles(Vector3 position, Quaternion rotation) {
+    _root.lPos = position;
+    _root.lRot = rotation;
+
+    _renderTexture.bindFramebuffer();
+    gl.disable(GL.BLEND);
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
+    gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+
+    _flatShader.bind();
+    _flatShader.setUniform('u_screenScale', _handleScreenProportion);
+
+    Renderer.renderUnregisteredNode(
+      _forwardHandle,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _forwardHandleColor);
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
+    Renderer.renderUnregisteredNode(
+      _rightHandle,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _rightHandleColor);
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
+    Renderer.renderUnregisteredNode(
+      _upHandle,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _upHandleColor);
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
+
+    _blitShader.bind();
+
+    _renderTexture.unbindFramebuffer();
+    gl.enable(GL.BLEND);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    _renderTexture.bindTexture(GL.TEXTURE0);
+    gl.depthMask(false);
+    gl.depthFunc(GL.ALWAYS);
+    gl.drawArrays(GL.TRIANGLES, 0, 6);
+    gl.depthFunc(GL.LESS);
+    gl.depthMask(true);
+  }
+}
