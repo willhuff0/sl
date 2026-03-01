@@ -13,7 +13,7 @@ late final int canvasColorType;
 late final int canvasDepthBits;
 late final int canvasSampleCount;
 
-void initGl(Canvas canvas_) {
+void initGl(Canvas canvas_, {bool vr = false}) {
   canvas = canvas_;
   final context =
       canvas.getContext(
@@ -22,6 +22,7 @@ void initGl(Canvas canvas_) {
               'powerPreference': 'high-performance',
               'antialias': true,
               'depth': true,
+              'xrCompatible': vr,
             }.jsify(),
           )
           as web.WebGL2RenderingContext?;

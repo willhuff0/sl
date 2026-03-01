@@ -20,6 +20,8 @@ class FlyCamera {
 
   var _scrollSpeedMultiplier = 1.0;
 
+  late (Vector3 position, Matrix4 view, Matrix4 proj) _state;
+
   FlyCamera({
     this.lookSensitivity = 45.0,
     this.scrollSensitivity = 0.1,
@@ -38,7 +40,7 @@ class FlyCamera {
     });
   }
 
-  (Vector3, Matrix4 view, Matrix4 proj) tick(double dt) {
+  void tick(double dt) {
     final aspectRatio = canvas.width / canvas.height;
 
     // scroll
@@ -71,10 +73,12 @@ class FlyCamera {
 
     _position += move * (speed * _scrollSpeedMultiplier * sprint * dt);
 
-    return (
+    _state = (
       _position,
       makeViewMatrix(_position, _position + forward, Vector3(0.0, 1.0, 0.0)),
       makePerspectiveMatrix(radians(fov), aspectRatio, near, far),
     );
   }
+
+  (Vector3 position, Matrix4 view, Matrix4 proj) getState() => _state;
 }
