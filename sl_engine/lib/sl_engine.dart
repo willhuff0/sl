@@ -5,7 +5,6 @@ import 'dart:math';
 import 'package:sl_engine/editor_utils/fly_camera.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/gl/xr.dart';
@@ -22,48 +21,19 @@ final Node root = Node(name: 'Example Scene');
 late final List<Node> _cubes;
 late final Shader _shader;
 
-late final GLTF? _testGltf;
-
 late final FlyCamera _flyCamera;
 
-// /// Interface [XRRenderStateInit]
-// extension type XRRenderStateInit(JSObject _) implements JSObject {
-//   /// Property [baseLayer]
-//   ///
-//   /// baseLayer?: XRWebGLLayer | undefined
-//   external XRWebGLLayer? baseLayer;
-
-//   /// Property [depthFar]
-//   ///
-//   /// depthFar?: number | undefined
-//   external JSNumber? depthFar;
-
-//   /// Property [depthNear]
-//   ///
-//   /// depthNear?: number | undefined
-//   external JSNumber? depthNear;
-
-//   /// Property [inlineVerticalFieldOfView]
-//   ///
-//   /// inlineVerticalFieldOfView?: number | undefined
-//   external JSNumber? inlineVerticalFieldOfView;
-
-//   /// Property [layers]
-//   ///
-//   /// layers?: XRLayer[] | undefined
-//   external JSArray<XRLayer>? layers;
-// }
-
 void initialize(web.HTMLCanvasElement canvas_) async {
-  final vrSupported = await initVr();
+  // final vrSupported = await initVr();
+  final vrSupported = false;
 
   initGl(canvas_, vr: vrSupported);
   SL.init();
-  // Input.init(editorMode: true);
+  Input.init(editorMode: true);
 
-  // await DebugDraw.init();
+  await DebugDraw.init();
 
-  // await Selector.init();
+  await Selector.init();
 
   gl.enable(GL.DEPTH_TEST);
   gl.enable(GL.BLEND);
@@ -85,15 +55,11 @@ void initialize(web.HTMLCanvasElement canvas_) async {
 
   _shader = (await Shader.load('shaders/test'))!;
 
-  _testGltf = await GLTF.load('models/arrow.glb');
-  // _testGltf = await GLTF.load('models/gltf/arrow.gltf');
-  _testGltf!.root.lScale = Vector3(0.05, 0.05, 0.05);
-
-  // _flyCamera = FlyCamera(
-  //   position: Vector3(0.0, 4.0, 5.0),
-  //   yaw: -90.0,
-  //   pitch: -45.0,
-  // );
+  _flyCamera = FlyCamera(
+    position: Vector3(0.0, 4.0, 5.0),
+    yaw: -90.0,
+    pitch: -45.0,
+  );
 
   root.enterScene();
 
@@ -163,13 +129,6 @@ void frame(num time) {
       _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
     },
   );
-  Renderer.renderUnregisteredNode(
-    _testGltf!.root,
-    bindUniformsCallback: (node) {
-      _shader.setUniform('u_modelMat', node.getMatrix());
-      _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
-    },
-  );
   Selector.draw();
 
   Input.postTick();
@@ -190,7 +149,7 @@ void xrFrame(num time, XRFrame xrFrameData) {
   final glLayer = xrSession.renderState.baseLayer!;
   final pose = xrFrameData.getViewerPose(xrReferenceSpace);
   if (pose != null) {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, glLayer.framebuffer);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = glLayer.framebuffer);
 
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
@@ -223,7 +182,47 @@ void xrFrame(num time, XRFrame xrFrameData) {
           _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
         },
       );
+      Selector.draw();
     }
+  }
+
+  {
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = null);
+
+    _flyCamera.tick(dt);
+    final (viewPos, viewMat, projMat) = _flyCamera.getState();
+    final viewProjMat = projMat * viewMat;
+
+    final width = canvas.clientWidth;
+    final height = canvas.clientHeight;
+    if (canvas.width != width || canvas.height != height) {
+      canvas.width = width;
+      canvas.height = height;
+
+      Selector.canvasSizeChanged(width, height);
+    }
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+
+    SL.setUniforms(
+      SLUniforms(
+        viewProjMat: viewProjMat,
+        viewMat: viewMat,
+        viewPos: viewPos,
+      ),
+    );
+
+    _shader.bind();
+    Renderer.renderAll(
+      bindUniformsCallback: (node) {
+        _shader.setUniform('u_modelMat', node.getMatrix());
+        _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
+      },
+    );
+    Selector.draw();
   }
 
   xrSession.requestAnimationFrame(xrFrame.toJS);
@@ -231,10 +230,10 @@ void xrFrame(num time, XRFrame xrFrameData) {
 
 void tick(double time, double dt) {
   for (final cube in _cubes) {
-    cube.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
+    //cube.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
   }
 
-  _testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
+  //_testGltf!.root.lRot = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), time / 1000 * 0.2);
 
   // root.lRot = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), time / 1000 * 0.2);
 }

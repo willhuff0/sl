@@ -74,7 +74,7 @@ class RenderBuffer {
   }
 
   void unbindFramebuffer() {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
   }
 
   WebGLRenderbuffer getColorBuffer() => _colorBuffer!;

@@ -5,6 +5,8 @@ import 'package:web/web.dart' as web;
 typedef Canvas = web.HTMLCanvasElement;
 typedef GL = web.WebGL2RenderingContext;
 
+web.WebGLFramebuffer? defaultFramebuffer;
+
 late final Canvas canvas;
 late final GL gl;
 

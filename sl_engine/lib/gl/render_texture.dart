@@ -74,7 +74,7 @@ class RenderTexture {
   }
 
   void unbindFramebuffer() {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
   }
 
   void bindTexture(GLenum slot) {

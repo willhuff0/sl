@@ -13,7 +13,7 @@ dependencies:
   http: ^1.6.0
   path: ^1.9.1
   collection: ^1.19.1
-  meta: ^1.18.1
+  meta: ^1.17.0
   webxr: ^0.2.0
 
 dev_dependencies:
