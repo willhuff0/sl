@@ -12,46 +12,45 @@ StcSetSelf _$StcSetSelfFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$StcSetSelfToJson(StcSetSelf instance) =>
     <String, dynamic>{'clientId': instance.clientId};
 
-StcSetClients _$StcSetClientsFromJson(Map<String, dynamic> json) =>
-    StcSetClients(
-      states: (json['states'] as Map<String, dynamic>).map(
-        (k, e) => MapEntry(
-          int.parse(k),
-          ClientState.fromJson(e as Map<String, dynamic>),
-        ),
-      ),
-    );
+StcSetClientGlobalStates _$StcSetClientGlobalStatesFromJson(
+  Map<String, dynamic> json,
+) => StcSetClientGlobalStates(
+  states: (json['states'] as Map<String, dynamic>).map(
+    (k, e) =>
+        MapEntry(int.parse(k), ClientState.fromJson(e as Map<String, dynamic>)),
+  ),
+);
 
-Map<String, dynamic> _$StcSetClientsToJson(StcSetClients instance) =>
-    <String, dynamic>{
-      'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
-    };
+Map<String, dynamic> _$StcSetClientGlobalStatesToJson(
+  StcSetClientGlobalStates instance,
+) => <String, dynamic>{
+  'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
+};
 
-CtsSetViewPosition _$CtsSetViewPositionFromJson(Map<String, dynamic> json) =>
-    CtsSetViewPosition(
+CtsSetScopeState _$CtsSetScopeStateFromJson(Map<String, dynamic> json) =>
+    CtsSetScopeState(
       scopeId: json['scopeId'] as String,
-      value: json['value'] == null
-          ? null
-          : ViewPosition.fromJson(json['value'] as Map<String, dynamic>),
+      state: ClientScopeState.fromJson(json['state'] as Map<String, dynamic>),
     );
 
-Map<String, dynamic> _$CtsSetViewPositionToJson(CtsSetViewPosition instance) =>
-    <String, dynamic>{'scopeId': instance.scopeId, 'value': instance.value};
+Map<String, dynamic> _$CtsSetScopeStateToJson(CtsSetScopeState instance) =>
+    <String, dynamic>{'scopeId': instance.scopeId, 'state': instance.state};
 
-StcSetViewPositions _$StcSetViewPositionsFromJson(Map<String, dynamic> json) =>
-    StcSetViewPositions(
-      scopeId: json['scopeId'] as String,
-      values: (json['values'] as Map<String, dynamic>).map(
-        (k, e) => MapEntry(
-          int.parse(k),
-          ViewPosition.fromJson(e as Map<String, dynamic>),
-        ),
-      ),
-    );
+StcSetClientScopeStates _$StcSetClientScopeStatesFromJson(
+  Map<String, dynamic> json,
+) => StcSetClientScopeStates(
+  scopeId: json['scopeId'] as String,
+  states: (json['states'] as Map<String, dynamic>).map(
+    (k, e) => MapEntry(
+      int.parse(k),
+      ClientScopeState.fromJson(e as Map<String, dynamic>),
+    ),
+  ),
+);
 
-Map<String, dynamic> _$StcSetViewPositionsToJson(
-  StcSetViewPositions instance,
+Map<String, dynamic> _$StcSetClientScopeStatesToJson(
+  StcSetClientScopeStates instance,
 ) => <String, dynamic>{
   'scopeId': instance.scopeId,
-  'values': instance.values.map((k, e) => MapEntry(k.toString(), e)),
+  'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
 };

@@ -23,7 +23,7 @@ class EditorApp extends StatelessWidget {
           foregroundColor: ShadVioletColorScheme.dark().foreground,
         ),
       ),
-      home: EditorClientLoader(),
+      home: EditorPage(),
     );
   }
 }

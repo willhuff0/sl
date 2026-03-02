@@ -15,37 +15,39 @@ UUID generateUuid() {
 @JsonSerializable()
 class ClientState {
   final ClientId clientId;
-  final UUID scopeId;
   final int color;
+  UUID? scopeId;
 
-  ClientState({required this.clientId, required this.scopeId, required this.color});
+  ClientState({required this.clientId, required this.color, this.scopeId});
 
   factory ClientState.fromJson(Map<String, dynamic> json) => _$ClientStateFromJson(json);
   Map<String, dynamic> toJson() => _$ClientStateToJson(this);
 }
 
-enum PanelType {
-  asset,
-  console,
-  engine,
-  nodeGraph,
-  properties,
+@JsonSerializable()
+class ClientScopeState {
+  final ViewPosition? viewPosition;
+
+  ClientScopeState({required this.viewPosition});
+
+  factory ClientScopeState.fromJson(Map<String, dynamic> json) => _$ClientScopeStateFromJson(json);
+  Map<String, dynamic> toJson() => _$ClientScopeStateToJson(this);
 }
 
 @JsonSerializable()
 class ViewPosition {
-  final PanelType panel;
-  final double cursorX;
-  final double cursorY;
-  final (double, double, double) enginePosition;
-  final (double, double, double, double) engineOrientation;
+  final (double, double, double) position;
+  final (double, double, double, double) orientation;
+  final double fov;
+  final (double, double) cursor;
+  final Set<UUID> selection;
 
   ViewPosition({
-    required this.panel,
-    required this.cursorX,
-    required this.cursorY,
-    required this.enginePosition,
-    required this.engineOrientation,
+    required this.position,
+    required this.orientation,
+    required this.fov,
+    required this.cursor,
+    required this.selection,
   });
 
   factory ViewPosition.fromJson(Map<String, dynamic> json) => _$ViewPositionFromJson(json);

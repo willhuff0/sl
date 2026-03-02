@@ -33,8 +33,6 @@ class Client {
   late final Timer _tickTimer;
 
   late final StreamSubscription _listenSubscription;
-  late final StreamSubscription<ViewPosition> _ownCursorPositionSubscription;
-  ViewPosition? _changedOwnViewPosition;
 
   static late Client _instance;
 
@@ -54,7 +52,6 @@ class Client {
     _listenSubscription = _socket.stream.listen(_onData);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
-    _ownCursorPositionSubscription = ownCursorPositionStream.listen(_onOwnCursorPositionChanged);
     _instance = this;
   }
 
@@ -62,7 +59,6 @@ class Client {
     _listenSubscription.cancel();
     _socket.sink.close();
     _tickTimer.cancel();
-    _ownCursorPositionSubscription.cancel();
   }
 
   Future<void> _onData(dynamic data) async {
@@ -80,10 +76,10 @@ class Client {
         _clientId = setSelf.clientId;
         _scope = Scope(scopeId: 'test-scope-id');
         break;
-      case StcSetClients setClients:
-        _clientStates = setClients.states;
+      case StcSetClientGlobalStates setClientGlobalStates:
+        _clientStates = setClientGlobalStates.states;
         if (!_clientStates.containsKey(_clientId)) {
-          Logger.log('Leaving because StcSetClients did not contain an entry for this client.', .info);
+          Logger.log('Leaving because StcSetClientGlobalStates did not contain an entry for this client.', .info);
           _leave();
           return;
         }

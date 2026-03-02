@@ -6,9 +6,9 @@ part 'protocol.g.dart';
 typedef MessageFactory = Message Function(Map<String, dynamic> json);
 final Map<String, MessageFactory> _factories = {
   StcSetSelf.messageClassS: StcSetSelf.fromJson,
-  StcSetClients.messageClassS: StcSetClients.fromJson,
-  CtsSetViewPosition.messageClassS: CtsSetViewPosition.fromJson,
-  StcSetViewPositions.messageClassS: StcSetViewPositions.fromJson,
+  StcSetClientGlobalStates.messageClassS: StcSetClientGlobalStates.fromJson,
+  CtsSetScopeState.messageClassS: CtsSetScopeState.fromJson,
+  StcSetClientScopeStates.messageClassS: StcSetClientScopeStates.fromJson,
 };
 
 class MessageAndHeader {
@@ -52,45 +52,45 @@ class StcSetSelf extends Message {
 }
 
 @JsonSerializable()
-class StcSetClients extends Message {
+class StcSetClientGlobalStates extends Message {
   final Map<ClientId, ClientState> states;
 
-  StcSetClients({required this.states});
+  StcSetClientGlobalStates({required this.states});
 
   @override
-  String get messageClass => '$StcSetClients';
-  static String get messageClassS => '$StcSetClients';
+  String get messageClass => '$StcSetClientGlobalStates';
+  static String get messageClassS => '$StcSetClientGlobalStates';
 
-  factory StcSetClients.fromJson(Map<String, dynamic> json) => _$StcSetClientsFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetClientsToJson(this);
+  factory StcSetClientGlobalStates.fromJson(Map<String, dynamic> json) => _$StcSetClientGlobalStatesFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetClientGlobalStatesToJson(this);
 }
 
 @JsonSerializable()
-class CtsSetViewPosition extends Message {
+class CtsSetScopeState extends Message {
   final UUID scopeId;
-  final ViewPosition? value;
+  final ClientScopeState state;
 
-  CtsSetViewPosition({required this.scopeId, required this.value});
+  CtsSetScopeState({required this.scopeId, required this.state});
 
   @override
-  String get messageClass => '$CtsSetViewPosition';
-  static String get messageClassS => '$CtsSetViewPosition';
+  String get messageClass => '$CtsSetScopeState';
+  static String get messageClassS => '$CtsSetScopeState';
 
-  factory CtsSetViewPosition.fromJson(Map<String, dynamic> json) => _$CtsSetViewPositionFromJson(json);
-  Map<String, dynamic> toJson() => _$CtsSetViewPositionToJson(this);
+  factory CtsSetScopeState.fromJson(Map<String, dynamic> json) => _$CtsSetScopeStateFromJson(json);
+  Map<String, dynamic> toJson() => _$CtsSetScopeStateToJson(this);
 }
 
 @JsonSerializable()
-class StcSetViewPositions extends Message {
+class StcSetClientScopeStates extends Message {
   final UUID scopeId;
-  final Map<ClientId, ViewPosition> values;
+  final Map<ClientId, ClientScopeState> states;
 
-  StcSetViewPositions({required this.scopeId, required this.values});
+  StcSetClientScopeStates({required this.scopeId, required this.states});
 
   @override
-  String get messageClass => '$StcSetViewPositions';
-  static String get messageClassS => '$StcSetViewPositions';
+  String get messageClass => '$StcSetClientScopeStates';
+  static String get messageClassS => '$StcSetClientScopeStates';
 
-  factory StcSetViewPositions.fromJson(Map<String, dynamic> json) => _$StcSetViewPositionsFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetViewPositionsToJson(this);
+  factory StcSetClientScopeStates.fromJson(Map<String, dynamic> json) => _$StcSetClientScopeStatesFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetClientScopeStatesToJson(this);
 }

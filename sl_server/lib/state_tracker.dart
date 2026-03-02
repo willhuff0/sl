@@ -1,9 +1,16 @@
+import 'package:sl_server/objects/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_shared/sl_shared.dart';
 
-final Map<ObjectClass, StateTracked Function()> _constructors = {};
+final Map<ObjectClass, StateTracked Function(UUID)> _constructors = {
+  Node.objectClass: Node.new,
+};
 
 abstract class StateTracked {
+  final UUID uuid;
+
+  StateTracked(this.uuid);
+
   bool isValid(Delta delta);
   void applyDelta(Delta delta);
 }
@@ -26,7 +33,7 @@ class StateTracker {
         if (stateChange.objectClass == null) {
           throw Exception('Object ${stateChange.objectId} is not registered on the server!');
         }
-        trackedObject = _createObject(stateChange.objectClass!);
+        trackedObject = _createObject(stateChange.objectId, stateChange.objectClass!);
         wasObjectJustCreated = true;
       }
 
@@ -62,7 +69,7 @@ class StateTracker {
     );
   }
 
-  StateTracked _createObject(ObjectClass objectClass) {
-    return _constructors[objectClass]!();
+  StateTracked _createObject(UUID uuid, ObjectClass objectClass) {
+    return _constructors[objectClass]!(uuid);
   }
 }

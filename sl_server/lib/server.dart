@@ -20,34 +20,36 @@ final List<int> _colors = [
 
 class Scope {
   final UUID scopeId;
-  final Set<int> clients = {};
+  final Map<int, ClientScopeState> clients = {};
 
-  var hasAnyCursorPositionChanged = false;
+  var hasAnyClientStateChanged = false;
 
   Scope({required this.scopeId});
 }
 
 class Client {
   final WebSocketChannel socket;
-  final int clientId;
-  final int color;
-  UUID scopeId = '';
+  ClientState state;
 
-  ViewPosition? viewPosition;
+  int get clientId => state.clientId;
+  UUID? get scopeId => state.scopeId;
+  int get color => state.color;
 
   Client({
     required this.socket,
-    required this.clientId,
-    required this.color,
+    required this.state,
   });
 }
 
 class Server {
   late final WebSocketHandler _webSocketHandler;
+
   final Map<int, Client> _clients = {};
   final Map<UUID, Scope> _scopes = {};
+
   var _nextClientId = 0;
   var _availableColors = List.from(_colors);
+
   late final Timer _tickTimer;
 
   Server() {
@@ -69,18 +71,21 @@ class Server {
     await client.socket.sink.close(status, reason);
     _clients.remove(client.clientId);
     _removeClientFromScope(client);
-    _broadcastSetClients();
+    _broadcastClientStates();
   }
 
   void _onConnection(WebSocketChannel socket, _) {
     final client = Client(
       socket: socket,
-      clientId: _nextClientId++,
-      color: _pickColor(),
+      state: ClientState(
+        clientId: _nextClientId++,
+        scopeId: null,
+        color: _getNextClientColor(),
+      ),
     );
     _clients[client.clientId] = client;
     send(client, StcSetSelf(clientId: client.clientId));
-    _broadcastSetClients();
+    _broadcastClientStates();
     socket.stream.listen((data) => _onData(client, data))
       ..onError((_) => kickClient(client))
       ..onDone(() => kickClient(client));
@@ -97,50 +102,51 @@ class Server {
 
   void _handleMessage(Client client, Message message) {
     switch (message) {
-      case CtsSetViewPosition setViewPosition:
-        if (client.scopeId != setViewPosition.scopeId) {
-          _setClientScope(client, setViewPosition.scopeId);
-        }
-        client.viewPosition = setViewPosition.value;
-        _scopes[client.scopeId]!.hasAnyCursorPositionChanged = true;
+      case CtsSetScopeState setScopeState:
+        _setClientScopeState(client, setScopeState.scopeId, setScopeState.state);
         break;
     }
   }
 
   void _tick() {
     for (final scope in _scopes.values) {
-      if (scope.hasAnyCursorPositionChanged) {
-        _broadcastScopeSetCursorPositions(scope);
-        scope.hasAnyCursorPositionChanged = false;
+      if (scope.hasAnyClientStateChanged) {
+        _broadcastClientScopeStates(scope);
+        scope.hasAnyClientStateChanged = false;
       }
     }
   }
 
-  void _setClientScope(Client client, UUID scopeId) {
-    _removeClientFromScope(client);
-    if (scopeId.isEmpty) return;
+  void _setClientScopeState(Client client, UUID scopeId, ClientScopeState newState) {
+    if (scopeId != client.scopeId) {
+      _removeClientFromScope(client);
+    }
 
     var scope = _scopes[scopeId] ?? (_scopes[scopeId] = Scope(scopeId: scopeId));
-    scope.clients.add(client.clientId);
-    client.scopeId = scopeId;
+    scope.clients[client.clientId] = newState;
+    scope.hasAnyClientStateChanged = true;
+
+    client.state.scopeId = scopeId;
   }
 
   void _removeClientFromScope(Client client) {
-    if (client.scopeId.isEmpty) return;
+    if (client.scopeId == null) return;
+
     final scope = _scopes[client.scopeId]!;
     scope.clients.remove(client.clientId);
+
     if (scope.clients.isEmpty) _scopes.remove(client.scopeId);
-    client.scopeId = '';
+    client.state.scopeId = null;
   }
 
-  int _pickColor() {
+  int _getNextClientColor() {
     if (_availableColors.isEmpty) _availableColors = List.from(_colors);
     return _availableColors.removeAt(_random.nextInt(_availableColors.length));
   }
 
-  void _broadcastSetClients() {
+  void _broadcastClientStates() {
     broadcast(
-      StcSetClients(
+      StcSetClientGlobalStates(
         states: _clients.map(
           (clientId, client) => MapEntry(
             clientId,
@@ -155,19 +161,13 @@ class Server {
     );
   }
 
-  void _broadcastScopeSetCursorPositions(Scope scope) {
+  void _broadcastClientScopeStates(Scope scope) {
     broadcast(
-      StcSetViewPositions(
+      StcSetClientScopeStates(
         scopeId: scope.scopeId,
-        values: Map.fromEntries(
-          scope.clients.map((clientId) {
-            final client = _clients[clientId]!;
-            if (client.viewPosition == null) return null;
-            return MapEntry(clientId, client.viewPosition!);
-          }).nonNulls,
-        ),
+        states: scope.clients,
       ),
-      only: scope.clients.map((clientId) => _clients[clientId]!),
+      only: scope.clients.keys.map((clientId) => _clients[clientId]!),
     );
   }
 
