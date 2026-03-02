@@ -7,17 +7,15 @@ typedef MessageFactory = Message Function(Map<String, dynamic> json);
 final Map<String, MessageFactory> _factories = {
   StcSetSelf.messageClassS: StcSetSelf.fromJson,
   StcSetClients.messageClassS: StcSetClients.fromJson,
-  CtsSetCursorPosition.messageClassS: CtsSetCursorPosition.fromJson,
-  StcSetCursorPositions.messageClassS: StcSetCursorPositions.fromJson,
+  CtsSetViewPosition.messageClassS: CtsSetViewPosition.fromJson,
+  StcSetViewPositions.messageClassS: StcSetViewPositions.fromJson,
 };
 
 class MessageAndHeader {
-  // final int acknowledgementTimestamp;
   final String messageClass;
   final dynamic messageInstance;
 
   MessageAndHeader({
-    // required this.acknowledgementTimestamp,
     required this.messageClass,
     required this.messageInstance,
   });
@@ -25,13 +23,11 @@ class MessageAndHeader {
   factory MessageAndHeader.fromJson(Map<String, dynamic> json) {
     final class_ = json['class'] as String;
     return MessageAndHeader(
-      // acknowledgementTimestamp: (json['ack'] as num).toInt(),
       messageClass: class_,
       messageInstance: _factories[class_]!(json['message'] as Map<String, dynamic>),
     );
   }
   Map<String, dynamic> toJson() => {
-    // 'ack': acknowledgementTimestamp,
     'class': messageClass,
     'message': messageInstance,
   };
@@ -70,31 +66,31 @@ class StcSetClients extends Message {
 }
 
 @JsonSerializable()
-class CtsSetCursorPosition extends Message {
+class CtsSetViewPosition extends Message {
   final UUID scopeId;
-  final CursorPosition? value;
+  final ViewPosition? value;
 
-  CtsSetCursorPosition({required this.scopeId, required this.value});
+  CtsSetViewPosition({required this.scopeId, required this.value});
 
   @override
-  String get messageClass => '$CtsSetCursorPosition';
-  static String get messageClassS => '$CtsSetCursorPosition';
+  String get messageClass => '$CtsSetViewPosition';
+  static String get messageClassS => '$CtsSetViewPosition';
 
-  factory CtsSetCursorPosition.fromJson(Map<String, dynamic> json) => _$CtsSetCursorPositionFromJson(json);
-  Map<String, dynamic> toJson() => _$CtsSetCursorPositionToJson(this);
+  factory CtsSetViewPosition.fromJson(Map<String, dynamic> json) => _$CtsSetViewPositionFromJson(json);
+  Map<String, dynamic> toJson() => _$CtsSetViewPositionToJson(this);
 }
 
 @JsonSerializable()
-class StcSetCursorPositions extends Message {
+class StcSetViewPositions extends Message {
   final UUID scopeId;
-  final Map<ClientId, CursorPosition> values;
+  final Map<ClientId, ViewPosition> values;
 
-  StcSetCursorPositions({required this.scopeId, required this.values});
+  StcSetViewPositions({required this.scopeId, required this.values});
 
   @override
-  String get messageClass => '$StcSetCursorPositions';
-  static String get messageClassS => '$StcSetCursorPositions';
+  String get messageClass => '$StcSetViewPositions';
+  static String get messageClassS => '$StcSetViewPositions';
 
-  factory StcSetCursorPositions.fromJson(Map<String, dynamic> json) => _$StcSetCursorPositionsFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetCursorPositionsToJson(this);
+  factory StcSetViewPositions.fromJson(Map<String, dynamic> json) => _$StcSetViewPositionsFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetViewPositionsToJson(this);
 }

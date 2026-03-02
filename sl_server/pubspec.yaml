@@ -19,5 +19,4 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
-  http: ^1.2.2
   lints: ^6.0.0

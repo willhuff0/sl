@@ -19,6 +19,7 @@ dependencies:
   web_socket_channel: ^3.0.3
   sl_shared:
     path: ../sl_shared
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

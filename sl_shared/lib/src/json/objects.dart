@@ -33,13 +33,21 @@ enum PanelType {
 }
 
 @JsonSerializable()
-class CursorPosition {
+class ViewPosition {
   final PanelType panel;
-  final double x;
-  final double y;
+  final double cursorX;
+  final double cursorY;
+  final (double, double, double) enginePosition;
+  final (double, double, double, double) engineOrientation;
 
-  CursorPosition({required this.panel, required this.x, required this.y});
+  ViewPosition({
+    required this.panel,
+    required this.cursorX,
+    required this.cursorY,
+    required this.enginePosition,
+    required this.engineOrientation,
+  });
 
-  factory CursorPosition.fromJson(Map<String, dynamic> json) => _$CursorPositionFromJson(json);
-  Map<String, dynamic> toJson() => _$CursorPositionToJson(this);
+  factory ViewPosition.fromJson(Map<String, dynamic> json) => _$ViewPositionFromJson(json);
+  Map<String, dynamic> toJson() => _$ViewPositionToJson(this);
 }

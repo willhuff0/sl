@@ -27,33 +27,30 @@ Map<String, dynamic> _$StcSetClientsToJson(StcSetClients instance) =>
       'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
     };
 
-CtsSetCursorPosition _$CtsSetCursorPositionFromJson(
-  Map<String, dynamic> json,
-) => CtsSetCursorPosition(
-  scopeId: json['scopeId'] as String,
-  value: json['value'] == null
-      ? null
-      : CursorPosition.fromJson(json['value'] as Map<String, dynamic>),
-);
+CtsSetViewPosition _$CtsSetViewPositionFromJson(Map<String, dynamic> json) =>
+    CtsSetViewPosition(
+      scopeId: json['scopeId'] as String,
+      value: json['value'] == null
+          ? null
+          : ViewPosition.fromJson(json['value'] as Map<String, dynamic>),
+    );
 
-Map<String, dynamic> _$CtsSetCursorPositionToJson(
-  CtsSetCursorPosition instance,
-) => <String, dynamic>{'scopeId': instance.scopeId, 'value': instance.value};
+Map<String, dynamic> _$CtsSetViewPositionToJson(CtsSetViewPosition instance) =>
+    <String, dynamic>{'scopeId': instance.scopeId, 'value': instance.value};
 
-StcSetCursorPositions _$StcSetCursorPositionsFromJson(
-  Map<String, dynamic> json,
-) => StcSetCursorPositions(
-  scopeId: json['scopeId'] as String,
-  values: (json['values'] as Map<String, dynamic>).map(
-    (k, e) => MapEntry(
-      int.parse(k),
-      CursorPosition.fromJson(e as Map<String, dynamic>),
-    ),
-  ),
-);
+StcSetViewPositions _$StcSetViewPositionsFromJson(Map<String, dynamic> json) =>
+    StcSetViewPositions(
+      scopeId: json['scopeId'] as String,
+      values: (json['values'] as Map<String, dynamic>).map(
+        (k, e) => MapEntry(
+          int.parse(k),
+          ViewPosition.fromJson(e as Map<String, dynamic>),
+        ),
+      ),
+    );
 
-Map<String, dynamic> _$StcSetCursorPositionsToJson(
-  StcSetCursorPositions instance,
+Map<String, dynamic> _$StcSetViewPositionsToJson(
+  StcSetViewPositions instance,
 ) => <String, dynamic>{
   'scopeId': instance.scopeId,
   'values': instance.values.map((k, e) => MapEntry(k.toString(), e)),

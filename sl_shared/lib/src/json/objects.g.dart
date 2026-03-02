@@ -19,18 +19,45 @@ Map<String, dynamic> _$ClientStateToJson(ClientState instance) =>
       'color': instance.color,
     };
 
-CursorPosition _$CursorPositionFromJson(Map<String, dynamic> json) =>
-    CursorPosition(
-      panel: $enumDecode(_$PanelTypeEnumMap, json['panel']),
-      x: (json['x'] as num).toDouble(),
-      y: (json['y'] as num).toDouble(),
-    );
+ViewPosition _$ViewPositionFromJson(Map<String, dynamic> json) => ViewPosition(
+  panel: $enumDecode(_$PanelTypeEnumMap, json['panel']),
+  cursorX: (json['cursorX'] as num).toDouble(),
+  cursorY: (json['cursorY'] as num).toDouble(),
+  enginePosition: _$recordConvert(
+    json['enginePosition'],
+    ($jsonValue) => (
+      ($jsonValue[r'$1'] as num).toDouble(),
+      ($jsonValue[r'$2'] as num).toDouble(),
+      ($jsonValue[r'$3'] as num).toDouble(),
+    ),
+  ),
+  engineOrientation: _$recordConvert(
+    json['engineOrientation'],
+    ($jsonValue) => (
+      ($jsonValue[r'$1'] as num).toDouble(),
+      ($jsonValue[r'$2'] as num).toDouble(),
+      ($jsonValue[r'$3'] as num).toDouble(),
+      ($jsonValue[r'$4'] as num).toDouble(),
+    ),
+  ),
+);
 
-Map<String, dynamic> _$CursorPositionToJson(CursorPosition instance) =>
+Map<String, dynamic> _$ViewPositionToJson(ViewPosition instance) =>
     <String, dynamic>{
       'panel': _$PanelTypeEnumMap[instance.panel]!,
-      'x': instance.x,
-      'y': instance.y,
+      'cursorX': instance.cursorX,
+      'cursorY': instance.cursorY,
+      'enginePosition': <String, dynamic>{
+        r'$1': instance.enginePosition.$1,
+        r'$2': instance.enginePosition.$2,
+        r'$3': instance.enginePosition.$3,
+      },
+      'engineOrientation': <String, dynamic>{
+        r'$1': instance.engineOrientation.$1,
+        r'$2': instance.engineOrientation.$2,
+        r'$3': instance.engineOrientation.$3,
+        r'$4': instance.engineOrientation.$4,
+      },
     };
 
 const _$PanelTypeEnumMap = {
@@ -40,3 +67,6 @@ const _$PanelTypeEnumMap = {
   PanelType.nodeGraph: 'nodeGraph',
   PanelType.properties: 'properties',
 };
+
+$Rec _$recordConvert<$Rec>(Object? value, $Rec Function(Map) convert) =>
+    convert(value as Map<String, dynamic>);

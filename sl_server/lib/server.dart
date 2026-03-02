@@ -32,9 +32,8 @@ class Client {
   final int clientId;
   final int color;
   UUID scopeId = '';
-  // var acknowledgementTimestamp = 0;
 
-  CursorPosition? cursorPosition;
+  ViewPosition? viewPosition;
 
   Client({
     required this.socket,
@@ -65,6 +64,8 @@ class Server {
   }
 
   Future<void> kickClient(Client client, {int? status, String? reason}) async {
+    print('Kicking client ${client.clientId}');
+
     await client.socket.sink.close(status, reason);
     _clients.remove(client.clientId);
     _removeClientFromScope(client);
@@ -80,7 +81,9 @@ class Server {
     _clients[client.clientId] = client;
     send(client, StcSetSelf(clientId: client.clientId));
     _broadcastSetClients();
-    socket.stream.listen((data) => _onData(client, data)).onDone(() => kickClient(client));
+    socket.stream.listen((data) => _onData(client, data))
+      ..onError((_) => kickClient(client))
+      ..onDone(() => kickClient(client));
   }
 
   void _onData(Client client, dynamic data) {
@@ -89,26 +92,16 @@ class Server {
     final json = jsonDecode(data) as Map<String, dynamic>;
     final messageAndHeader = MessageAndHeader.fromJson(json);
 
-    // if (messageAndHeader.acknowledgementTimestamp == -1) {
-    //   // Message type is free of state conflicts
-    //   _handleMessage(client, messageAndHeader.messageInstance);
-    //   return;
-    // }
-
-    // if (client.acknowledgementTimestamp >= messageAndHeader.acknowledgementTimestamp) {
-    //   throw Exception('acknowledgementTimestamp should monotonically increase!');
-    // }
     _handleMessage(client, messageAndHeader.messageInstance);
-    // client.acknowledgementTimestamp = messageAndHeader.acknowledgementTimestamp;
   }
 
   void _handleMessage(Client client, Message message) {
     switch (message) {
-      case CtsSetCursorPosition setCursorPosition:
-        if (client.scopeId != setCursorPosition.scopeId) {
-          _setClientScope(client, setCursorPosition.scopeId);
+      case CtsSetViewPosition setViewPosition:
+        if (client.scopeId != setViewPosition.scopeId) {
+          _setClientScope(client, setViewPosition.scopeId);
         }
-        client.cursorPosition = setCursorPosition.value;
+        client.viewPosition = setViewPosition.value;
         _scopes[client.scopeId]!.hasAnyCursorPositionChanged = true;
         break;
     }
@@ -164,13 +157,13 @@ class Server {
 
   void _broadcastScopeSetCursorPositions(Scope scope) {
     broadcast(
-      StcSetCursorPositions(
+      StcSetViewPositions(
         scopeId: scope.scopeId,
         values: Map.fromEntries(
           scope.clients.map((clientId) {
             final client = _clients[clientId]!;
-            if (client.cursorPosition == null) return null;
-            return MapEntry(clientId, client.cursorPosition!);
+            if (client.viewPosition == null) return null;
+            return MapEntry(clientId, client.viewPosition!);
           }).nonNulls,
         ),
       ),
@@ -182,7 +175,6 @@ class Server {
     client.socket.sink.add(
       jsonEncode(
         MessageAndHeader(
-          // acknowledgementTimestamp: client.acknowledgementTimestamp,
           messageClass: message.messageClass,
           messageInstance: message,
         ),
@@ -197,7 +189,6 @@ class Server {
       client.socket.sink.add(
         jsonEncode(
           MessageAndHeader(
-            // acknowledgementTimestamp: client.acknowledgementTimestamp,
             messageClass: message.messageClass,
             messageInstance: encodedMessage,
           ),

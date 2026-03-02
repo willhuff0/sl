@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
-import 'package:sl_editor/widgets/cursors.dart';
+import 'package:sl_editor/client/client.dart';
+import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/sl_engine.dart' as engine;
+import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
 
 class EnginePanel extends StatefulWidget {
@@ -13,6 +16,8 @@ class EnginePanel extends StatefulWidget {
 }
 
 class _EngineViewState extends State<EnginePanel> {
+  late final StreamSubscription _onClientStatesChangedSubscription;
+
   @override
   void initState() {
     ui_web.platformViewRegistry.registerViewFactory('sl-engine-view', (int viewId, {Object? params}) {
@@ -22,7 +27,19 @@ class _EngineViewState extends State<EnginePanel> {
       engine.initialize(canvas);
       return canvas;
     });
+    _onClientStatesChangedSubscription = Client.get().onClientStatesChanged.listen(_onClientStatesChanged);
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _onClientStatesChangedSubscription.cancel();
+    super.dispose();
+  }
+
+  void _onClientStatesChanged(_) {
+    final color = Color(Client.get().getSelfClientState().color);
+    Selector.setColor(Vector4(color.r, color.g, color.b, color.a));
   }
 
   @override
@@ -30,7 +47,7 @@ class _EngineViewState extends State<EnginePanel> {
     return Stack(
       children: [
         Positioned.fill(child: HtmlElementView(viewType: 'sl-engine-view')),
-        Positioned.fill(child: CursorsWidget()),
+        // Positioned.fill(child: CursorsWidget()),
       ],
     );
   }

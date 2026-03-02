@@ -1,33 +1,40 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/widgets/cursors.dart';
+import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const tickInterval = Duration(milliseconds: 100);
 
-final _otherCursorPositionController = StreamController<List<(int color, CursorPosition)>>.broadcast();
+final _otherCursorPositionController = StreamController<List<(int color, ViewPosition)>>.broadcast();
 final otherCursorPositionStream = _otherCursorPositionController.stream;
 
 class Scope {
   final UUID scopeId;
-  Map<int, CursorPosition> cursorPositions = {};
+  Map<int, ViewPosition> cursorPositions = {};
 
   Scope({required this.scopeId});
 }
 
 class Client {
-  late final WebSocketChannel socket;
+  final WebSocketChannel _socket;
   late final ClientId _clientId;
+
+  final _onClientStatesChangedController = StreamController<UnmodifiableMapView<int, ClientState>>.broadcast();
+  late final Stream<UnmodifiableMapView<int, ClientState>> onClientStatesChanged;
   Map<int, ClientState> _clientStates = {};
-  ClientState get _clientState => _clientStates[_clientId]!;
-  // int _acknowledgementTimestamp = 0;
+
   Scope? _scope;
+
   late final Timer _tickTimer;
-  late final StreamSubscription<CursorPosition> _ownCursorPositionSubscription;
-  CursorPosition? _changedOwnCursorPosition;
+
+  late final StreamSubscription _listenSubscription;
+  late final StreamSubscription<ViewPosition> _ownCursorPositionSubscription;
+  ViewPosition? _changedOwnViewPosition;
 
   static late Client _instance;
 
@@ -36,20 +43,24 @@ class Client {
   }) async {
     final socket = WebSocketChannel.connect(serverUri);
     await socket.ready;
-    return _instance = Client._(socket: socket);
+    return Client._(socket: socket);
   }
 
   static Client get() {
     return _instance;
   }
 
-  Client._({required this.socket}) {
-    socket.stream.listen(_onData);
+  Client._({required WebSocketChannel socket}) : _socket = socket {
+    _listenSubscription = _socket.stream.listen(_onData);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
+    onClientStatesChanged = _onClientStatesChangedController.stream;
     _ownCursorPositionSubscription = ownCursorPositionStream.listen(_onOwnCursorPositionChanged);
+    _instance = this;
   }
 
   void dispose() {
+    _listenSubscription.cancel();
+    _socket.sink.close();
     _tickTimer.cancel();
     _ownCursorPositionSubscription.cancel();
   }
@@ -57,7 +68,7 @@ class Client {
   Future<void> _onData(dynamic data) async {
     print('Client received: $data');
 
-    if (socket.closeCode != null) return;
+    if (_socket.closeCode != null) return;
     final json = jsonDecode(data) as Map<String, dynamic>;
     final messageAndHeader = MessageAndHeader.fromJson(json);
     _handleMessage(messageAndHeader.messageInstance);
@@ -72,11 +83,13 @@ class Client {
       case StcSetClients setClients:
         _clientStates = setClients.states;
         if (!_clientStates.containsKey(_clientId)) {
+          Logger.log('Leaving because StcSetClients did not contain an entry for this client.', .info);
           _leave();
           return;
         }
+        _onClientStatesChangedController.add(UnmodifiableMapView(_clientStates));
         break;
-      case StcSetCursorPositions setCursorPositions:
+      case StcSetViewPositions setCursorPositions:
         if (_scope?.scopeId != setCursorPositions.scopeId) return;
         _scope!.cursorPositions = setCursorPositions.values;
         _otherCursorPositionController.add(
@@ -90,51 +103,42 @@ class Client {
   }
 
   void _tick() {
-    if (_changedOwnCursorPosition != null) {
+    if (_changedOwnViewPosition != null) {
       if (_scope != null) {
-        sendNoAck(
-          CtsSetCursorPosition(
+        send(
+          CtsSetViewPosition(
             scopeId: _scope!.scopeId,
-            value: _changedOwnCursorPosition,
+            value: _changedOwnViewPosition,
           ),
         );
       }
-      _changedOwnCursorPosition = null;
+      _changedOwnViewPosition = null;
     }
     if (StateTracker.hasLocalChanges()) {
       StateTracker.submitLocalChanges();
     }
   }
 
-  void _onOwnCursorPositionChanged(CursorPosition cursorPosition) {
-    _changedOwnCursorPosition = cursorPosition;
+  void _onOwnCursorPositionChanged(ViewPosition cursorPosition) {
+    _changedOwnViewPosition = cursorPosition;
   }
 
   Future<void> _leave() async {
-    await socket.sink.close();
-  }
-
-  void sendNoAck(Message message) {
-    socket.sink.add(
-      jsonEncode(
-        MessageAndHeader(
-          // acknowledgementTimestamp: -1,
-          messageClass: message.messageClass,
-          messageInstance: message,
-        ),
-      ),
-    );
+    await _socket.sink.close();
   }
 
   void send(Message message) {
-    socket.sink.add(
+    _socket.sink.add(
       jsonEncode(
         MessageAndHeader(
-          // acknowledgementTimestamp: ++_acknowledgementTimestamp,
           messageClass: message.messageClass,
           messageInstance: message,
         ),
       ),
     );
   }
+
+  UnmodifiableMapView<int, ClientState> getClientStates() => UnmodifiableMapView(_clientStates);
+  ClientState getSelfClientState() => _clientStates[_clientId]!;
+  int getClientId() => _clientId;
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:js_interop';
 import 'dart:math';
 
@@ -7,7 +6,6 @@ import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
-import 'package:sl_engine/gl/xr.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/editor_utils/selector.dart';
@@ -15,7 +13,6 @@ import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
-import 'package:webxr/webxr.dart';
 
 final Node root = Node(name: 'Example Scene');
 late final List<Node> _cubes;
@@ -64,24 +61,33 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   root.enterScene();
 
   if (vrSupported) {
-    StreamSubscription? onClickSubscription;
-    onClickSubscription = canvas.onClick.listen((_) async {
-      onClickSubscription!.cancel();
-      await beginVrSession();
+    // StreamSubscription? onClickSubscription;
+    // onClickSubscription = canvas.onClick.listen((_) async {
+    //   onClickSubscription!.cancel();
+    //   await beginVrSession();
 
-      final glLayer = XRWebGLLayer(xrSession, gl);
+    //   final glLayer = XRWebGLLayer(xrSession, gl);
 
-      final renderState = XRRenderStateInit.$(JSObject());
-      renderState.baseLayer = glLayer;
+    //   final renderState = XRRenderStateInit.$(JSObject());
+    //   renderState.baseLayer = glLayer;
 
-      // TODO: change to   external _i1.JSVoid updateRenderState([XRRenderStateInit renderStateInit]);
-      xrSession.updateRenderState(renderState);
+    //   // TODO: change to   external _i1.JSVoid updateRenderState([XRRenderStateInit renderStateInit]);
+    //   xrSession.updateRenderState(renderState);
 
-      xrSession.requestAnimationFrame(xrFrame.toJS);
-    });
+    //   xrSession.requestAnimationFrame(xrFrame.toJS);
+    // });
   } else {
     web.window.requestAnimationFrame(frame.toJS);
   }
+}
+
+(Vector3, Quaternion) getEditorViewPosition() {
+  final (_, viewMat, _) = _flyCamera.getState();
+  final Vector3 position = Vector3.zero();
+  final Quaternion orientation = Quaternion.identity();
+  final Vector3 scale = Vector3(1.0, 1.0, 1.0);
+  viewMat.decompose(position, orientation, scale);
+  return (position, orientation);
 }
 
 num? _lastTime;
@@ -135,98 +141,98 @@ void frame(num time) {
   web.window.requestAnimationFrame(frame.toJS);
 }
 
-void xrFrame(num time, XRFrame xrFrameData) {
-  double dt;
-  if (_lastTime == null) {
-    dt = 0.0;
-  } else {
-    dt = (time - _lastTime!) / 1000.0;
-  }
-  _lastTime = time;
+// void xrFrame(num time, XRFrame xrFrameData) {
+//   double dt;
+//   if (_lastTime == null) {
+//     dt = 0.0;
+//   } else {
+//     dt = (time - _lastTime!) / 1000.0;
+//   }
+//   _lastTime = time;
 
-  tick(time.toDouble(), dt);
+//   tick(time.toDouble(), dt);
 
-  final glLayer = xrSession.renderState.baseLayer!;
-  final pose = xrFrameData.getViewerPose(xrReferenceSpace);
-  if (pose != null) {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = glLayer.framebuffer);
+//   final glLayer = xrSession.renderState.baseLayer!;
+//   final pose = xrFrameData.getViewerPose(xrReferenceSpace);
+//   if (pose != null) {
+//     gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = glLayer.framebuffer);
 
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
-    gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+//     gl.clearColor(0.1, 0.1, 0.1, 1.0);
+//     gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
 
-    for (final jsView in pose.views.toDart) {
-      final view = jsView as XRView;
-      final viewport = glLayer.getViewport(view)!;
+//     for (final jsView in pose.views.toDart) {
+//       final view = jsView as XRView;
+//       final viewport = glLayer.getViewport(view)!;
 
-      gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+//       gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 
-      final viewMat = Matrix4.fromList(view.transform.matrix.toDart)..invert();
-      final projMat = Matrix4.fromList(view.projectionMatrix.toDart);
-      final viewProjMat = projMat * viewMat;
+//       final viewMat = Matrix4.fromList(view.transform.matrix.toDart)..invert();
+//       final projMat = Matrix4.fromList(view.projectionMatrix.toDart);
+//       final viewProjMat = projMat * viewMat;
 
-      final viewPosJs = view.transform.position;
-      final viewPos = Vector3(viewPosJs.x, viewPosJs.y, viewPosJs.z);
+//       final viewPosJs = view.transform.position;
+//       final viewPos = Vector3(viewPosJs.x, viewPosJs.y, viewPosJs.z);
 
-      SL.setUniforms(
-        SLUniforms(
-          viewProjMat: viewProjMat,
-          viewMat: viewMat,
-          viewPos: viewPos,
-        ),
-      );
+//       SL.setUniforms(
+//         SLUniforms(
+//           viewProjMat: viewProjMat,
+//           viewMat: viewMat,
+//           viewPos: viewPos,
+//         ),
+//       );
 
-      _shader.bind();
-      Renderer.renderAll(
-        bindUniformsCallback: (node) {
-          _shader.setUniform('u_modelMat', node.getMatrix());
-          _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
-        },
-      );
-      Selector.draw();
-    }
-  }
+//       _shader.bind();
+//       Renderer.renderAll(
+//         bindUniformsCallback: (node) {
+//           _shader.setUniform('u_modelMat', node.getMatrix());
+//           _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
+//         },
+//       );
+//       Selector.draw();
+//     }
+//   }
 
-  {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = null);
+//   {
+//     gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer = null);
 
-    _flyCamera.tick(dt);
-    final (viewPos, viewMat, projMat) = _flyCamera.getState();
-    final viewProjMat = projMat * viewMat;
+//     _flyCamera.tick(dt);
+//     final (viewPos, viewMat, projMat) = _flyCamera.getState();
+//     final viewProjMat = projMat * viewMat;
 
-    final width = canvas.clientWidth;
-    final height = canvas.clientHeight;
-    if (canvas.width != width || canvas.height != height) {
-      canvas.width = width;
-      canvas.height = height;
+//     final width = canvas.clientWidth;
+//     final height = canvas.clientHeight;
+//     if (canvas.width != width || canvas.height != height) {
+//       canvas.width = width;
+//       canvas.height = height;
 
-      Selector.canvasSizeChanged(width, height);
-    }
+//       Selector.canvasSizeChanged(width, height);
+//     }
 
-    gl.viewport(0, 0, canvas.width, canvas.height);
+//     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
-    gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+//     gl.clearColor(0.1, 0.1, 0.1, 1.0);
+//     gl.clear(web.WebGL2RenderingContext.COLOR_BUFFER_BIT | web.WebGL2RenderingContext.DEPTH_BUFFER_BIT);
 
-    SL.setUniforms(
-      SLUniforms(
-        viewProjMat: viewProjMat,
-        viewMat: viewMat,
-        viewPos: viewPos,
-      ),
-    );
+//     SL.setUniforms(
+//       SLUniforms(
+//         viewProjMat: viewProjMat,
+//         viewMat: viewMat,
+//         viewPos: viewPos,
+//       ),
+//     );
 
-    _shader.bind();
-    Renderer.renderAll(
-      bindUniformsCallback: (node) {
-        _shader.setUniform('u_modelMat', node.getMatrix());
-        _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
-      },
-    );
-    Selector.draw();
-  }
+//     _shader.bind();
+//     Renderer.renderAll(
+//       bindUniformsCallback: (node) {
+//         _shader.setUniform('u_modelMat', node.getMatrix());
+//         _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
+//       },
+//     );
+//     Selector.draw();
+//   }
 
-  xrSession.requestAnimationFrame(xrFrame.toJS);
-}
+//   xrSession.requestAnimationFrame(xrFrame.toJS);
+// }
 
 void tick(double time, double dt) {
   for (final cube in _cubes) {

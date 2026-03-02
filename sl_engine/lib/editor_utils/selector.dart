@@ -23,6 +23,7 @@ class Selector {
 
   static Node? _latestSelected;
   static final Set<Node> _selected = {};
+  static Map<int, (Vector4, Set<Node>)> _remoteSelected = {};
   static var _color = Vector4(1.0, 0.7, 0.0, 1.0);
 
   static final _onSelectionChangedController = StreamController<Set<Node>>.broadcast();
@@ -140,6 +141,9 @@ class Selector {
   }
 
   static void draw() {
+    for (final (color, nodes) in _remoteSelected.values) {
+      _outliner.draw(nodes, color);
+    }
     _outliner.draw(_selected, _color);
     if (_latestSelected != null) _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot);
     if (_dragStart != null && _dragCurrent != null) {
@@ -236,5 +240,9 @@ class Selector {
     _selected.clear();
     _latestSelected = null;
     _onSelectionChangedController.add(_selected);
+  }
+
+  static void setRemoteSelected(Map<int, (Vector4, Set<Node>)> remoteSelection) {
+    _remoteSelected = remoteSelection;
   }
 }

@@ -4,9 +4,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_engine/sl_engine.dart';
 import 'package:sl_shared/sl_shared.dart';
 
-final _ownCursorPositionController = StreamController<CursorPosition>.broadcast();
+final _ownCursorPositionController = StreamController<ViewPosition>.broadcast();
 final ownCursorPositionStream = _ownCursorPositionController.stream;
 
 class CursorsWidget extends StatefulWidget {
@@ -18,7 +19,7 @@ class CursorsWidget extends StatefulWidget {
 
 class CursorsWidgetState extends State<CursorsWidget> {
   late final StreamSubscription _otherCursorPositionsSubscription;
-  List<(int color, CursorPosition)> _otherCursorPositions = [];
+  List<(int color, ViewPosition)> _otherCursorPositions = [];
 
   @override
   void initState() {
@@ -33,18 +34,21 @@ class CursorsWidgetState extends State<CursorsWidget> {
   }
 
   void _onOwnCursorPositionChanged(PointerHoverEvent event) {
+    final view = getEditorViewPosition();
     _ownCursorPositionController.add(
-      CursorPosition(
+      ViewPosition(
         panel: PanelType.engine,
-        x: event.localPosition.dx,
-        y: event.localPosition.dy,
+        cursorX: event.localPosition.dx,
+        cursorY: event.localPosition.dy,
+        enginePosition: (view.$1.x, view.$1.y, view.$1.z),
+        engineOrientation: (view.$2.x, view.$2.y, view.$2.z, view.$2.w),
       ),
     );
   }
 
   void _onOwnCursorLeft(_) {}
 
-  void _onOtherCursorPositionsChanged(List<(int color, CursorPosition)> otherCursorPositions) {
+  void _onOtherCursorPositionsChanged(List<(int color, ViewPosition)> otherCursorPositions) {
     setState(() => _otherCursorPositions = otherCursorPositions);
   }
 
@@ -59,8 +63,8 @@ class CursorsWidgetState extends State<CursorsWidget> {
           final color = Color(entry.$1);
           final cursorPosition = entry.$2;
           return Positioned(
-            left: cursorPosition.x,
-            top: cursorPosition.y,
+            left: cursorPosition.cursorX,
+            top: cursorPosition.cursorY,
             child: Icon(
               LucideIcons.mousePointer2,
               color: color,
