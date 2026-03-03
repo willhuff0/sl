@@ -26,7 +26,7 @@ class ClientState {
 
 @JsonSerializable()
 class ClientScopeState {
-  final ViewPosition? viewPosition;
+  ViewPosition? viewPosition;
 
   ClientScopeState({required this.viewPosition});
 

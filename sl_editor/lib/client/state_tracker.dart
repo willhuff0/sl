@@ -1,11 +1,13 @@
 import 'dart:collection';
-
 import 'package:meta/meta.dart';
+import 'package:sl_editor/client/objects/node.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 import 'client.dart';
 
-final Map<ObjectClass, StateTracked Function()> _constructors = {};
+final Map<ObjectClass, StateTracked Function(UUID)> _constructors = {
+  Node.objectClass: Node.new,
+};
 
 class BiDelta {
   final Delta delta;
@@ -66,13 +68,16 @@ class TrackedProperty<T> {
   final String path;
   T _value;
   final T Function(dynamic)? _fromJson;
+  final dynamic Function(T)? _toJson;
 
   TrackedProperty(
     this.path,
     T value, {
     T Function(dynamic)? fromJson,
+    dynamic Function(T)? toJson,
   }) : _value = value,
-       _fromJson = fromJson;
+       _fromJson = fromJson,
+       _toJson = toJson;
 
   T get() {
     return _value;
@@ -84,15 +89,19 @@ class TrackedProperty<T> {
   }
 
   void getDeltaFromNullRelToObject(Delta builder) {
-    builder[path] = _value;
+    builder[path] = _toJson == null ? _value : _toJson(_value);
   }
 
-  void applyDeltaRelToObject(Delta delta) {
+  void applyDeltaRelToObject(Delta delta, {void Function(T)? effect}) {
+    if (!delta.containsKey(path)) return;
+    T newValue;
     if (_fromJson != null) {
-      _value = _fromJson(delta[path]);
+      newValue = _fromJson(delta[path]);
     } else {
-      _value = delta[path] as T;
+      newValue = delta[path] as T;
     }
+    effect?.call(newValue);
+    _value = newValue;
   }
 }
 
@@ -155,6 +164,10 @@ class StateTracker {
   static final List<StateChange> _remoteChanges = [];
   static var _nextClientChangeId = 0;
 
+  static T? getObject<T>(UUID objectId) {
+    return _trackedObjects[objectId] as T?;
+  }
+
   static void registerObject(UUID objectId, StateTracked object) {
     _trackedObjects[objectId] = object;
   }
@@ -214,13 +227,16 @@ class StateTracker {
       if (stateChange.objectClass == null) {
         throw Exception('Object ${stateChange.objectId} is not registered on the client!');
       }
-      trackedObject = _trackedObjects[stateChange.objectId] = _createObject(stateChange.objectClass!);
+      trackedObject = _trackedObjects[stateChange.objectId] = _createObject(
+        stateChange.objectClass!,
+        stateChange.objectId,
+      );
     }
 
     trackedObject.applyDelta(stateChange.delta);
   }
 
-  static StateTracked _createObject(ObjectClass objectClass) {
-    return _constructors[objectClass]!();
+  static StateTracked _createObject(ObjectClass objectClass, UUID uuid) {
+    return _constructors[objectClass]!(uuid);
   }
 }

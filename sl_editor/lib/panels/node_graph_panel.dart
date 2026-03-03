@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_editor/client/objects/node.dart' as editor;
 import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/node.dart';
 
@@ -52,7 +53,9 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
                 items: [
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Cube'),
-                    onPressed: () {},
+                    onPressed: () {
+                      editor.Node.create();
+                    },
                   ),
                 ],
                 showDropdownArrow: true,

@@ -209,13 +209,13 @@ class Node {
   }
 
   void addChild(Node child) {
+    child.parent?.removeChild(child);
     _children.add(child);
     child._parent = this;
   }
 
   void removeChild(Node child) {
-    _children.remove(child);
-    child._parent = null;
+    if (_children.remove(child)) child._parent = null;
   }
 
   void addComponent(Component component) {

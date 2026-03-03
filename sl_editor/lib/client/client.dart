@@ -1,21 +1,25 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:ui';
 
+import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_editor/client/state_tracker.dart';
-import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:vector_math/vector_math.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const tickInterval = Duration(milliseconds: 100);
 
-final _otherCursorPositionController = StreamController<List<(int color, ViewPosition)>>.broadcast();
-final otherCursorPositionStream = _otherCursorPositionController.stream;
+Vector4 _intToVec4Color(int value) {
+  final color = Color(value);
+  return Vector4(color.r, color.g, color.b, color.a);
+}
 
 class Scope {
   final UUID scopeId;
-  Map<int, ViewPosition> cursorPositions = {};
+  Map<int, ClientScopeState> states = {};
 
   Scope({required this.scopeId});
 }
@@ -30,11 +34,8 @@ class Client {
 
   Scope? _scope;
 
-  late final Timer _tickTimer;
-
   late final StreamSubscription _listenSubscription;
-
-  static late Client _instance;
+  late final Timer _tickTimer;
 
   static Future<Client> connect({
     required Uri serverUri,
@@ -44,6 +45,7 @@ class Client {
     return Client._(socket: socket);
   }
 
+  static late Client _instance;
   static Client get() {
     return _instance;
   }
@@ -75,6 +77,7 @@ class Client {
       case StcSetSelf setSelf:
         _clientId = setSelf.clientId;
         _scope = Scope(scopeId: 'test-scope-id');
+        _scope!.states[_clientId] = ClientScopeState(viewPosition: null);
         break;
       case StcSetClientGlobalStates setClientGlobalStates:
         _clientStates = setClientGlobalStates.states;
@@ -85,38 +88,36 @@ class Client {
         }
         _onClientStatesChangedController.add(UnmodifiableMapView(_clientStates));
         break;
-      case StcSetViewPositions setCursorPositions:
-        if (_scope?.scopeId != setCursorPositions.scopeId) return;
-        _scope!.cursorPositions = setCursorPositions.values;
-        _otherCursorPositionController.add(
-          setCursorPositions.values.entries
-              .where((entry) => entry.key != _clientId)
-              .map((entry) => (_clientStates[entry.key]!.color, entry.value))
-              .toList(),
+      case StcSetClientScopeStates setClientScopeStates:
+        if (_scope?.scopeId != setClientScopeStates.scopeId) {
+          _sendScopeState();
+          return;
+        }
+        _scope!.states = setClientScopeStates.states;
+        ViewManager.setRemoteViewPositions(
+          Map.fromEntries(
+            _scope!.states.entries
+                .where((entry) => entry.value.viewPosition != null)
+                .map(
+                  (entry) => MapEntry(entry.key, (
+                    _intToVec4Color(_clientStates[entry.key]!.color),
+                    entry.value.viewPosition!,
+                  )),
+                ),
+          ),
         );
         break;
     }
   }
 
   void _tick() {
-    if (_changedOwnViewPosition != null) {
-      if (_scope != null) {
-        send(
-          CtsSetViewPosition(
-            scopeId: _scope!.scopeId,
-            value: _changedOwnViewPosition,
-          ),
-        );
-      }
-      _changedOwnViewPosition = null;
+    if (_scope != null && ViewManager.hasViewChangedAndUpdate()) {
+      _scope!.states[_clientId]!.viewPosition = ViewManager.getViewPosition();
+      _sendScopeState();
     }
     if (StateTracker.hasLocalChanges()) {
       StateTracker.submitLocalChanges();
     }
-  }
-
-  void _onOwnCursorPositionChanged(ViewPosition cursorPosition) {
-    _changedOwnViewPosition = cursorPosition;
   }
 
   Future<void> _leave() async {
@@ -130,6 +131,15 @@ class Client {
           messageClass: message.messageClass,
           messageInstance: message,
         ),
+      ),
+    );
+  }
+
+  void _sendScopeState() {
+    send(
+      CtsSetScopeState(
+        scopeId: _scope?.scopeId,
+        state: _scope?.states[_clientId],
       ),
     );
   }

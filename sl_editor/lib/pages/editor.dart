@@ -5,6 +5,7 @@ import 'package:sl_editor/panels/asset_panel.dart';
 import 'package:sl_editor/panels/console_panel.dart';
 import 'package:sl_editor/panels/engine_panel.dart';
 import 'package:sl_editor/panels/node_graph_panel.dart';
+import 'package:sl_editor/panels/properties_panel.dart';
 import 'package:sl_editor/widgets/avatars.dart';
 import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
@@ -186,7 +187,7 @@ class EditorPage extends StatelessWidget {
                           ShadResizablePanel(
                             id: 'properties',
                             defaultSize: 1.0,
-                            child: PropertiesWidget(),
+                            child: PropertiesPanel(),
                           ),
                         ],
                       ),
@@ -200,19 +201,6 @@ class EditorPage extends StatelessWidget {
         Positioned.fill(child: CursorsWidget()),
       ],
     );
-  }
-}
-
-abstract class EditorPanel extends StatelessWidget {
-  const EditorPanel({super.key});
-}
-
-class PropertiesWidget extends EditorPanel {
-  const PropertiesWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container();
   }
 }
 

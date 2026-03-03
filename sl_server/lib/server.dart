@@ -117,7 +117,11 @@ class Server {
     }
   }
 
-  void _setClientScopeState(Client client, UUID scopeId, ClientScopeState newState) {
+  void _setClientScopeState(Client client, UUID? scopeId, ClientScopeState? newState) {
+    if (scopeId == null || newState == null) {
+      _removeClientFromScope(client);
+      return;
+    }
     if (scopeId != client.scopeId) {
       _removeClientFromScope(client);
     }

@@ -18,7 +18,7 @@ final Node root = Node(name: 'Example Scene');
 late final List<Node> _cubes;
 late final Shader _shader;
 
-late final FlyCamera _flyCamera;
+FlyCamera? _flyCamera;
 
 void initialize(web.HTMLCanvasElement canvas_) async {
   // final vrSupported = await initVr();
@@ -81,13 +81,14 @@ void initialize(web.HTMLCanvasElement canvas_) async {
   }
 }
 
-(Vector3, Quaternion) getEditorViewPosition() {
-  final (_, viewMat, _) = _flyCamera.getState();
+(Vector3, Quaternion, double) getEditorCameraView() {
+  if (_flyCamera == null) return (Vector3.zero(), Quaternion.identity(), 0.0);
+  final (_, viewMat, _) = _flyCamera!.getState();
   final Vector3 position = Vector3.zero();
   final Quaternion orientation = Quaternion.identity();
   final Vector3 scale = Vector3(1.0, 1.0, 1.0);
   viewMat.decompose(position, orientation, scale);
-  return (position, orientation);
+  return (position, orientation, _flyCamera!.fov);
 }
 
 num? _lastTime;
@@ -103,8 +104,8 @@ void frame(num time) {
 
   tick(time.toDouble(), dt);
 
-  _flyCamera.tick(dt);
-  final (viewPos, viewMat, projMat) = _flyCamera.getState();
+  _flyCamera!.tick(dt);
+  final (viewPos, viewMat, projMat) = _flyCamera!.getState();
   final viewProjMat = projMat * viewMat;
 
   final width = canvas.clientWidth;

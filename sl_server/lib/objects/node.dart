@@ -15,17 +15,20 @@ class Node extends StateTracked {
       return true;
     },
   );
-  Val<UUID?> parent = Val(
-    null,
-    key: 'parent',
+  Val<List<UUID>> children = Val(
+    [],
+    key: 'children',
     validator: (v) {
-      if (v is! UUID?) return false;
-      if (v == null) return true;
-      if (!Uuid.isValidUUID(fromString: v)) return false;
-      // TODO: check for cycles
+      if (v is! List<dynamic>) return false;
+      if (v.isEmpty) return true;
+      for (final c in v) {
+        if (!Uuid.isValidUUID(fromString: c)) return false;
+        // TODO: check for cycles, multiple parents
+      }
       return true;
     },
   );
+  Node? parent;
 
   Val<Vector3> lPos = Val(
     Vector3.zero(),
@@ -53,7 +56,7 @@ class Node extends StateTracked {
   @override
   bool isValid(Delta delta) {
     if (!name.validate(delta)) return false;
-    if (!parent.validate(delta)) return false;
+    if (!children.validate(delta)) return false;
     if (!lPos.validate(delta)) return false;
     if (!lRot.validate(delta)) return false;
     if (!lScale.validate(delta)) return false;
@@ -63,7 +66,7 @@ class Node extends StateTracked {
   @override
   void applyDelta(Delta delta) {
     name.set(delta);
-    parent.set(delta);
+    children.set(delta);
     lPos.set(delta);
     lRot.set(delta);
     lScale.set(delta);

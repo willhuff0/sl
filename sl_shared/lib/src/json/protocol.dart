@@ -67,8 +67,8 @@ class StcSetClientGlobalStates extends Message {
 
 @JsonSerializable()
 class CtsSetScopeState extends Message {
-  final UUID scopeId;
-  final ClientScopeState state;
+  final UUID? scopeId;
+  final ClientScopeState? state;
 
   CtsSetScopeState({required this.scopeId, required this.state});
 

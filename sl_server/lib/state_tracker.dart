@@ -21,6 +21,17 @@ class StateTracker {
 
   StateTracker(Server server) : _server = server;
 
+  StateTracked? getObject(UUID uuid) {
+    var object = _trackedObjects[uuid];
+    if (object == null) {
+      object = _loadObjectFromDisk(uuid);
+      if (object != null) {
+        _trackedObjects[uuid] = object;
+      }
+    }
+    return object;
+  }
+
   void handleClientChanges(Client client, CtsStateChanges stateChanges) {
     final Map<ClientChangeId, bool> changeDecisions = {};
     final List<StateChange> approvedChanges = [];
@@ -28,13 +39,18 @@ class StateTracker {
     stateChanges.stateChanges.forEach((clientChangeId, stateChange) {
       var trackedObject = _trackedObjects[stateChange.objectId];
 
-      var wasObjectJustCreated = false;
+      var wasObjectJustAdded = false;
       if (trackedObject == null) {
-        if (stateChange.objectClass == null) {
-          throw Exception('Object ${stateChange.objectId} is not registered on the server!');
+        trackedObject = _loadObjectFromDisk(stateChange.objectId);
+        if (trackedObject == null) {
+          if (stateChange.objectClass == null) {
+            changeDecisions[clientChangeId] = false;
+            print('Object ${stateChange.objectId} is not registered on the server!');
+            return;
+          }
+          trackedObject = _createObject(stateChange.objectClass!, stateChange.objectId);
         }
-        trackedObject = _createObject(stateChange.objectId, stateChange.objectClass!);
-        wasObjectJustCreated = true;
+        wasObjectJustAdded = true;
       }
 
       if (trackedObject.isValid(stateChange.delta)) {
@@ -45,7 +61,7 @@ class StateTracker {
             delta: stateChange.delta,
           ),
         );
-        if (wasObjectJustCreated) {
+        if (wasObjectJustAdded) {
           _trackedObjects[stateChange.objectId] = trackedObject;
         }
       } else {
@@ -69,7 +85,9 @@ class StateTracker {
     );
   }
 
-  StateTracked _createObject(UUID uuid, ObjectClass objectClass) {
+  StateTracked? _loadObjectFromDisk(UUID uuid) {}
+
+  StateTracked _createObject(ObjectClass objectClass, UUID uuid) {
     return _constructors[objectClass]!(uuid);
   }
 }
