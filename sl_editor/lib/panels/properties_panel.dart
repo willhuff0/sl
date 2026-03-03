@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_editor/client/objects/node.dart' as editor;
 import 'package:sl_editor/smooth_scroll_controller.dart';
+import 'package:sl_editor/widgets/properties_field.dart';
 import 'package:sl_engine/editor_utils/selector.dart';
-import 'package:vector_math/vector_math.dart';
 
 class PropertiesPanel extends StatelessWidget {
   const PropertiesPanel({super.key});
@@ -109,114 +110,40 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
     }
 
     final selected = Selector.getSelected().first;
+    final tracked = editor.Node.getTrackerForEngineNode(selected);
 
     return ListView(
       controller: _scrollController,
       padding: EdgeInsets.all(8.0),
       shrinkWrap: true,
       children: [
-        Text('Name'),
-        SizedBox(height: 4.0),
-        ShadInput(
-          placeholder: Text('Name'),
-          initialValue: selected.name,
+        PropertiesFieldWithLabel(
+          label: 'Name',
+          tracked: tracked,
+          property: tracked.name,
         ),
         SizedBox(height: 14.0),
 
-        Text('Position'),
-        SizedBox(height: 4.0),
-        Row(
-          children: [
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('X'),
-                initialValue: selected.lPos.x.toString(),
-                onChanged: (value) {
-                  final v = double.tryParse(value);
-                  if (v == null) return;
-                  selected.wPos.x = v;
-                },
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Y'),
-                initialValue: selected.lPos.y.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Z'),
-                initialValue: selected.lPos.z.toString(),
-              ),
-            ),
-          ],
+        PropertiesFieldWithLabel(
+          label: 'Local Position',
+          tracked: tracked,
+          property: tracked.lPos,
         ),
         SizedBox(height: 8.0),
 
-        Text('Rotation'),
-        SizedBox(height: 4.0),
-        Row(
-          children: [
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('X'),
-                initialValue: selected.lRot.x.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Y'),
-                initialValue: selected.lRot.y.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Z'),
-                initialValue: selected.lRot.z.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('W'),
-                initialValue: selected.lRot.w.toString(),
-              ),
-            ),
-          ],
+        PropertiesFieldWithLabel(
+          label: 'Local Rotation',
+          tracked: tracked,
+          property: tracked.lRot,
         ),
         SizedBox(height: 8.0),
 
-        Text('Scale'),
-        SizedBox(height: 4.0),
-        Row(
-          children: [
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('X'),
-                initialValue: selected.lScale.x.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Y'),
-                initialValue: selected.lScale.y.toString(),
-              ),
-            ),
-            SizedBox(width: 4.0),
-            Expanded(
-              child: ShadInput(
-                placeholder: Text('Z'),
-                initialValue: selected.lScale.z.toString(),
-              ),
-            ),
-          ],
+        PropertiesFieldWithLabel(
+          label: 'Local Scale',
+          tracked: tracked,
+          property: tracked.lScale,
         ),
+        SizedBox(height: 8.0),
       ],
     );
   }

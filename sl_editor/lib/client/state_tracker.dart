@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'package:meta/meta.dart';
 import 'package:sl_editor/client/objects/node.dart';
@@ -69,30 +70,43 @@ class TrackedProperty<T> {
   T _value;
   final T Function(dynamic)? _fromJson;
   final dynamic Function(T)? _toJson;
+  final void Function(StateTracked, T)? _effect;
+  final _onChangedController = StreamController<T>.broadcast();
+  late final Stream<T> onChanged;
 
-  TrackedProperty(
-    this.path,
-    T value, {
+  TrackedProperty({
+    required this.path,
+    required T value,
     T Function(dynamic)? fromJson,
     dynamic Function(T)? toJson,
+    void Function(StateTracked, T)? effect,
   }) : _value = value,
        _fromJson = fromJson,
-       _toJson = toJson;
+       _toJson = toJson,
+       _effect = effect {
+    onChanged = _onChangedController.stream;
+  }
 
   T get() {
     return _value;
   }
 
-  void set(BiDeltaBuilder builder, T newValue) {
-    builder.setProperty(path, _value, newValue);
+  void set(StateTracked effectReceiver, BiDeltaBuilder builder, T newValue) {
+    builder.setProperty(
+      path,
+      _toJson == null ? _value : _toJson(_value),
+      _toJson == null ? newValue : _toJson(newValue),
+    );
+    _effect?.call(effectReceiver, newValue);
     _value = newValue;
+    _onChangedController.add(_value);
   }
 
   void getDeltaFromNullRelToObject(Delta builder) {
     builder[path] = _toJson == null ? _value : _toJson(_value);
   }
 
-  void applyDeltaRelToObject(Delta delta, {void Function(T)? effect}) {
+  void applyDeltaRelToObject(StateTracked effectReceiver, Delta delta) {
     if (!delta.containsKey(path)) return;
     T newValue;
     if (_fromJson != null) {
@@ -100,14 +114,23 @@ class TrackedProperty<T> {
     } else {
       newValue = delta[path] as T;
     }
-    effect?.call(newValue);
+    _effect?.call(effectReceiver, newValue);
     _value = newValue;
+    _onChangedController.add(_value);
   }
+
+  // dynamic fromFieldString(String str) {
+  //   return propertyFromFieldString<T>(str);
+  // }
+
+  // String getFieldTypeName() {
+  //   return T.toString();
+  // }
 }
 
 abstract class StateTracked {
   final UUID uuid;
-  final TrackedProperty<bool> doesExist = TrackedProperty('doesExist', true);
+  final TrackedProperty<bool> doesExist = TrackedProperty(path: 'doesExist', value: true);
 
   StateTracked(this.uuid);
 
@@ -152,7 +175,7 @@ abstract class StateTracked {
   @mustCallSuper
   @mustBeOverridden
   void applyDelta(Delta delta) {
-    doesExist.applyDeltaRelToObject(delta);
+    doesExist.applyDeltaRelToObject(this, delta);
   }
 }
 

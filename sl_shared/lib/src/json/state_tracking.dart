@@ -9,6 +9,7 @@ typedef Delta = Map<String, dynamic>;
 
 @JsonSerializable()
 class StateChange {
+  @JsonKey(includeIfNull: false)
   final ObjectClass? objectClass;
   final UUID objectId;
   final Delta delta;

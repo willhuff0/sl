@@ -29,8 +29,10 @@ Map<String, dynamic> _$StcSetClientGlobalStatesToJson(
 
 CtsSetScopeState _$CtsSetScopeStateFromJson(Map<String, dynamic> json) =>
     CtsSetScopeState(
-      scopeId: json['scopeId'] as String,
-      state: ClientScopeState.fromJson(json['state'] as Map<String, dynamic>),
+      scopeId: json['scopeId'] as String?,
+      state: json['state'] == null
+          ? null
+          : ClientScopeState.fromJson(json['state'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$CtsSetScopeStateToJson(CtsSetScopeState instance) =>

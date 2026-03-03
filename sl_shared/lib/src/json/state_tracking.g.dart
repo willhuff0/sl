@@ -14,7 +14,7 @@ StateChange _$StateChangeFromJson(Map<String, dynamic> json) => StateChange(
 
 Map<String, dynamic> _$StateChangeToJson(StateChange instance) =>
     <String, dynamic>{
-      'objectClass': instance.objectClass,
+      'objectClass': ?instance.objectClass,
       'objectId': instance.objectId,
       'delta': instance.delta,
     };

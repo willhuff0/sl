@@ -1,15 +1,42 @@
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_engine/node.dart' as engine;
 import 'package:sl_shared/sl_shared.dart';
+import 'package:vector_math/vector_math.dart';
 
 final Map<engine.Node, Node> _engineNodeToTracker = {};
 
 class Node extends StateTracked {
-  final TrackedProperty<String> name = TrackedProperty('name', 'New Node');
-  final TrackedProperty<List<UUID>> children = TrackedProperty('children', []);
-  final TrackedProperty<(double, double, double)> lPos = TrackedProperty('lPos', (0.0, 0.0, 0.0));
-  final TrackedProperty<(double, double, double, double)> lRot = TrackedProperty('lRot', (0.0, 0.0, 0.0, 1.0));
-  final TrackedProperty<(double, double, double)> lScale = TrackedProperty('lScale', (1.0, 1.0, 1.0));
+  final TrackedProperty<String> name = TrackedProperty(
+    path: 'name',
+    value: 'New Node',
+    effect: (node, newName) => (node as Node).engineNode.name = newName,
+  );
+  final TrackedProperty<List<UUID>> children = TrackedProperty(
+    path: 'children',
+    value: [],
+    effect: _childrenEffect,
+  );
+  final TrackedProperty<Vector3> lPos = TrackedProperty(
+    path: 'lPos',
+    value: Vector3.zero(),
+    effect: (node, newLPos) => (node as Node).engineNode.lPos = newLPos,
+    toJson: vec3ToJson,
+    fromJson: vec3FromJson,
+  );
+  final TrackedProperty<Quaternion> lRot = TrackedProperty(
+    path: 'lRot',
+    value: Quaternion.identity(),
+    effect: (node, newLRot) => (node as Node).engineNode.lRot = newLRot,
+    toJson: quatToJson,
+    fromJson: quatFromJson,
+  );
+  final TrackedProperty<Vector3> lScale = TrackedProperty(
+    path: 'lScale',
+    value: Vector3(1.0, 1.0, 1.0),
+    effect: (node, newLScale) => (node as Node).engineNode.lScale = newLScale,
+    toJson: vec3ToJson,
+    fromJson: vec3FromJson,
+  );
 
   final engine.Node engineNode;
 
@@ -42,28 +69,22 @@ class Node extends StateTracked {
   @override
   void applyDelta(Delta delta) {
     super.applyDelta(delta);
-    name.applyDeltaRelToObject(delta, effect: (newName) => engineNode.name = newName);
-    children.applyDeltaRelToObject(delta, effect: _childrenEffect);
-    lPos.applyDeltaRelToObject(delta, effect: (newLPos) => engineNode.lPos = recToVec3(newLPos));
-    lRot.applyDeltaRelToObject(delta, effect: (newLRot) => engineNode.lRot = recToQuat(newLRot));
-    lScale.applyDeltaRelToObject(delta, effect: (newLScale) => engineNode.lScale = recToVec3(newLScale));
+    name.applyDeltaRelToObject(this, delta);
+    children.applyDeltaRelToObject(this, delta);
+    lPos.applyDeltaRelToObject(this, delta);
+    lRot.applyDeltaRelToObject(this, delta);
+    lScale.applyDeltaRelToObject(this, delta);
   }
 
-  void _childrenEffect(List<UUID> newChildren) {
-    for (final child in children.get()) {
+  static void _childrenEffect(StateTracked receiver, List<UUID> newChildren) {
+    final node = (receiver as Node);
+    for (final child in node.children.get()) {
       if (newChildren.contains(child)) continue;
-      engineNode.removeChild(StateTracker.getObject<Node>(child)!.engineNode);
+      node.engineNode.removeChild(StateTracker.getObject<Node>(child)!.engineNode);
     }
     for (final child in newChildren) {
-      if (children.get().contains(child)) continue;
-      engineNode.addChild(StateTracker.getObject<Node>(child)!.engineNode);
+      if (node.children.get().contains(child)) continue;
+      node.engineNode.addChild(StateTracker.getObject<Node>(child)!.engineNode);
     }
   }
 }
-
-// void test() {
-//   Node node = Node.create();
-//   node.modifyLocal((builder) {
-//     node.parent.set(builder, 'test');
-//   });
-// }
