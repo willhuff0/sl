@@ -1,5 +1,7 @@
+import 'package:meta/meta.dart';
 import 'package:sl_server/objects/node.dart';
 import 'package:sl_server/server.dart';
+import 'package:sl_server/validated_property.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 final Map<ObjectClass, StateTracked Function(StateTracker, UUID)> _constructors = {
@@ -10,10 +12,33 @@ abstract class StateTracked {
   final StateTracker tracker;
   final UUID uuid;
 
+  final ValidatedProperty<bool> doesExist = ValidatedProperty(
+    true,
+    key: 'doesExist',
+    validator: (receiver, v) {
+      if (v is! bool) return false;
+      if (!receiver.doesExist.value && v) return false;
+      return true;
+    },
+  );
+
   StateTracked(this.tracker, this.uuid);
 
-  bool isValid(Delta delta);
-  void applyDelta(Delta delta);
+  @mustCallSuper
+  bool isValid(Delta delta) {
+    try {
+      if (!doesExist.value) return false;
+      if (!doesExist.validate(this, delta)) return false;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @mustCallSuper
+  void applyDelta(Delta delta) {
+    doesExist.set(this, delta);
+  }
 }
 
 class StateTracker {

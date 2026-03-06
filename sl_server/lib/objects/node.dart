@@ -79,6 +79,7 @@ class Node extends StateTracked {
 
   @override
   bool isValid(Delta delta) {
+    if (!super.isValid(delta)) return false;
     try {
       if (!name.validate(this, delta)) return false;
       if (!parent.validate(this, delta)) return false;
@@ -98,5 +99,6 @@ class Node extends StateTracked {
     lPos.set(this, delta);
     lRot.set(this, delta);
     lScale.set(this, delta);
+    super.applyDelta(delta);
   }
 }

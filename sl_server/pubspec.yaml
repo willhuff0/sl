@@ -17,6 +17,7 @@ dependencies:
     path: ../sl_shared
   path: ^1.9.1
   vector_math: ^2.2.0
+  meta: ^1.18.1
 
 dev_dependencies:
   lints: ^6.0.0

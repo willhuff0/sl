@@ -13,9 +13,10 @@ final Map<ObjectClass, StateTracked Function(UUID)> _constructors = {
 
 abstract class StateTracked {
   final UUID uuid;
-  final TrackedProperty<bool> doesExist = TrackedProperty(path: 'doesExist', value: true);
+  final TrackedProperty<bool> doesExist;
 
-  StateTracked(this.uuid);
+  StateTracked(this.uuid, {void Function(StateTracked, bool)? doesExistEffect})
+    : doesExist = TrackedProperty(path: 'doesExist', value: true, effect: doesExistEffect);
 
   @protected
   @nonVirtual
@@ -52,7 +53,7 @@ abstract class StateTracked {
   @mustCallSuper
   @mustBeOverridden
   void getDeltaFromNull(Delta builder) {
-    doesExist.getDeltaFromNullRelToObject(builder);
+    if (!doesExist.get()) doesExist.getDeltaFromNullRelToObject(builder);
   }
 
   @mustCallSuper

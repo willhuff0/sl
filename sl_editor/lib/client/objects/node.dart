@@ -58,7 +58,16 @@ class Node extends StateTracked {
     return node;
   }
 
-  Node(super.uuid) : engineNode = engine.Node(name: 'New Node') {
+  Node(super.uuid)
+    : engineNode = engine.Node(name: 'New Node'),
+      super(
+        doesExistEffect: (node, newDoesExist) {
+          if (!newDoesExist) {
+            // TODO: delete node
+            (node as Node).engineNode.exitScene();
+          }
+        },
+      ) {
     _engineNodeToTracker[engineNode] = this;
 
     // TODO: temporary
@@ -69,22 +78,22 @@ class Node extends StateTracked {
 
   @override
   void getDeltaFromNull(Delta builder) {
-    super.getDeltaFromNull(builder);
     name.getDeltaFromNullRelToObject(builder);
     parent.getDeltaFromNullRelToObject(builder);
     lPos.getDeltaFromNullRelToObject(builder);
     lRot.getDeltaFromNullRelToObject(builder);
     lScale.getDeltaFromNullRelToObject(builder);
+    super.getDeltaFromNull(builder);
   }
 
   @override
   void applyDelta(Delta delta) {
-    super.applyDelta(delta);
     name.applyDeltaRelToObject(this, delta);
     parent.applyDeltaRelToObject(this, delta);
     lPos.applyDeltaRelToObject(this, delta);
     lRot.applyDeltaRelToObject(this, delta);
     lScale.applyDeltaRelToObject(this, delta);
+    super.applyDelta(delta);
   }
 
   static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
