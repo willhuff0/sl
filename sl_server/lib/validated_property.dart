@@ -1,30 +1,37 @@
+import 'package:sl_server/state_tracker.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
-class Val<T> {
+class ValidatedProperty<T> {
   T value;
   final String key;
-  final bool Function(dynamic) validator;
-  final void Function(Val<T>, dynamic)? setter;
+  final bool Function(StateTracked, dynamic) validator;
+  final void Function(StateTracked, ValidatedProperty<T>, dynamic)? setter;
   final bool required;
 
-  Val(this.value, {required this.key, required this.validator, this.setter, this.required = false});
+  ValidatedProperty(
+    this.value, {
+    required this.key,
+    required this.validator,
+    this.setter,
+    this.required = false,
+  });
 
-  bool validate(Delta delta) {
+  bool validate(StateTracked receiver, Delta delta) {
     if (!delta.containsKey(key)) return !required;
-    return validator(delta[key]);
+    return validator(receiver, delta[key]);
   }
 
-  void set(Delta delta) {
+  void set(StateTracked receiver, Delta delta) {
     if (setter != null) {
-      setter!(this, delta[key]);
+      setter!(receiver, this, delta[key]);
     } else {
       value = delta[key];
     }
   }
 }
 
-bool vector3Validator(dynamic v) {
+bool vector3Validator(_, dynamic v) {
   if (v is! List<dynamic>) return false;
   if (v.length != 3) return false;
   if (v[0] is! double) return false;
@@ -33,7 +40,7 @@ bool vector3Validator(dynamic v) {
   return true;
 }
 
-bool quaternionValidator(dynamic v) {
+bool quaternionValidator(_, dynamic v) {
   if (v is! List<dynamic>) return false;
   if (v.length != 4) return false;
   if (v[0] is! double) return false;
@@ -43,10 +50,10 @@ bool quaternionValidator(dynamic v) {
   return true;
 }
 
-void vector3Setter(Val o, dynamic v) {
+void vector3Setter(_, ValidatedProperty o, dynamic v) {
   o.value = Vector3(v[0], v[1], v[2]);
 }
 
-void quaternionSetter(Val o, dynamic v) {
+void quaternionSetter(_, ValidatedProperty o, dynamic v) {
   o.value = Quaternion(v[0], v[1], v[2], v[3]);
 }

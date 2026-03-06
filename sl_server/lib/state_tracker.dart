@@ -2,14 +2,15 @@ import 'package:sl_server/objects/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_shared/sl_shared.dart';
 
-final Map<ObjectClass, StateTracked Function(UUID)> _constructors = {
+final Map<ObjectClass, StateTracked Function(StateTracker, UUID)> _constructors = {
   Node.objectClass: Node.new,
 };
 
 abstract class StateTracked {
+  final StateTracker tracker;
   final UUID uuid;
 
-  StateTracked(this.uuid);
+  StateTracked(this.tracker, this.uuid);
 
   bool isValid(Delta delta);
   void applyDelta(Delta delta);
@@ -88,6 +89,6 @@ class StateTracker {
   StateTracked? _loadObjectFromDisk(UUID uuid) {}
 
   StateTracked _createObject(ObjectClass objectClass, UUID uuid) {
-    return _constructors[objectClass]!(uuid);
+    return _constructors[objectClass]!(this, uuid);
   }
 }
