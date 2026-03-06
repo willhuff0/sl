@@ -1,3 +1,7 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'fraction.g.dart';
+
 BigInt _gcd(BigInt a, BigInt b) {
   while (b != BigInt.zero) {
     BigInt t = b;
@@ -7,9 +11,18 @@ BigInt _gcd(BigInt a, BigInt b) {
   return a;
 }
 
+@JsonSerializable()
 class Fraction {
   final BigInt numerator;
   final BigInt denominator;
+
+  Fraction({
+    required this.numerator,
+    required this.denominator,
+  });
+
+  factory Fraction.fromJson(Map<String, dynamic> json) => _$FractionFromJson(json);
+  Map<String, dynamic> toJson() => _$FractionToJson(this);
 
   Fraction._(this.numerator, this.denominator);
   factory Fraction.unreduced(

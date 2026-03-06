@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'dart:collection';
 import 'package:meta/meta.dart';
+import 'package:sl_editor/client/bi_delta.dart';
 import 'package:sl_editor/client/objects/node.dart';
+import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 import 'client.dart';
@@ -9,124 +10,6 @@ import 'client.dart';
 final Map<ObjectClass, StateTracked Function(UUID)> _constructors = {
   Node.objectClass: Node.new,
 };
-
-class BiDelta {
-  final Delta delta;
-  final Delta inverseDelta;
-
-  BiDelta({
-    required this.delta,
-    required this.inverseDelta,
-  });
-}
-
-class BiDeltaBuilder {
-  final Delta _inverseDelta = {};
-  final Delta _delta = {};
-
-  void setProperty(String path, dynamic oldValue, dynamic newValue) {
-    _inverseDelta[path] = oldValue;
-    _delta[path] = newValue;
-  }
-
-  BiDelta getBiDelta() {
-    return BiDelta(
-      delta: _delta,
-      inverseDelta: _inverseDelta,
-    );
-  }
-}
-
-class BiStateChange {
-  final ObjectClass? objectClass;
-  final UUID objectId;
-  final BiDelta biDelta;
-
-  BiStateChange({
-    this.objectClass,
-    required this.objectId,
-    required this.biDelta,
-  });
-}
-
-class StateChangesBuilder {
-  final List<BiStateChange> _changes = [];
-
-  void addStateChange(BiStateChange change) {
-    _changes.add(change);
-  }
-
-  void reset() {
-    _changes.clear();
-  }
-
-  UnmodifiableListView<BiStateChange> getChanges() {
-    return UnmodifiableListView(_changes);
-  }
-}
-
-class TrackedProperty<T> {
-  final String path;
-  T _value;
-  final T Function(dynamic)? _fromJson;
-  final dynamic Function(T)? _toJson;
-  final void Function(StateTracked, T)? _effect;
-  final _onChangedController = StreamController<T>.broadcast();
-  late final Stream<T> onChanged;
-
-  TrackedProperty({
-    required this.path,
-    required T value,
-    T Function(dynamic)? fromJson,
-    dynamic Function(T)? toJson,
-    void Function(StateTracked, T)? effect,
-  }) : _value = value,
-       _fromJson = fromJson,
-       _toJson = toJson,
-       _effect = effect {
-    onChanged = _onChangedController.stream;
-  }
-
-  T get() {
-    return _value;
-  }
-
-  void set(StateTracked effectReceiver, BiDeltaBuilder builder, T newValue) {
-    builder.setProperty(
-      path,
-      _toJson == null ? _value : _toJson(_value),
-      _toJson == null ? newValue : _toJson(newValue),
-    );
-    _effect?.call(effectReceiver, newValue);
-    _value = newValue;
-    _onChangedController.add(_value);
-  }
-
-  void getDeltaFromNullRelToObject(Delta builder) {
-    builder[path] = _toJson == null ? _value : _toJson(_value);
-  }
-
-  void applyDeltaRelToObject(StateTracked effectReceiver, Delta delta) {
-    if (!delta.containsKey(path)) return;
-    T newValue;
-    if (_fromJson != null) {
-      newValue = _fromJson(delta[path]);
-    } else {
-      newValue = delta[path] as T;
-    }
-    _effect?.call(effectReceiver, newValue);
-    _value = newValue;
-    _onChangedController.add(_value);
-  }
-
-  // dynamic fromFieldString(String str) {
-  //   return propertyFromFieldString<T>(str);
-  // }
-
-  // String getFieldTypeName() {
-  //   return T.toString();
-  // }
-}
 
 abstract class StateTracked {
   final UUID uuid;
@@ -182,9 +65,9 @@ abstract class StateTracked {
 class StateTracker {
   static final Map<UUID, StateTracked> _trackedObjects = {};
 
-  static final List<BiStateChange> _changesSubmissionBuilder = [];
-  static final Map<ClientChangeId, StateChange> _localChangesInverses = {};
-  static final List<StateChange> _remoteChanges = [];
+  static final Map<ClientChangeId, StateChange> _changesSubmissionBuilder = {};
+  static final Map<ClientChangeId, BiStateChange> _localChangesPendingDecision = {};
+  static final SplayTreeMap<ClientChangeId, List<StateChange>> _remoteChanges = SplayTreeMap();
   static var _nextClientChangeId = 0;
 
   static T? getObject<T>(UUID objectId) {
@@ -195,8 +78,9 @@ class StateTracker {
     _trackedObjects[objectId] = object;
   }
 
-  static void addLocalChange(BiStateChange change) {
-    _changesSubmissionBuilder.add(change);
+  static void addLocalChange(BiStateChange biStateChange) {
+    _changesSubmissionBuilder[_nextClientChangeId] = biStateChange.getForwardStateChange();
+    _localChangesPendingDecision[_nextClientChangeId++] = biStateChange;
   }
 
   static bool hasLocalChanges() {
@@ -204,42 +88,48 @@ class StateTracker {
   }
 
   static void submitLocalChanges() {
-    final Map<ClientChangeId, StateChange> changesToSend = {};
-
-    for (final biStateChange in _changesSubmissionBuilder) {
-      changesToSend[_nextClientChangeId] = StateChange(
-        objectClass: biStateChange.objectClass,
-        objectId: biStateChange.objectId,
-        delta: biStateChange.biDelta.delta,
-      );
-      _localChangesInverses[_nextClientChangeId++] = StateChange(
-        objectClass: biStateChange.objectClass,
-        objectId: biStateChange.objectId,
-        delta: biStateChange.biDelta.inverseDelta,
-      );
-    }
-    _changesSubmissionBuilder.clear();
-
     Client.get().send(
       CtsStateChanges(
-        stateChanges: changesToSend,
+        stateChanges: _changesSubmissionBuilder,
       ),
     );
+    _changesSubmissionBuilder.clear();
   }
 
-  static void handleRemoteChanges(StcStateChanges stateChanges) {
-    stateChanges.localChangeDecision.forEach((clientChangeId, decision) {
-      if (!decision) {
-        _applyStateChange(_localChangesInverses[clientChangeId]!);
+  static void handleChangeDecisions(StcLocalChangeDecisions changeDecisions) {
+    changeDecisions.localChangeDecisions.forEach((localChangeId, decision) {
+      final localBiStateChange = _localChangesPendingDecision[localChangeId]!;
+
+      if (_remoteChanges.containsKey(localChangeId)) {
+        assert(_remoteChanges.firstKey() == localChangeId);
+        final remoteChangesToApply = _remoteChanges.values.first;
+
+        _applyStateChange(localBiStateChange.getInverseStateChange());
+        for (final remoteChange in remoteChangesToApply) {
+          _applyStateChange(remoteChange);
+        }
+        if (decision) {
+          _applyStateChange(localBiStateChange.getForwardStateChange());
+        }
+
+        _remoteChanges.remove(localChangeId);
+      } else if (!decision) {
+        _applyStateChange(localBiStateChange.getInverseStateChange());
       }
-      _localChangesInverses.remove(clientChangeId);
     });
-    _remoteChanges.addAll(stateChanges.remoteChanges);
-    if (_localChangesInverses.isEmpty) {
-      for (final change in _remoteChanges) {
-        _applyStateChange(change);
+  }
+
+  static void handleRemoteChanges(StcRemoteChanges remoteChanges) {
+    if (_localChangesPendingDecision.isEmpty || remoteChanges.latestAcknowledgedChangeId >= _nextClientChangeId - 1) {
+      assert(_localChangesPendingDecision.isEmpty);
+      assert(remoteChanges.latestAcknowledgedChangeId >= _nextClientChangeId - 1);
+      for (final stateChange in remoteChanges.remoteChanges) {
+        _applyStateChange(stateChange);
       }
-      _remoteChanges.clear();
+    } else {
+      var remoteChangeList = _remoteChanges[remoteChanges.latestAcknowledgedChangeId];
+      remoteChangeList ??= _remoteChanges[remoteChanges.latestAcknowledgedChangeId] = [];
+      remoteChangeList.addAll(remoteChanges.remoteChanges);
     }
   }
 

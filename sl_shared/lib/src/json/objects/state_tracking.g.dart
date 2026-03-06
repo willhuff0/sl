@@ -36,19 +36,32 @@ Map<String, dynamic> _$CtsStateChangesToJson(CtsStateChanges instance) =>
       ),
     };
 
-StcStateChanges _$StcStateChangesFromJson(Map<String, dynamic> json) =>
-    StcStateChanges(
-      localChangeDecision: (json['localChangeDecision'] as Map<String, dynamic>)
-          .map((k, e) => MapEntry(int.parse(k), e as bool)),
+StcLocalChangeDecisions _$StcLocalChangeDecisionsFromJson(
+  Map<String, dynamic> json,
+) => StcLocalChangeDecisions(
+  localChangeDecisions: (json['localChangeDecisions'] as Map<String, dynamic>)
+      .map((k, e) => MapEntry(int.parse(k), e as bool)),
+);
+
+Map<String, dynamic> _$StcLocalChangeDecisionsToJson(
+  StcLocalChangeDecisions instance,
+) => <String, dynamic>{
+  'localChangeDecisions': instance.localChangeDecisions.map(
+    (k, e) => MapEntry(k.toString(), e),
+  ),
+};
+
+StcRemoteChanges _$StcRemoteChangesFromJson(Map<String, dynamic> json) =>
+    StcRemoteChanges(
       remoteChanges: (json['remoteChanges'] as List<dynamic>)
           .map((e) => StateChange.fromJson(e as Map<String, dynamic>))
           .toList(),
+      latestAcknowledgedChangeId: (json['latestAcknowledgedChangeId'] as num)
+          .toInt(),
     );
 
-Map<String, dynamic> _$StcStateChangesToJson(StcStateChanges instance) =>
+Map<String, dynamic> _$StcRemoteChangesToJson(StcRemoteChanges instance) =>
     <String, dynamic>{
-      'localChangeDecision': instance.localChangeDecision.map(
-        (k, e) => MapEntry(k.toString(), e),
-      ),
       'remoteChanges': instance.remoteChanges,
+      'latestAcknowledgedChangeId': instance.latestAcknowledgedChangeId,
     };

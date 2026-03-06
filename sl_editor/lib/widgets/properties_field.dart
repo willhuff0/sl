@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/state_tracker.dart';
+import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_editor/field_boxer.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -23,7 +24,7 @@ class PropertiesFieldWithLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = property.get();
     final field = switch (value) {
-      Vector3 v => Row(
+      Vector3 _ => Row(
         children: [
           Expanded(
             child: CustomPropertiesField(
@@ -182,12 +183,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
   @override
   void initState() {
     _focusNode = FocusNode();
-    _textEditingControllers = List.generate(
-      3,
-      (i) => TextEditingController(
-        text: (widget.property.get() as Quaternion).storage[i].toString(),
-      ),
-    );
+    _init();
     _onChangedSubscription = widget.property.onChanged.listen(_onChanged);
     super.initState();
   }
@@ -202,24 +198,37 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     super.dispose();
   }
 
+  void _init() {
+    final rotationMatrix = (widget.property.get() as Quaternion).asRotationMatrix();
+    final pitch = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
+    final yaw = degrees(-math.asin(rotationMatrix[2]));
+    final roll = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));
+    _textEditingControllers = [
+      TextEditingController(text: pitch.toString()),
+      TextEditingController(text: yaw.toString()),
+      TextEditingController(text: roll.toString()),
+    ];
+    _current = Vector3(pitch, yaw, roll);
+  }
+
   void _onChanged(dynamic value) {
     if (_focusNode.hasFocus) return;
     value = value as Quaternion;
     final rotationMatrix = value.asRotationMatrix();
-    final yaw = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));
-    final pitch = degrees(-math.asin(rotationMatrix[2]));
-    final roll = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
-    _textEditingControllers[0].text = yaw.toString();
-    _textEditingControllers[1].text = pitch.toString();
+    final pitch = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
+    final yaw = degrees(-math.asin(rotationMatrix[2]));
+    final roll = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));
+    _textEditingControllers[0].text = pitch.toString();
+    _textEditingControllers[1].text = yaw.toString();
     _textEditingControllers[2].text = roll.toString();
-    _current = Vector3(yaw, pitch, roll);
+    _current = Vector3(pitch, yaw, roll);
   }
 
   void _editingComplete() {
-    final yaw = radians(double.tryParse(_textEditingControllers[0].text) ?? _current?.x ?? 0.0);
     final pitch = radians(double.tryParse(_textEditingControllers[1].text) ?? _current?.y ?? 0.0);
+    final yaw = radians(double.tryParse(_textEditingControllers[0].text) ?? _current?.x ?? 0.0);
     final roll = radians(double.tryParse(_textEditingControllers[2].text) ?? _current?.z ?? 0.0);
-    final value = Quaternion.euler(yaw, pitch, roll);
+    final value = Quaternion.euler(pitch, yaw, roll);
     widget.tracked.modifyLocal((builder) {
       widget.property.set(widget.tracked, builder, value);
     });

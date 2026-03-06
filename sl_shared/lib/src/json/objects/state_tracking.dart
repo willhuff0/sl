@@ -41,19 +41,35 @@ class CtsStateChanges extends Message {
 }
 
 @JsonSerializable()
-class StcStateChanges extends Message {
-  final Map<ClientChangeId, bool> localChangeDecision;
-  final List<StateChange> remoteChanges;
+class StcLocalChangeDecisions extends Message {
+  final Map<ClientChangeId, bool> localChangeDecisions;
 
-  StcStateChanges({
-    required this.localChangeDecision,
-    required this.remoteChanges,
+  StcLocalChangeDecisions({
+    required this.localChangeDecisions,
   });
 
   @override
-  String get messageClass => '$StcStateChanges';
-  static String get messageClassS => '$StcStateChanges';
+  String get messageClass => '$StcLocalChangeDecisions';
+  static String get messageClassS => '$StcLocalChangeDecisions';
 
-  factory StcStateChanges.fromJson(Map<String, dynamic> json) => _$StcStateChangesFromJson(json);
-  Map<String, dynamic> toJson() => _$StcStateChangesToJson(this);
+  factory StcLocalChangeDecisions.fromJson(Map<String, dynamic> json) => _$StcLocalChangeDecisionsFromJson(json);
+  Map<String, dynamic> toJson() => _$StcLocalChangeDecisionsToJson(this);
+}
+
+@JsonSerializable()
+class StcRemoteChanges extends Message {
+  final List<StateChange> remoteChanges;
+  final ClientChangeId latestAcknowledgedChangeId;
+
+  StcRemoteChanges({
+    required this.remoteChanges,
+    required this.latestAcknowledgedChangeId,
+  });
+
+  @override
+  String get messageClass => '$StcRemoteChanges';
+  static String get messageClassS => '$StcRemoteChanges';
+
+  factory StcRemoteChanges.fromJson(Map<String, dynamic> json) => _$StcRemoteChangesFromJson(json);
+  Map<String, dynamic> toJson() => _$StcRemoteChangesToJson(this);
 }

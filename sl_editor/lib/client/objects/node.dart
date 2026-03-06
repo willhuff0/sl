@@ -1,5 +1,10 @@
+import 'dart:collection';
+
 import 'package:sl_editor/client/state_tracker.dart';
+import 'package:sl_editor/client/tracked_property.dart';
+import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/node.dart' as engine;
+import 'package:sl_engine/sl_engine.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -11,11 +16,12 @@ class Node extends StateTracked {
     value: 'New Node',
     effect: (node, newName) => (node as Node).engineNode.name = newName,
   );
-  final TrackedProperty<List<UUID>> children = TrackedProperty(
-    path: 'children',
-    value: [],
-    effect: _childrenEffect,
+  final TrackedProperty<ParentAndOrder?> parent = TrackedProperty(
+    path: 'parent',
+    value: null,
+    effect: _parentEffect,
   );
+  final SplayTreeMap<Fraction, Node> children = SplayTreeMap();
   final TrackedProperty<Vector3> lPos = TrackedProperty(
     path: 'lPos',
     value: Vector3.zero(),
@@ -54,13 +60,18 @@ class Node extends StateTracked {
 
   Node(super.uuid) : engineNode = engine.Node(name: 'New Node') {
     _engineNodeToTracker[engineNode] = this;
+
+    // TODO: temporary
+    root.addChild(engineNode);
+    engineNode.addComponent(MeshComponent(mesh: cubeMesh));
+    engineNode.enterScene();
   }
 
   @override
   void getDeltaFromNull(Delta builder) {
     super.getDeltaFromNull(builder);
     name.getDeltaFromNullRelToObject(builder);
-    children.getDeltaFromNullRelToObject(builder);
+    parent.getDeltaFromNullRelToObject(builder);
     lPos.getDeltaFromNullRelToObject(builder);
     lRot.getDeltaFromNullRelToObject(builder);
     lScale.getDeltaFromNullRelToObject(builder);
@@ -70,21 +81,29 @@ class Node extends StateTracked {
   void applyDelta(Delta delta) {
     super.applyDelta(delta);
     name.applyDeltaRelToObject(this, delta);
-    children.applyDeltaRelToObject(this, delta);
+    parent.applyDeltaRelToObject(this, delta);
     lPos.applyDeltaRelToObject(this, delta);
     lRot.applyDeltaRelToObject(this, delta);
     lScale.applyDeltaRelToObject(this, delta);
   }
 
-  static void _childrenEffect(StateTracked receiver, List<UUID> newChildren) {
+  static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
     final node = (receiver as Node);
-    for (final child in node.children.get()) {
-      if (newChildren.contains(child)) continue;
-      node.engineNode.removeChild(StateTracker.getObject<Node>(child)!.engineNode);
+    if (node.parent.get() != null) {
+      final parentNode = StateTracker.getObject<Node>(node.parent.get()!.uuid)!;
+      parentNode.children.remove(node.parent.get()!.order);
+      parentNode.engineNode.removeChild(node.engineNode);
+    } else {
+      // TODO: temporary
+      root.removeChild(node.engineNode);
     }
-    for (final child in newChildren) {
-      if (node.children.get().contains(child)) continue;
-      node.engineNode.addChild(StateTracker.getObject<Node>(child)!.engineNode);
+    if (newParent != null) {
+      final newParentNode = StateTracker.getObject<Node>(newParent.uuid)!;
+      newParentNode.children[newParent.order] = node;
+      newParentNode.engineNode.addChild(node.engineNode);
+    } else {
+      // TODO: temporary
+      root.addChild(node.engineNode);
     }
   }
 }

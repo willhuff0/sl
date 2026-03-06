@@ -23,6 +23,7 @@ class ValidatedProperty<T> {
   }
 
   void set(StateTracked receiver, Delta delta) {
+    if (!delta.containsKey(key)) return;
     if (setter != null) {
       setter!(receiver, this, delta[key]);
     } else {
@@ -34,26 +35,26 @@ class ValidatedProperty<T> {
 bool vector3Validator(_, dynamic v) {
   if (v is! List<dynamic>) return false;
   if (v.length != 3) return false;
-  if (v[0] is! double) return false;
-  if (v[1] is! double) return false;
-  if (v[2] is! double) return false;
+  if (v[0] is! num) return false;
+  if (v[1] is! num) return false;
+  if (v[2] is! num) return false;
   return true;
 }
 
 bool quaternionValidator(_, dynamic v) {
   if (v is! List<dynamic>) return false;
   if (v.length != 4) return false;
-  if (v[0] is! double) return false;
-  if (v[1] is! double) return false;
-  if (v[2] is! double) return false;
-  if (v[3] is! double) return false;
+  if (v[0] is! num) return false;
+  if (v[1] is! num) return false;
+  if (v[2] is! num) return false;
+  if (v[3] is! num) return false;
   return true;
 }
 
 void vector3Setter(_, ValidatedProperty o, dynamic v) {
-  o.value = Vector3(v[0], v[1], v[2]);
+  o.value = Vector3(v[0].toDouble(), v[1].toDouble(), v[2].toDouble());
 }
 
 void quaternionSetter(_, ValidatedProperty o, dynamic v) {
-  o.value = Quaternion(v[0], v[1], v[2], v[3]);
+  o.value = Quaternion(v[0].toDouble(), v[1].toDouble(), v[2].toDouble(), v[3].toDouble());
 }

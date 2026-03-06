@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:sl_server/state_tracker.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -43,6 +44,7 @@ class Client {
 
 class Server {
   late final WebSocketHandler _webSocketHandler;
+  late final StateTracker _stateTracker;
 
   final Map<int, Client> _clients = {};
   final Map<UUID, Scope> _scopes = {};
@@ -54,6 +56,7 @@ class Server {
 
   Server() {
     _webSocketHandler = WebSocketHandler(_onConnection, null, null, null);
+    _stateTracker = StateTracker(this);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
   }
 
@@ -104,6 +107,9 @@ class Server {
     switch (message) {
       case CtsSetScopeState setScopeState:
         _setClientScopeState(client, setScopeState.scopeId, setScopeState.state);
+        break;
+      case CtsStateChanges stateChanges:
+        _stateTracker.handleClientChanges(client, stateChanges);
         break;
     }
   }
@@ -184,6 +190,14 @@ class Server {
         ),
       ),
     );
+  }
+
+  void sendToEach(Message? Function(Client) messageFactory) {
+    for (final client in _clients.values) {
+      final message = messageFactory(client);
+      if (message == null) continue;
+      send(client, message);
+    }
   }
 
   void broadcast(dynamic message, {Iterable<Client>? only, Set<Client>? except}) {

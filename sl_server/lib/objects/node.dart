@@ -3,7 +3,6 @@ import 'dart:collection';
 import 'package:sl_server/state_tracker.dart';
 import 'package:sl_server/validated_property.dart';
 import 'package:sl_shared/sl_shared.dart';
-import 'package:uuid/uuid.dart';
 import 'package:vector_math/vector_math.dart';
 
 class Node extends StateTracked {
@@ -17,52 +16,40 @@ class Node extends StateTracked {
       return true;
     },
   );
-  final ValidatedProperty<UUID?> parent = ValidatedProperty(
+  final ValidatedProperty<ParentAndOrder?> parent = ValidatedProperty(
     null,
     key: 'parent',
     validator: (receiver, v) {
-      if (v is! UUID?) return false;
       if (v == null) return true;
-      if (!Uuid.isValidUUID(fromString: v)) return false;
 
-      final parent = receiver.tracker.getObject(v);
-      if (parent == null || parent is! Node?) return false;
-      // TODO: check for cycles
+      final parentAndOrder = ParentAndOrder.fromJson(v);
+      if (!parentAndOrder.isValid()) return false;
+
+      // Check if parent node exists
+      final parentNode = receiver.tracker.getObject(parentAndOrder.uuid) as Node?;
+      if (parentNode == null) return false;
+
+      // Check if same order as any siblings
+      if (parentNode.children.keys.any((order) => order == parentAndOrder.order)) return false;
 
       return true;
     },
     setter: (receiver, property, newValue) {
       if (property.value != null) {
-        final parent = receiver.tracker.getObject(property.value!) as Node?;
+        final parent = receiver.tracker.getObject(property.value!.uuid) as Node?;
         if (parent != null) {
-          parent.children.remove(receiver.uuid);
+          parent.children.remove(property.value!.order);
         }
       }
-      property.value = newValue;
       if (newValue != null) {
+        final parentAndOrder = ParentAndOrder.fromJson(newValue);
+        property.value = parentAndOrder;
+
         final parent = receiver.tracker.getObject(newValue) as Node;
-        parent.children.add(receiver.uuid);
+        parent.children[parentAndOrder.order] = receiver.uuid;
+      } else {
+        property.value = null;
       }
-    },
-  );
-  final ValidatedProperty<Fraction> orderInParent = ValidatedProperty(
-    Fraction.zero,
-    key: 'order',
-    validator: (receiver, v) {
-      if (v is! Fraction) return false;
-      if (!v.isValid()) return false;
-
-      // Check if equal to any sibling
-      final node = receiver as Node;
-      if (node.parent.value != null) {
-        final parent = receiver.tracker.getObject(node.parent.value!) as Node;
-        if (parent.children.entries.any((entry) => entry.value != node.uuid && entry.key == v)) return false;
-      }
-
-      return true;
-    },
-    setter: (_, property, newValue) {
-      property.value = (newValue as Fraction).reduced();
     },
   );
   final SplayTreeMap<Fraction, UUID> children = SplayTreeMap();
@@ -92,12 +79,16 @@ class Node extends StateTracked {
 
   @override
   bool isValid(Delta delta) {
-    if (!name.validate(this, delta)) return false;
-    if (!parent.validate(this, delta)) return false;
-    if (!lPos.validate(this, delta)) return false;
-    if (!lRot.validate(this, delta)) return false;
-    if (!lScale.validate(this, delta)) return false;
-    return true;
+    try {
+      if (!name.validate(this, delta)) return false;
+      if (!parent.validate(this, delta)) return false;
+      if (!lPos.validate(this, delta)) return false;
+      if (!lRot.validate(this, delta)) return false;
+      if (!lScale.validate(this, delta)) return false;
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

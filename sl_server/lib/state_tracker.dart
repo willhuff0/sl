@@ -19,6 +19,7 @@ abstract class StateTracked {
 class StateTracker {
   final Server _server;
   final Map<UUID, StateTracked> _trackedObjects = {};
+  final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
 
   StateTracker(Server server) : _server = server;
 
@@ -38,6 +39,7 @@ class StateTracker {
     final List<StateChange> approvedChanges = [];
 
     stateChanges.stateChanges.forEach((clientChangeId, stateChange) {
+      _latestAcknowledgedChangeIds[client.clientId] = clientChangeId;
       var trackedObject = _trackedObjects[stateChange.objectId];
 
       var wasObjectJustAdded = false;
@@ -58,6 +60,7 @@ class StateTracker {
         changeDecisions[clientChangeId] = true;
         approvedChanges.add(
           StateChange(
+            objectClass: stateChange.objectClass,
             objectId: stateChange.objectId,
             delta: stateChange.delta,
           ),
@@ -72,18 +75,19 @@ class StateTracker {
 
     _server.send(
       client,
-      StcStateChanges(
-        localChangeDecision: changeDecisions,
-        remoteChanges: [],
+      StcLocalChangeDecisions(
+        localChangeDecisions: changeDecisions,
       ),
     );
-    _server.broadcast(
-      StcStateChanges(
-        localChangeDecision: {},
-        remoteChanges: approvedChanges,
-      ),
-      except: {client},
-    );
+    if (approvedChanges.isNotEmpty) {
+      _server.sendToEach((otherClient) {
+        if (otherClient == client) return null;
+        return StcRemoteChanges(
+          remoteChanges: approvedChanges,
+          latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
+        );
+      });
+    }
   }
 
   StateTracked? _loadObjectFromDisk(UUID uuid) {}

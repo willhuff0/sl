@@ -7,11 +7,17 @@ import 'package:vector_math/vector_math.dart';
 
 class ViewManager {
   static (Vector3, Quaternion, double)? _lastViewPosition;
+  static var _selectionChanged = false;
+
+  static void init() {
+    Selector.onSelectionChanged.listen((_) => _selectionChanged = true);
+  }
 
   static bool hasViewChangedAndUpdate() {
     final viewPosition = getEditorCameraView();
-    if (viewPosition != _lastViewPosition) {
+    if (_selectionChanged || viewPosition != _lastViewPosition) {
       _lastViewPosition = viewPosition;
+      _selectionChanged = false;
       return true;
     }
     return false;

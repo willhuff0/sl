@@ -56,10 +56,7 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Cube'),
                     onPressed: () {
-                      final newEngineNode = editor.Node.create().engineNode;
-                      newEngineNode.addComponent(MeshComponent(mesh: cubeMesh));
-                      root.addChild(newEngineNode);
-                      newEngineNode.enterScene();
+                      editor.Node.create();
                     },
                   ),
                 ],

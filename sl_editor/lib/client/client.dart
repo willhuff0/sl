@@ -54,6 +54,7 @@ class Client {
     _listenSubscription = _socket.stream.listen(_onData);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
+    ViewManager.init();
     _instance = this;
   }
 
@@ -106,6 +107,12 @@ class Client {
                 ),
           ),
         );
+        break;
+      case StcLocalChangeDecisions localChangeDecisions:
+        StateTracker.handleChangeDecisions(localChangeDecisions);
+        break;
+      case StcRemoteChanges remoteChanges:
+        StateTracker.handleRemoteChanges(remoteChanges);
         break;
     }
   }
