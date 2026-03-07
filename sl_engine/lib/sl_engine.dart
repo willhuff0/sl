@@ -1,5 +1,4 @@
 import 'dart:js_interop';
-import 'dart:math';
 
 import 'package:sl_engine/editor_utils/fly_camera.dart';
 import 'package:sl_engine/gl/debug_draw.dart';

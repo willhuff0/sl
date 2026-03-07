@@ -4,10 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/objects/node.dart' as editor;
-import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/editor_utils/selector.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/sl_engine.dart';
 
 class NodeGraphPanel extends StatefulWidget {
   final Node root;

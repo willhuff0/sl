@@ -6,8 +6,12 @@ import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/utils/renderer.dart';
 
-Vector3Int _convertIndexToId(int id) {
-  return ((id ~/ 65536) % 256, (id ~/ 256) % 256, id % 256);
+Vector3Int _convertIndexToColor(int index) {
+  return ((index ~/ 65536) % 256, (index ~/ 256) % 256, index % 256);
+}
+
+int _convertColorToIndex(Vector3Int color) {
+  return color.$1 * 65536 + color.$2 * 256 + color.$3;
 }
 
 class Clicker {
@@ -44,28 +48,28 @@ class Clicker {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
-    final Map<Vector3Int, Node> idToNode = {};
+    final Map<Vector3Int, Node> colorToNode = {};
     var i = 1;
     Renderer.renderAll(
       bindUniformsCallback: (node) {
-        final id = _convertIndexToId(i++);
-        idToNode[id] = node;
+        final color = _convertIndexToColor(i++);
+        colorToNode[color] = node;
 
         _uniqueShader.setUniform('u_modelMat', node.getMatrix());
-        _uniqueShader.setUniform('u_id', id);
+        _uniqueShader.setUniform('u_color', color);
       },
     );
 
     final jsPixels = JSUint8Array.withLength(4);
     gl.readPixels(x, y, 1, 1, GL.RGBA, GL.UNSIGNED_BYTE, jsPixels);
     final pixels = jsPixels.toDart;
-    final id = (pixels[0], pixels[1], pixels[2]);
+    final color = (pixels[0], pixels[1], pixels[2]);
 
     _renderTexture.unbindFramebuffer();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(GL.BLEND);
 
-    return idToNode[id];
+    return colorToNode[color];
   }
 
   Set<Node> overlap(int startX, int startY, int width, int height) {
@@ -77,15 +81,15 @@ class Clicker {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
-    final Map<Vector3Int, Node> idToNode = {};
+    final Map<int, Node> indexToNode = {};
     var i = 1;
     Renderer.renderAll(
       bindUniformsCallback: (node) {
-        final id = _convertIndexToId(i++);
-        idToNode[id] = node;
+        indexToNode[i] = node;
+        final color = _convertIndexToColor(i++);
 
         _uniqueShader.setUniform('u_modelMat', node.getMatrix());
-        _uniqueShader.setUniform('u_id', id);
+        _uniqueShader.setUniform('u_color', color);
       },
     );
 
@@ -93,16 +97,17 @@ class Clicker {
     gl.readPixels(startX, startY, width, height, GL.RGBA, GL.UNSIGNED_BYTE, jsPixels);
     final pixels = jsPixels.toDart;
 
-    final ids = <Vector3Int>{};
+    final indices = <int>{};
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
         final startIndex = (y * width + x) * 4;
-        final id = (
+        final color = (
           pixels[startIndex + 0],
           pixels[startIndex + 1],
           pixels[startIndex + 2],
         );
-        ids.add(id);
+        if (color.$1 == 0 && color.$2 == 0 && color.$3 == 0) continue;
+        indices.add(_convertColorToIndex(color));
       }
     }
 
@@ -110,7 +115,7 @@ class Clicker {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(GL.BLEND);
 
-    return ids.map((id) => idToNode[id]).nonNulls.toSet();
+    return indices.map((index) => indexToNode[index]!).toSet();
   }
 
   Node? clickUnregisteredNodes(int x, int y, Iterable<Node> roots) {
@@ -122,17 +127,17 @@ class Clicker {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
-    final Map<Vector3Int, Node> idToNode = {};
+    final Map<Vector3Int, Node> colorToNode = {};
     var i = 1;
     for (final root in roots) {
       Renderer.renderUnregisteredNode(
         root,
         bindUniformsCallback: (node) {
-          final id = _convertIndexToId(i++);
-          idToNode[id] = node;
+          final color = _convertIndexToColor(i++);
+          colorToNode[color] = node;
 
           _uniqueShader.setUniform('u_modelMat', node.getMatrix());
-          _uniqueShader.setUniform('u_id', id);
+          _uniqueShader.setUniform('u_color', color);
         },
       );
     }
@@ -140,12 +145,12 @@ class Clicker {
     final pixels = JSUint8Array.withLength(4);
     gl.readPixels(x, canvas.height - y, 1, 1, GL.RGBA, GL.UNSIGNED_BYTE, pixels);
     final dartPixels = pixels.toDart;
-    final id = (dartPixels[0], dartPixels[1], dartPixels[2]);
+    final color = (dartPixels[0], dartPixels[1], dartPixels[2]);
 
     _renderTexture.unbindFramebuffer();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(GL.BLEND);
 
-    return idToNode[id];
+    return colorToNode[color];
   }
 }

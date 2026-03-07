@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' show Scrollbar, SelectableText;
 import 'package:flutter/widgets.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/smooth_scroll_controller.dart';
 import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
@@ -200,8 +201,9 @@ class _LogWidget extends StatelessWidget {
                     : null,
                 child: expanded
                     ? SelectableText(
-                        log.message,
+                        '${log.message}\n\n==== Stack Trace ====\n${log.stackChain}'.trim(),
                         scrollPhysics: NeverScrollableScrollPhysics(),
+                        style: GoogleFonts.robotoMono(),
                       )
                     : Text(
                         log.message,

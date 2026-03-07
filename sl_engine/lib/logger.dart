@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:stack_trace/stack_trace.dart';
+
 enum LogSeverity {
   error,
   warning,
@@ -13,17 +15,19 @@ class Log {
   final String message;
   final DateTime timestamp;
   final LogSeverity severity;
+  final Chain? stackChain;
   int count;
 
   Log({
     required this.message,
     required this.timestamp,
     required this.severity,
+    required this.stackChain,
     this.count = 1,
   });
-  Log.copy(Log other) : message = other.message, timestamp = other.timestamp, severity = other.severity, count = other.count;
+  Log.copy(Log other) : message = other.message, timestamp = other.timestamp, severity = other.severity, stackChain = other.stackChain, count = other.count;
 
-  bool canCollapseWith(String otherMessage, LogSeverity otherSeverity) {
+  bool canCollapseWith(String otherMessage, LogSeverity otherSeverity, Chain? otherStackChain) {
     return message == otherMessage && severity == otherSeverity;
   }
 }
@@ -38,8 +42,11 @@ class Logger {
   static void log(String message, [LogSeverity severity = .debug]) {
     message = message.trim();
 
-    if (_collapse && _logs.isNotEmpty && _logs.first.canCollapseWith(message, severity)) {
+    final stackChain = severity == .debug ? null : Chain.current(1).terse;
+
+    if (_collapse && _logs.isNotEmpty && _logs.first.canCollapseWith(message, severity, stackChain)) {
       _logs.first.count++;
+      _logController.add(_logs.first);
       return;
     }
 
@@ -50,9 +57,10 @@ class Logger {
         message: message,
         timestamp: DateTime.now(),
         severity: severity,
+        stackChain: stackChain,
       ),
     );
-    _logController.add(_logs.last);
+    _logController.add(_logs.first);
     print('[SL ${severity.name}] $message');
   }
 
@@ -87,7 +95,7 @@ class Logger {
 
     if (_collapse) {
       for (int i = _logs.length - 1; i >= 1; i--) {
-        if (!_logs[i - 1].canCollapseWith(_logs[i].message, _logs[i].severity)) continue;
+        if (!_logs[i - 1].canCollapseWith(_logs[i].message, _logs[i].severity, _logs[i].stackChain)) continue;
         _logs[i - 1].count += _logs[i].count;
         _logs.removeAt(i);
       }
