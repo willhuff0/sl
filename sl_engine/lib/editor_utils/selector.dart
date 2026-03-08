@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:sl_engine/editor_utils/fly_camera.dart';
 import 'package:sl_engine/editor_utils/handles.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
@@ -16,6 +17,30 @@ import 'package:web/web.dart' as web;
 const _multiselectBoxOpacity = 0.2;
 const _minDragDistance = 14.0;
 
+Vector3? _linePlaneIntersection(Vector3 linePoint, Vector3 lineDirection, Vector3 planePoint, Vector3 planeNormal) {
+  final denominator = lineDirection.dot(planeNormal);
+
+  if (denominator.abs() < 0.000001) return null;
+
+  final t = (planePoint - linePoint).dot(planeNormal) / denominator;
+  return linePoint + lineDirection * t;
+}
+
+Vector3 _getCameraRayDirection(Vector2Int mousePosition, Vector2Int windowSize, Matrix4 projMat, Matrix4 viewMat) {
+  final x = (2.0 * mousePosition.$1) / windowSize.$1 - 1.0;
+  final y = 1.0 - (2.0 * mousePosition.$2) / windowSize.$2;
+
+  final clipRay = Vector4(x, y, -1.0, 1.0);
+
+  final eyeRay = Matrix4.inverted(projMat) * clipRay as Vector4;
+  eyeRay.z = -1.0;
+  eyeRay.w = 0.0;
+
+  final worldRay = Matrix4.inverted(viewMat) * eyeRay as Vector4;
+
+  return Vector3(worldRay.x, worldRay.y, worldRay.z)..normalize();
+}
+
 class Selector {
   static late final Outliner _outliner;
   static late final Clicker _clicker;
@@ -29,11 +54,30 @@ class Selector {
   static final _onSelectionChangedController = StreamController<Set<Node>>.broadcast();
   static final onSelectionChanged = _onSelectionChangedController.stream;
 
-  static Vector2Int? _dragStart;
-  static Vector2Int? _dragCurrent;
-  static Node? _draggedHandle;
+  static Vector2Int? _boxSelectStart;
+  static Vector2Int? _boxSelectCurrent;
 
-  static Future<void> init() async {
+  static Node? _draggedHandle;
+  static Vector2Int? _dragStart;
+
+  static void _clearDragState() {
+    _boxSelectStart = null;
+    _boxSelectCurrent = null;
+    _draggedHandle = null;
+    _dragStart = null;
+  }
+
+  static Vector3 _getHandlePlanePoint(FlyCamera camera, Node node, Vector2Int mousePosition) {
+    final (linePoint, viewMat, projMat) = camera.getState();
+    final lineDirection = _getCameraRayDirection((mousePosition.$1, mousePosition.$2), (canvas.width, canvas.height), projMat, viewMat);
+
+    final planePoint = _latestSelected!.wPos;
+    final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+
+    final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+  }
+
+  static Future<void> init(FlyCamera camera) async {
     _outliner = await Outliner.create();
     _outliner.canvasSizeChanged(canvas.width, canvas.height);
 
@@ -43,7 +87,9 @@ class Selector {
     _handles = await Handles.create();
 
     Input.onFocusChanged.listen((focused) {
-      if (!focused) {}
+      if (!focused) {
+        _clearDragState();
+      }
     });
 
     canvas.onMouseDown.listen((event) {
@@ -52,39 +98,59 @@ class Selector {
       final x = event.clientX - rect.left.toInt();
       final y = event.clientY - rect.top.toInt();
 
-      _dragStart = (x, y);
-      _dragCurrent = null;
-
       if (_latestSelected != null) {
         final handleNodes = _handles.getHandles(_latestSelected!.wPos, _latestSelected!.wRot);
         _draggedHandle = _clicker.clickUnregisteredNodes(x, y, [handleNodes.$1, handleNodes.$2, handleNodes.$3]);
+        _dragStart = (x, y);
       } else {
         _draggedHandle = null;
+        _dragStart = null;
       }
+
+      if (_draggedHandle == null) {
+        _boxSelectStart = (x, y);
+      } else {
+        _boxSelectStart = null;
+      }
+      _boxSelectCurrent = null;
     });
 
     canvas.onMouseMove.listen((event) {
-      if (_dragStart != null) {
+      if (_boxSelectStart != null) {
         final rect = canvas.getBoundingClientRect();
         final x = event.clientX - rect.left.toInt();
         final y = event.clientY - rect.top.toInt();
 
-        final dragDistance = Vector2(x.toDouble(), y.toDouble()).distanceTo(Vector2(_dragStart!.$1.toDouble(), _dragStart!.$2.toDouble()));
+        final dragDistance = Vector2(x.toDouble(), y.toDouble()).distanceTo(Vector2(_boxSelectStart!.$1.toDouble(), _boxSelectStart!.$2.toDouble()));
         if (dragDistance >= _minDragDistance) {
-          _dragCurrent = (x, y);
+          _boxSelectCurrent = (x, y);
         } else {
-          _dragCurrent = null;
+          _boxSelectCurrent = null;
         }
       }
 
-      if (_latestSelected != null && _draggedHandle != null) {
-        // TODO: move node
+      if (_latestSelected != null && _draggedHandle != null && _dragStart != null) {
+        final rect = canvas.getBoundingClientRect();
+        final x = event.clientX - rect.left.toInt();
+        final y = event.clientY - rect.top.toInt();
+
+        final delta = (x - _dragStart!.$1, y - _dragStart!.$2);
+
+        final (linePoint, viewMat, projMat) = camera.getState();
+        final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
+
+        final planePoint = _latestSelected!.wPos;
+        final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+
+        final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+        if (intersection != null) {
+          _latestSelected!.wPos = intersection;
+        }
       }
     });
 
     canvas.onMouseUp.listen((event) {
       if (event.button != 0) return;
-      if (_dragStart == null) return;
 
       final rect = canvas.getBoundingClientRect();
       final x = event.clientX - rect.left.toInt();
@@ -92,8 +158,9 @@ class Selector {
 
       if (_latestSelected != null && _draggedHandle != null) {
         // TODO: move node
-      } else {
-        final dragDistance = Vector2(x.toDouble(), y.toDouble()).distanceTo(Vector2(_dragStart!.$1.toDouble(), _dragStart!.$2.toDouble()));
+        _draggedHandle = null;
+      } else if (_boxSelectStart != null) {
+        final dragDistance = Vector2(x.toDouble(), y.toDouble()).distanceTo(Vector2(_boxSelectStart!.$1.toDouble(), _boxSelectStart!.$2.toDouble()));
         if (dragDistance < _minDragDistance) {
           // click
 
@@ -113,10 +180,10 @@ class Selector {
         } else {
           // box select
 
-          final startX = min(_dragStart!.$1, x);
-          final startY = min(canvas.height - _dragStart!.$2, canvas.height - y);
-          final width = (_dragStart!.$1 - x).abs();
-          final height = (_dragStart!.$2 - y).abs();
+          final startX = min(_boxSelectStart!.$1, x);
+          final startY = min(canvas.height - _boxSelectStart!.$2, canvas.height - y);
+          final width = (_boxSelectStart!.$1 - x).abs();
+          final height = (_boxSelectStart!.$2 - y).abs();
 
           final nodes = _clicker.overlap(startX, startY, width, height);
 
@@ -128,9 +195,7 @@ class Selector {
         }
       }
 
-      _dragStart = null;
-      _dragCurrent = null;
-      _draggedHandle = null;
+      _clearDragState();
     });
   }
 
@@ -145,12 +210,12 @@ class Selector {
       _outliner.draw(nodes, color);
     }
     _outliner.draw(_selected, _color);
-    if (_latestSelected != null) _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot);
-    if (_dragStart != null && _dragCurrent != null) {
-      final startX = min(_dragStart!.$1, _dragCurrent!.$1);
-      final startY = min(_dragStart!.$2, _dragCurrent!.$2);
-      final width = (_dragStart!.$1 - _dragCurrent!.$1).abs();
-      final height = (_dragStart!.$2 - _dragCurrent!.$2).abs();
+    if (_latestSelected != null) _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot, _draggedHandle);
+    if (_boxSelectStart != null && _boxSelectCurrent != null) {
+      final startX = min(_boxSelectStart!.$1, _boxSelectCurrent!.$1);
+      final startY = min(_boxSelectStart!.$2, _boxSelectCurrent!.$2);
+      final width = (_boxSelectStart!.$1 - _boxSelectCurrent!.$1).abs();
+      final height = (_boxSelectStart!.$2 - _boxSelectCurrent!.$2).abs();
 
       DebugDraw.drawBox2D(
         start: (startX, startY),

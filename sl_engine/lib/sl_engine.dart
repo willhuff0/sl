@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 
+import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/editor_utils/fly_camera.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
@@ -20,15 +21,24 @@ late final Shader _shader;
 FlyCamera? _flyCamera;
 
 void initialize(web.HTMLCanvasElement canvas_) async {
+  canvas_.onContextMenu.listen((event) {
+    event.preventDefault();
+  });
+
   final vrSupported = false;
 
   initGl(canvas_, vr: vrSupported);
   SL.init();
   Input.init(editorMode: true);
 
-  await DebugDraw.init();
+  _flyCamera = FlyCamera(
+    position: Vector3(0.0, 4.0, 5.0),
+    yaw: -90.0,
+    pitch: -45.0,
+  );
 
-  await Selector.init();
+  await DebugDraw.init();
+  await Selector.init(_flyCamera!);
 
   gl.enable(GL.DEPTH_TEST);
   gl.enable(GL.BLEND);
@@ -38,11 +48,9 @@ void initialize(web.HTMLCanvasElement canvas_) async {
 
   cubeMesh = CubeMesh();
 
-  _flyCamera = FlyCamera(
-    position: Vector3(0.0, 4.0, 5.0),
-    yaw: -90.0,
-    pitch: -45.0,
-  );
+  final testNode = Node(name: 'Test Node');
+  testNode.addComponent(MeshComponent(mesh: cubeMesh));
+  root.addChild(testNode);
 
   root.enterScene();
 

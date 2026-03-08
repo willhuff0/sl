@@ -9,8 +9,8 @@ out vec4 o_color;
 
 void main() {
     vec4 color = texture(u_texture, v_texCoords);
-    if (color.a < 0.5) {
-        discard;
-    }
+    // if (color.a < 0.5) {
+    //     discard;
+    // }
     o_color = color;
 }

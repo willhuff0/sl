@@ -12,6 +12,16 @@ final _handleScreenProportion = 0.1;
 final _forwardHandleColor = Vector4(0.0, 0.0, 1.0, 1.0);
 final _rightHandleColor = Vector4(1.0, 0.0, 0.0, 1.0);
 final _upHandleColor = Vector4(0.0, 1.0, 0.0, 1.0);
+final _notDraggedHandleBrightness = 0.6;
+final _notDraggedHandleOpacity = 0.8;
+
+Vector4 _getHandleColor(Vector4 baseColor, Node handle, Node? draggedHandle) {
+  if (draggedHandle == null || draggedHandle == handle) {
+    return baseColor;
+  } else {
+    return Vector4(baseColor.x * _notDraggedHandleBrightness, baseColor.y * _notDraggedHandleBrightness, baseColor.z * _notDraggedHandleBrightness, baseColor.a * _notDraggedHandleOpacity);
+  }
+}
 
 class Handles {
   late final Shader _flatShader;
@@ -23,6 +33,9 @@ class Handles {
   late final Node _forwardHandle;
   late final Node _rightHandle;
   late final Node _upHandle;
+  late final Node _xyPlane;
+  late final Node _yzPlane;
+  late final Node _xzPlane;
 
   Handles._();
   static Future<Handles> create() async {
@@ -59,7 +72,18 @@ class Handles {
     return (_forwardHandle, _rightHandle, _upHandle);
   }
 
-  void drawHandles(Vector3 position, Quaternion rotation) {
+  Vector3 getHandleDirection(Node node, Node handle) {
+    if (handle == _forwardHandle) {
+      return node.getForwardVector();
+    } else if (handle == _rightHandle) {
+      return node.getRightVector();
+    } else if (handle == _upHandle) {
+      return node.getUpVector();
+    }
+    return Vector3.zero();
+  }
+
+  void drawHandles(Vector3 position, Quaternion rotation, Node? draggedHandle) {
     _root.lPos = position;
     _root.lRot = rotation;
 
@@ -74,21 +98,21 @@ class Handles {
     Renderer.renderUnregisteredNode(
       _forwardHandle,
       bindUniformsCallback: (node) {
-        _flatShader.setUniform('u_color', _forwardHandleColor);
+        _flatShader.setUniform('u_color', _getHandleColor(_forwardHandleColor, _forwardHandle, draggedHandle));
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
     Renderer.renderUnregisteredNode(
       _rightHandle,
       bindUniformsCallback: (node) {
-        _flatShader.setUniform('u_color', _rightHandleColor);
+        _flatShader.setUniform('u_color', _getHandleColor(_rightHandleColor, _rightHandle, draggedHandle));
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
     Renderer.renderUnregisteredNode(
       _upHandle,
       bindUniformsCallback: (node) {
-        _flatShader.setUniform('u_color', _upHandleColor);
+        _flatShader.setUniform('u_color', _getHandleColor(_upHandleColor, _upHandle, draggedHandle));
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
