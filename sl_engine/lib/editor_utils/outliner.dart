@@ -65,7 +65,7 @@ class Outliner {
     gl.clear(GL.COLOR_BUFFER_BIT);
 
     for (final root in nodes) {
-      Renderer.renderNode(
+      Renderer.renderNodeCustomShader(
         root,
         bindUniformsCallback: (node) {
           _flatShader.setUniform('u_modelMat', node.getMatrix());

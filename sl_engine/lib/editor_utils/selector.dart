@@ -67,15 +67,15 @@ class Selector {
     _dragStart = null;
   }
 
-  static Vector3 _getHandlePlanePoint(FlyCamera camera, Node node, Vector2Int mousePosition) {
-    final (linePoint, viewMat, projMat) = camera.getState();
-    final lineDirection = _getCameraRayDirection((mousePosition.$1, mousePosition.$2), (canvas.width, canvas.height), projMat, viewMat);
+  // static Vector3 _getHandlePlanePoint(FlyCamera camera, Node node, Vector2Int mousePosition) {
+  //   final (linePoint, viewMat, projMat) = camera.getState();
+  //   final lineDirection = _getCameraRayDirection((mousePosition.$1, mousePosition.$2), (canvas.width, canvas.height), projMat, viewMat);
 
-    final planePoint = _latestSelected!.wPos;
-    final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+  //   final planePoint = _latestSelected!.wPos;
+  //   final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
 
-    final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-  }
+  //   final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+  // }
 
   static Future<void> init(FlyCamera camera) async {
     _outliner = await Outliner.create();
@@ -136,15 +136,18 @@ class Selector {
 
         final delta = (x - _dragStart!.$1, y - _dragStart!.$2);
 
-        final (linePoint, viewMat, projMat) = camera.getState();
-        final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
+        final state = camera.getState();
+        if (state != null) {
+          final (linePoint, viewMat, projMat) = state;
+          final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
 
-        final planePoint = _latestSelected!.wPos;
-        final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+          final planePoint = _latestSelected!.wPos;
+          final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
 
-        final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-        if (intersection != null) {
-          _latestSelected!.wPos = intersection;
+          final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+          if (intersection != null) {
+            _latestSelected!.wPos = intersection;
+          }
         }
       }
     });

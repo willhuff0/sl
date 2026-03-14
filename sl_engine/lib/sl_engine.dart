@@ -14,59 +14,6 @@ import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
 
-final Node root = Node(name: 'Example Scene');
-late final Mesh cubeMesh;
-late final Shader _shader;
-
-FlyCamera? _flyCamera;
-
-void initialize(web.HTMLCanvasElement canvas_) async {
-  canvas_.onContextMenu.listen((event) {
-    event.preventDefault();
-  });
-
-  final vrSupported = false;
-
-  initGl(canvas_, vr: vrSupported);
-  SL.init();
-  Input.init(editorMode: true);
-
-  _flyCamera = FlyCamera(
-    position: Vector3(0.0, 4.0, 5.0),
-    yaw: -90.0,
-    pitch: -45.0,
-  );
-
-  await DebugDraw.init();
-  await Selector.init(_flyCamera!);
-
-  gl.enable(GL.DEPTH_TEST);
-  gl.enable(GL.BLEND);
-  gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
-
-  _shader = (await Shader.load('shaders/test'))!;
-
-  cubeMesh = CubeMesh();
-
-  final testNode = Node(name: 'Test Node');
-  testNode.addComponent(MeshComponent(mesh: cubeMesh));
-  root.addChild(testNode);
-
-  root.enterScene();
-
-  web.window.requestAnimationFrame(frame.toJS);
-}
-
-(Vector3, Quaternion, double) getEditorCameraView() {
-  if (_flyCamera == null) return (Vector3.zero(), Quaternion.identity(), 0.0);
-  final (_, viewMat, _) = _flyCamera!.getState();
-  final Vector3 position = Vector3.zero();
-  final Quaternion orientation = Quaternion.identity();
-  final Vector3 scale = Vector3(1.0, 1.0, 1.0);
-  viewMat.decompose(position, orientation, scale);
-  return (position, orientation, _flyCamera!.fov);
-}
-
 num? _lastTime;
 
 void frame(num time) {
@@ -81,7 +28,7 @@ void frame(num time) {
   tick(time.toDouble(), dt);
 
   _flyCamera!.tick(dt);
-  final (viewPos, viewMat, projMat) = _flyCamera!.getState();
+  final (viewPos, viewMat, projMat) = _flyCamera!.getState()!;
   final viewProjMat = projMat * viewMat;
 
   final width = canvas.clientWidth;
@@ -106,7 +53,7 @@ void frame(num time) {
   );
 
   _shader.bind();
-  Renderer.renderAll(
+  Renderer.renderAllCustomShader(
     bindUniformsCallback: (node) {
       _shader.setUniform('u_modelMat', node.getMatrix());
       _shader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());

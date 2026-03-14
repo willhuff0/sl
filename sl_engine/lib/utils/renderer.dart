@@ -2,18 +2,31 @@ import 'dart:collection';
 
 import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/mesh.dart';
+import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';
 
-class Renderer {
-  static final Map<Node, List<Mesh>> _nodes = {};
+class Material {
+  Shader shader;
+  final Map<String, dynamic> uniforms = {};
 
-  static void addMeshToNode(Node node, Mesh mesh) {
+  Material({required this.shader});
+}
+
+class Renderer {
+  static final Map<Material, Set<Mesh>> _materials = {};
+  static final Map<Node, Mesh> _nodes = {};
+
+  static UnmodifiableListView<Mesh> getNodeMeshes(Node node) {
+    return UnmodifiableListView(_nodes[node] ?? []);
+  }
+
+  static void addMesh(Node node, Material material, Mesh mesh) {
     var meshes = _nodes[node];
     meshes ??= _nodes[node] = [];
     meshes.add(mesh);
   }
 
-  static void removeMeshFromNode(Node node, Mesh mesh) {
+  static void removeMesh(Node node, Material material, Mesh mesh) {
     var meshes = _nodes[node];
     meshes?.remove(mesh);
     if (meshes?.isEmpty ?? true) {
@@ -21,9 +34,9 @@ class Renderer {
     }
   }
 
-  static void renderUnregisteredNode(Node node, {required void Function(Node node) bindUniformsCallback}) {
+  static void renderDisabledNodeCustomShader(Node node, {required void Function(Node node) bindUniformsCallback}) {
     for (final child in node.children) {
-      renderUnregisteredNode(child, bindUniformsCallback: bindUniformsCallback);
+      renderDisabledNodeCustomShader(child, bindUniformsCallback: bindUniformsCallback);
     }
 
     final meshes = node.components.whereType<MeshComponent>().map((component) => component.mesh);
@@ -36,9 +49,9 @@ class Renderer {
     }
   }
 
-  static void renderNode(Node node, {required void Function(Node node) bindUniformsCallback}) {
+  static void renderNodeCustomShader(Node node, {required void Function(Node node) bindUniformsCallback}) {
     for (final child in node.children) {
-      renderNode(child, bindUniformsCallback: bindUniformsCallback);
+      renderNodeCustomShader(child, bindUniformsCallback: bindUniformsCallback);
     }
 
     bindUniformsCallback(node);
@@ -49,11 +62,7 @@ class Renderer {
     }
   }
 
-  static UnmodifiableListView<Mesh> getNodeMeshes(Node node) {
-    return UnmodifiableListView(_nodes[node] ?? []);
-  }
-
-  static void renderAll({
+  static void renderAllCustomShader({
     required void Function(Node node) bindUniformsCallback,
   }) {
     _nodes.forEach((node, meshes) {

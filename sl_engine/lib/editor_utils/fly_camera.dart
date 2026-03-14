@@ -20,7 +20,8 @@ class FlyCamera {
 
   var _scrollSpeedMultiplier = 1.0;
 
-  late (Vector3 position, Matrix4 view, Matrix4 proj) _state;
+  (Vector3 position, Matrix4 view, Matrix4 proj)? _state;
+  (Vector3 position, Quaternion orientation, double fov)? _viewPosition;
 
   FlyCamera({
     this.lookSensitivity = 45.0,
@@ -78,7 +79,13 @@ class FlyCamera {
       makeViewMatrix(_position, _position + forward, Vector3(0.0, 1.0, 0.0)),
       makePerspectiveMatrix(radians(fov), aspectRatio, near, far),
     );
+    _viewPosition = (
+      _position,
+      Quaternion.euler(_yaw, _pitch, 0.0),
+      fov,
+    );
   }
 
-  (Vector3 position, Matrix4 view, Matrix4 proj) getState() => _state;
+  (Vector3 position, Matrix4 view, Matrix4 proj)? getState() => _state;
+  (Vector3 position, Quaternion orientation, double fov)? getViewPosition() => _viewPosition;
 }

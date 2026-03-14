@@ -3,18 +3,17 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:sl_editor/client/objects/node.dart' as editor;
 import 'package:sl_engine/editor_utils/selector.dart';
-import 'package:sl_engine/node.dart';
+import 'package:sl_editor/client/objects/node.dart' as editor;
 
 class NodeGraphPanel extends StatefulWidget {
-  final Node root;
-  final Set<Node>? expanded;
+  final editor.Node? root;
+  final Set<editor.Node>? collapsed;
 
   const NodeGraphPanel({
     super.key,
     required this.root,
-    this.expanded,
+    this.collapsed,
   });
 
   @override
@@ -22,11 +21,11 @@ class NodeGraphPanel extends StatefulWidget {
 }
 
 class _NodeGraphPanelState extends State<NodeGraphPanel> {
-  late final Set<Node> expanded;
+  late final Set<editor.Node> collapsed;
 
   @override
   void initState() {
-    expanded = widget.expanded ?? {};
+    collapsed = widget.collapsed ?? {};
     super.initState();
   }
 
@@ -77,10 +76,18 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(4.0),
-            child: _NodeTreeWidget(
-              root: widget.root,
-              expanded: expanded,
-            ),
+            child: widget.root == null
+                ? Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24.0),
+                      child: Text('Nothing open.'),
+                    ),
+                  )
+                : _NodeTreeWidget(
+                    root: widget.root!,
+                    collapsed: collapsed,
+                  ),
           ),
         ),
       ],
@@ -89,13 +96,13 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
 }
 
 class _NodeTreeWidget extends StatefulWidget {
-  final Node root;
-  final Set<Node> expanded;
+  final editor.Node root;
+  final Set<editor.Node> collapsed;
 
   const _NodeTreeWidget({
     super.key,
     required this.root,
-    required this.expanded,
+    required this.collapsed,
   });
 
   @override
@@ -117,41 +124,42 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
     super.dispose();
   }
 
-  List<Widget> _recurseNode(Node node, int depth) {
-    final bool isExpanded = widget.expanded.contains(node);
-    final bool isSelected = Selector.getSelected().contains(node);
+  List<Widget> _recurseNode(editor.Node node, int depth) {
+    final bool isCollapsed = widget.collapsed.contains(node);
+    final bool isSelected = false; //TODO: Selector.getSelected().contains(node);
     return [
       _NodeWidget(
         node: node,
         depth: depth,
         isExpandable: node.children.isNotEmpty,
-        isExpanded: isExpanded,
+        isCollapsed: isCollapsed,
         onExpand: () {
           if (!mounted) return;
-          if (isExpanded) {
-            setState(() => widget.expanded.remove(node));
+          if (isCollapsed) {
+            setState(() => widget.collapsed.remove(node));
           } else {
-            setState(() => widget.expanded.add(node));
+            setState(() => widget.collapsed.add(node));
           }
         },
         isSelected: isSelected,
-        areAnyChildrenSelectedAndIsCollapsed: !isExpanded && node.children.any(Selector.getSelected().contains),
+        areAnyChildrenSelectedAndIsCollapsed:
+            isCollapsed, //TODO: && node.children.any(Selector.getSelected().contains),
         onSelect: () {
           if (!mounted) return;
           if (HardwareKeyboard.instance.isControlPressed) {
-            Selector.toggleNode(node);
+            //TODO: Selector.toggleNode(node);
           } else {
             if (Selector.getSelected().isEmpty ||
                 Selector.getSelected().length > 1 ||
                 (!isSelected && Selector.getSelected().length == 1)) {
-              Selector.selectOnly(node);
+              //TODO: Selector.selectOnly(node);
             } else {
               Selector.clear();
             }
           }
         },
       ),
-      if (isExpanded) ...node.children.expand((c) => _recurseNode(c, depth + 1)),
+      if (!isCollapsed) ...node.children.values.expand((c) => _recurseNode(c, depth + 1)),
     ];
   }
 
@@ -173,11 +181,11 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
 }
 
 class _NodeWidget extends StatelessWidget {
-  final Node node;
+  final editor.Node node;
   final int depth;
 
   final bool isExpandable;
-  final bool isExpanded;
+  final bool isCollapsed;
   final VoidCallback onExpand;
 
   final bool isSelected;
@@ -189,7 +197,7 @@ class _NodeWidget extends StatelessWidget {
     required this.node,
     required this.depth,
     required this.isExpandable,
-    required this.isExpanded,
+    required this.isCollapsed,
     required this.onExpand,
     required this.isSelected,
     required this.areAnyChildrenSelectedAndIsCollapsed,
@@ -206,7 +214,7 @@ class _NodeWidget extends StatelessWidget {
             ShadIconButton.ghost(
               onPressed: onExpand,
               width: 32.0,
-              icon: Icon(isExpanded ? LucideIcons.chevronUp : LucideIcons.chevronDown),
+              icon: Icon(isCollapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp),
             )
           else
             SizedBox(width: 32.0),
@@ -223,7 +231,7 @@ class _NodeWidget extends StatelessWidget {
                 : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
             padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
             onPressed: onSelect,
-            child: Text(node.name),
+            child: Text(node.name.get()),
           ),
           if (areAnyChildrenSelectedAndIsCollapsed) ...[
             SizedBox(width: 8.0),

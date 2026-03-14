@@ -50,7 +50,7 @@ class Clicker {
 
     final Map<Vector3Int, Node> colorToNode = {};
     var i = 1;
-    Renderer.renderAll(
+    Renderer.renderAllCustomShader(
       bindUniformsCallback: (node) {
         final color = _convertIndexToColor(i++);
         colorToNode[color] = node;
@@ -83,7 +83,7 @@ class Clicker {
 
     final Map<int, Node> indexToNode = {};
     var i = 1;
-    Renderer.renderAll(
+    Renderer.renderAllCustomShader(
       bindUniformsCallback: (node) {
         indexToNode[i] = node;
         final color = _convertIndexToColor(i++);
@@ -130,7 +130,7 @@ class Clicker {
     final Map<Vector3Int, Node> colorToNode = {};
     var i = 1;
     for (final root in roots) {
-      Renderer.renderUnregisteredNode(
+      Renderer.renderDisabledNodeCustomShader(
         root,
         bindUniformsCallback: (node) {
           final color = _convertIndexToColor(i++);

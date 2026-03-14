@@ -37,4 +37,8 @@ void initGl(Canvas canvas_, {bool vr = false}) {
   canvasColorType = (gl.getParameter(GL.IMPLEMENTATION_COLOR_READ_TYPE) as JSNumber).toDartInt;
   canvasDepthBits = (gl.getParameter(GL.DEPTH_BITS) as JSNumber).toDartInt;
   canvasSampleCount = (gl.getParameter(GL.SAMPLES) as JSNumber).toDartInt;
+
+  gl.enable(GL.DEPTH_TEST);
+  gl.enable(GL.BLEND);
+  gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
 }
