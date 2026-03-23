@@ -212,6 +212,7 @@ class Node {
     child.parent?.removeChild(child);
     _children.add(child);
     child._parent = this;
+    child._markWDirty();
   }
 
   void removeChild(Node child) {
@@ -219,13 +220,13 @@ class Node {
   }
 
   void addComponent(Component component) {
+    if (component._node != null) component.node.removeComponent(component);
     _components.add(component);
     component._node = this;
   }
 
-  void removeComponent(int index) {
-    final component = _components.removeAt(index);
-    component._node = null;
+  void removeComponent(Component component) {
+    if (_components.remove(component)) component._node = null;
   }
 
   void enterScene() {
