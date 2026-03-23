@@ -9,7 +9,6 @@ import 'package:sl_editor/panels/properties_panel.dart';
 import 'package:sl_editor/widgets/avatars.dart';
 import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
-import 'package:sl_engine/sl_engine.dart';
 
 class EditorClientLoader extends StatefulWidget {
   const EditorClientLoader({super.key});

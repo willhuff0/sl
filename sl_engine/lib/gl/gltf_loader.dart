@@ -7,8 +7,10 @@ import 'package:sl_engine/gl/buffer.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:path/path.dart' as p;
+import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_engine/node.dart';
+import 'package:sl_engine/utils/renderer.dart';
 import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
@@ -75,6 +77,8 @@ const _attributeInfo = {
 };
 
 class GLTF {
+  static Shader? _shader;
+
   final Node root;
   final String? copyright;
   final String? generator;
@@ -86,6 +90,8 @@ class GLTF {
   });
 
   static Future<GLTF?> load(String path, {String? sceneName}) async {
+    _shader ??= (await Shader.load('shaders/gltf/gltf'))!;
+
     final directory = p.dirname(path);
     final extension = p.extension(path);
 
@@ -339,11 +345,13 @@ class GLTF {
 
           // final material = primitive['material'];
           // TODO: material
+          final material = Material(shader: _shader!);
 
           meshTopology = primitive['mode'] as int? ?? GL.TRIANGLES;
 
           result.addComponent(
             MeshComponent(
+              material: material,
               mesh: _GLTFMeshPrimitive._(
                 vao: meshVao,
                 topology: meshTopology,

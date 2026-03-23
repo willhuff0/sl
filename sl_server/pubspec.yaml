@@ -18,6 +18,10 @@ dependencies:
   path: ^1.9.1
   vector_math: ^2.2.0
   meta: ^1.18.1
+  drift: ^2.32.0
+  sqlite3: ^3.1.6
 
 dev_dependencies:
   lints: ^6.0.0
+  build_runner: ^2.12.2
+  drift_dev: ^2.32.0

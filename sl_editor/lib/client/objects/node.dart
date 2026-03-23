@@ -4,7 +4,6 @@ import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/node.dart' as engine;
-import 'package:sl_engine/sl_engine.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 

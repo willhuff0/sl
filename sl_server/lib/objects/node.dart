@@ -1,11 +1,12 @@
 import 'dart:collection';
 
+import 'package:sl_server/asset.dart';
 import 'package:sl_server/state_tracker.dart';
 import 'package:sl_server/validated_property.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
-class Node extends StateTracked {
+class Node extends StateTracked implements AssetLoadable {
   final ValidatedProperty<String> name = ValidatedProperty(
     'New Node',
     key: 'name',

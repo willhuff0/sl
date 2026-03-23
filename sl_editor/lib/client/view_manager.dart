@@ -1,7 +1,7 @@
 import 'package:sl_editor/client/objects/node.dart';
 import 'package:sl_editor/client/state_tracker.dart';
-import 'package:sl_engine/editor_utils/selector.dart';
-import 'package:sl_engine/sl_engine.dart';
+import 'package:sl_engine/editor/selector.dart';
+import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -14,7 +14,9 @@ class ViewManager {
   }
 
   static bool hasViewChangedAndUpdate() {
-    final viewPosition = getEditorCameraView();
+    final viewPosition = SLEditor.camera?.getViewPosition();
+    if (viewPosition == null) return false;
+
     if (_selectionChanged || viewPosition != _lastViewPosition) {
       _lastViewPosition = viewPosition;
       _selectionChanged = false;

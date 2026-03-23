@@ -3,8 +3,8 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 import 'package:sl_editor/client/client.dart';
-import 'package:sl_engine/editor_utils/selector.dart';
-import 'package:sl_engine/sl_engine.dart' as engine;
+import 'package:sl_engine/editor/selector.dart';
+import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
 
@@ -24,7 +24,7 @@ class _EngineViewState extends State<EnginePanel> {
       final canvas = web.HTMLCanvasElement();
       canvas.style.width = '100%';
       canvas.style.height = '100%';
-      engine.initialize(canvas);
+      SLEditor.initSlEditorMode(canvas);
       return canvas;
     });
     _onClientStatesChangedSubscription = Client.get().onClientStatesChanged.listen(_onClientStatesChanged);

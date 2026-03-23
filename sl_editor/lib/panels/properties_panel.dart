@@ -5,7 +5,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/objects/node.dart' as editor;
 import 'package:sl_editor/smooth_scroll_controller.dart';
 import 'package:sl_editor/widgets/properties_field.dart';
-import 'package:sl_engine/editor_utils/selector.dart';
+import 'package:sl_engine/editor/selector.dart';
 
 class PropertiesPanel extends StatelessWidget {
   const PropertiesPanel({super.key});

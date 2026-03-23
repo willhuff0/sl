@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 
-import 'package:sl_engine/editor_utils/fly_camera.dart';
-import 'package:sl_engine/editor_utils/handles.dart';
+import 'package:sl_engine/editor/fly_camera.dart';
+import 'package:sl_engine/editor/handles.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/editor_utils/outliner.dart';
+import 'package:sl_engine/editor/outliner.dart';
 import 'package:sl_engine/utils/clicker.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;

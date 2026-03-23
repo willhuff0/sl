@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
@@ -14,6 +15,9 @@ late final int canvasColorFormat;
 late final int canvasColorType;
 late final int canvasDepthBits;
 late final int canvasSampleCount;
+
+final _canvasSizeChangedController = StreamController<(int, int)>.broadcast();
+final canvasSizeChanged = _canvasSizeChangedController.stream;
 
 void initGl(Canvas canvas_, {bool vr = false}) {
   canvas = canvas_;
@@ -41,4 +45,15 @@ void initGl(Canvas canvas_, {bool vr = false}) {
   gl.enable(GL.DEPTH_TEST);
   gl.enable(GL.BLEND);
   gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
+}
+
+void resizeCanvas() {
+  final width = canvas.clientWidth;
+  final height = canvas.clientHeight;
+  if (canvas.width != width || canvas.height != height) {
+    canvas.width = width;
+    canvas.height = height;
+    gl.viewport(0, 0, width, height);
+    _canvasSizeChangedController.add((width, height));
+  }
 }

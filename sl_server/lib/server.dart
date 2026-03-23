@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:sl_server/database/database.dart';
 import 'package:sl_server/state_tracker.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:path/path.dart' as p;
 
 const tickInterval = Duration(milliseconds: 100);
 
@@ -43,7 +45,10 @@ class Client {
 }
 
 class Server {
+  final String rootPath;
+
   late final WebSocketHandler _webSocketHandler;
+  late final Database _database;
   late final StateTracker _stateTracker;
 
   final Map<int, Client> _clients = {};
@@ -54,8 +59,9 @@ class Server {
 
   late final Timer _tickTimer;
 
-  Server() {
+  Server(this.rootPath) {
     _webSocketHandler = WebSocketHandler(_onConnection, null, null, null);
+    _database = Database(p.join(rootPath, 'db'));
     _stateTracker = StateTracker(this);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
   }

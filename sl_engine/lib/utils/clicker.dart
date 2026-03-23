@@ -130,7 +130,7 @@ class Clicker {
     final Map<Vector3Int, Node> colorToNode = {};
     var i = 1;
     for (final root in roots) {
-      Renderer.renderDisabledNodeCustomShader(
+      Renderer.renderUnregisteredNodeCustomShader(
         root,
         bindUniformsCallback: (node) {
           final color = _convertIndexToColor(i++);

@@ -95,21 +95,21 @@ class Handles {
     _flatShader.bind();
     _flatShader.setUniform('u_screenScale', _handleScreenProportion);
 
-    Renderer.renderDisabledNodeCustomShader(
+    Renderer.renderUnregisteredNodeCustomShader(
       _forwardHandle,
       bindUniformsCallback: (node) {
         _flatShader.setUniform('u_color', _getHandleColor(_forwardHandleColor, _forwardHandle, draggedHandle));
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
-    Renderer.renderDisabledNodeCustomShader(
+    Renderer.renderUnregisteredNodeCustomShader(
       _rightHandle,
       bindUniformsCallback: (node) {
         _flatShader.setUniform('u_color', _getHandleColor(_rightHandleColor, _rightHandle, draggedHandle));
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
-    Renderer.renderDisabledNodeCustomShader(
+    Renderer.renderUnregisteredNodeCustomShader(
       _upHandle,
       bindUniformsCallback: (node) {
         _flatShader.setUniform('u_color', _getHandleColor(_upHandleColor, _upHandle, draggedHandle));
