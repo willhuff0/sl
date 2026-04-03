@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math.dart';
 
 abstract class Component {
-  late Node? _node;
+  Node? _node;
   var _enabled = true;
 
   Node get node => _node!;

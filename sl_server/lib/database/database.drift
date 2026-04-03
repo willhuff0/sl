@@ -1,0 +1,47 @@
+import 'package:sl_shared/sl_shared.dart';
+
+CREATE TABLE assets (
+    uuid TEXT NOT NULL PRIMARY KEY,
+    parent TEXT REFERENCES assets(uuid),
+    name TEXT NOT NULL,
+    type ENUM(AssetType) NOT NULL,
+    properties TEXT,
+    blob_size INTEGER
+);
+CREATE INDEX idx_assets_parent ON assets(parent);
+
+getAssetsInDirectory(:directory_uuid as TEXT OR NULL): WITH RECURSIVE
+    asset_tree AS (
+        SELECT
+            a.uuid,
+            a.parent,
+            a.name,
+            a.type,
+            a.blob_size,
+            0 AS depth
+        FROM assets a
+        WHERE a.parent = :directory_uuid OR (a.parent IS NULL AND :directory_uuid IS NULL)
+
+        UNION ALL
+
+        SELECT
+            sa.uuid,
+            sa.parent,
+            sa.name,
+            sa.type,
+            sa.blob_size,
+            at.depth + 1
+        FROM assets sa
+        JOIN asset_tree at
+            ON sa.parent = at.uuid
+        WHERE at.type <> 0 -- type != directory
+    )
+    SELECT
+        uuid,
+        parent,
+        name,
+        type,
+        blob_size,
+        depth
+    FROM asset_tree
+    ORDER BY depth, parent, name;

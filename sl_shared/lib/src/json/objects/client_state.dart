@@ -7,20 +7,64 @@ part 'client_state.g.dart';
 class ClientState {
   final ClientId clientId;
   final int color;
-  UUID? scopeId;
+  UUID? sceneId;
 
-  ClientState({required this.clientId, required this.color, this.scopeId});
+  ClientState({required this.clientId, required this.color, this.sceneId});
 
   factory ClientState.fromJson(Map<String, dynamic> json) => _$ClientStateFromJson(json);
   Map<String, dynamic> toJson() => _$ClientStateToJson(this);
 }
 
 @JsonSerializable()
-class ClientScopeState {
+class ClientSceneState {
   ViewPosition? viewPosition;
 
-  ClientScopeState({required this.viewPosition});
+  ClientSceneState({required this.viewPosition});
 
-  factory ClientScopeState.fromJson(Map<String, dynamic> json) => _$ClientScopeStateFromJson(json);
-  Map<String, dynamic> toJson() => _$ClientScopeStateToJson(this);
+  factory ClientSceneState.fromJson(Map<String, dynamic> json) => _$ClientSceneStateFromJson(json);
+  Map<String, dynamic> toJson() => _$ClientSceneStateToJson(this);
+}
+
+@JsonSerializable()
+class StcSetClientGlobalStates extends Message {
+  final Map<ClientId, ClientState> states;
+
+  StcSetClientGlobalStates({required this.states});
+
+  @override
+  String get messageClass => '$StcSetClientGlobalStates';
+  static String get messageClassS => '$StcSetClientGlobalStates';
+
+  factory StcSetClientGlobalStates.fromJson(Map<String, dynamic> json) => _$StcSetClientGlobalStatesFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetClientGlobalStatesToJson(this);
+}
+
+@JsonSerializable()
+class CtsSetSceneState extends Message {
+  final UUID? sceneId;
+  final ClientSceneState? state;
+
+  CtsSetSceneState({required this.sceneId, required this.state});
+
+  @override
+  String get messageClass => '$CtsSetSceneState';
+  static String get messageClassS => '$CtsSetSceneState';
+
+  factory CtsSetSceneState.fromJson(Map<String, dynamic> json) => _$CtsSetSceneStateFromJson(json);
+  Map<String, dynamic> toJson() => _$CtsSetSceneStateToJson(this);
+}
+
+@JsonSerializable()
+class StcSetClientSceneStates extends Message {
+  final UUID sceneId;
+  final Map<ClientId, ClientSceneState> states;
+
+  StcSetClientSceneStates({required this.sceneId, required this.states});
+
+  @override
+  String get messageClass => '$StcSetClientSceneStates';
+  static String get messageClassS => '$StcSetClientSceneStates';
+
+  factory StcSetClientSceneStates.fromJson(Map<String, dynamic> json) => _$StcSetClientSceneStatesFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetClientSceneStatesToJson(this);
 }

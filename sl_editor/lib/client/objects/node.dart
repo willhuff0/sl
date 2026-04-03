@@ -2,7 +2,6 @@ import 'dart:collection';
 
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/client/tracked_property.dart';
-import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/node.dart' as engine;
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
@@ -70,9 +69,9 @@ class Node extends StateTracked {
     _engineNodeToTracker[engineNode] = this;
 
     // TODO: temporary
-    root.addChild(engineNode);
-    engineNode.addComponent(MeshComponent(mesh: cubeMesh));
-    engineNode.enterScene();
+    // root.addChild(engineNode);
+    // engineNode.addComponent(MeshComponent(mesh: cubeMesh));
+    // engineNode.enterScene();
   }
 
   @override
@@ -103,7 +102,7 @@ class Node extends StateTracked {
       parentNode.engineNode.removeChild(node.engineNode);
     } else {
       // TODO: temporary
-      root.removeChild(node.engineNode);
+      // root.removeChild(node.engineNode);
     }
     if (newParent != null) {
       final newParentNode = StateTracker.getObject<Node>(newParent.uuid)!;
@@ -111,7 +110,7 @@ class Node extends StateTracked {
       newParentNode.engineNode.addChild(node.engineNode);
     } else {
       // TODO: temporary
-      root.addChild(node.engineNode);
+      // root.addChild(node.engineNode);
     }
   }
 }

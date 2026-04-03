@@ -7,6 +7,11 @@ typedef ClientChangeId = int;
 typedef ObjectClass = String;
 typedef Delta = Map<String, dynamic>;
 
+enum StateTrackerSystem {
+  scene,
+  asset,
+}
+
 @JsonSerializable()
 class StateChange {
   @JsonKey(includeIfNull: false)
@@ -26,9 +31,11 @@ class StateChange {
 
 @JsonSerializable()
 class CtsStateChanges extends Message {
+  final StateTrackerSystem system;
   final Map<ClientChangeId, StateChange> stateChanges;
 
   CtsStateChanges({
+    required this.system,
     required this.stateChanges,
   });
 
@@ -42,9 +49,11 @@ class CtsStateChanges extends Message {
 
 @JsonSerializable()
 class StcLocalChangeDecisions extends Message {
+  final StateTrackerSystem system;
   final Map<ClientChangeId, bool> localChangeDecisions;
 
   StcLocalChangeDecisions({
+    required this.system,
     required this.localChangeDecisions,
   });
 
@@ -58,10 +67,12 @@ class StcLocalChangeDecisions extends Message {
 
 @JsonSerializable()
 class StcRemoteChanges extends Message {
+  final StateTrackerSystem system;
   final List<StateChange> remoteChanges;
   final ClientChangeId latestAcknowledgedChangeId;
 
   StcRemoteChanges({
+    required this.system,
     required this.remoteChanges,
     required this.latestAcknowledgedChangeId,
   });

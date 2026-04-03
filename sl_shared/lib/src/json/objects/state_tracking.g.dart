@@ -21,6 +21,7 @@ Map<String, dynamic> _$StateChangeToJson(StateChange instance) =>
 
 CtsStateChanges _$CtsStateChangesFromJson(Map<String, dynamic> json) =>
     CtsStateChanges(
+      system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
       stateChanges: (json['stateChanges'] as Map<String, dynamic>).map(
         (k, e) => MapEntry(
           int.parse(k),
@@ -31,14 +32,21 @@ CtsStateChanges _$CtsStateChangesFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$CtsStateChangesToJson(CtsStateChanges instance) =>
     <String, dynamic>{
+      'system': _$StateTrackerSystemEnumMap[instance.system]!,
       'stateChanges': instance.stateChanges.map(
         (k, e) => MapEntry(k.toString(), e),
       ),
     };
 
+const _$StateTrackerSystemEnumMap = {
+  StateTrackerSystem.scene: 'scene',
+  StateTrackerSystem.asset: 'asset',
+};
+
 StcLocalChangeDecisions _$StcLocalChangeDecisionsFromJson(
   Map<String, dynamic> json,
 ) => StcLocalChangeDecisions(
+  system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
   localChangeDecisions: (json['localChangeDecisions'] as Map<String, dynamic>)
       .map((k, e) => MapEntry(int.parse(k), e as bool)),
 );
@@ -46,6 +54,7 @@ StcLocalChangeDecisions _$StcLocalChangeDecisionsFromJson(
 Map<String, dynamic> _$StcLocalChangeDecisionsToJson(
   StcLocalChangeDecisions instance,
 ) => <String, dynamic>{
+  'system': _$StateTrackerSystemEnumMap[instance.system]!,
   'localChangeDecisions': instance.localChangeDecisions.map(
     (k, e) => MapEntry(k.toString(), e),
   ),
@@ -53,6 +62,7 @@ Map<String, dynamic> _$StcLocalChangeDecisionsToJson(
 
 StcRemoteChanges _$StcRemoteChangesFromJson(Map<String, dynamic> json) =>
     StcRemoteChanges(
+      system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
       remoteChanges: (json['remoteChanges'] as List<dynamic>)
           .map((e) => StateChange.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -62,6 +72,7 @@ StcRemoteChanges _$StcRemoteChangesFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$StcRemoteChangesToJson(StcRemoteChanges instance) =>
     <String, dynamic>{
+      'system': _$StateTrackerSystemEnumMap[instance.system]!,
       'remoteChanges': instance.remoteChanges,
       'latestAcknowledgedChangeId': instance.latestAcknowledgedChangeId,
     };

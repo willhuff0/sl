@@ -7,11 +7,17 @@ typedef MessageFactory = Message Function(Map<String, dynamic> json);
 final Map<String, MessageFactory> _factories = {
   StcSetSelf.messageClassS: StcSetSelf.fromJson,
   StcSetClientGlobalStates.messageClassS: StcSetClientGlobalStates.fromJson,
-  CtsSetScopeState.messageClassS: CtsSetScopeState.fromJson,
-  StcSetClientScopeStates.messageClassS: StcSetClientScopeStates.fromJson,
+  CtsSetSceneState.messageClassS: CtsSetSceneState.fromJson,
+  StcSetClientSceneStates.messageClassS: StcSetClientSceneStates.fromJson,
   StcRemoteChanges.messageClassS: StcRemoteChanges.fromJson,
   StcLocalChangeDecisions.messageClassS: StcLocalChangeDecisions.fromJson,
   CtsStateChanges.messageClassS: CtsStateChanges.fromJson,
+  // PtpRpc.messageClassS: PtpRpc.fromJson,
+  PtpAssetBlob.messageClassS: PtpAssetBlob.fromJson,
+  CtsListenToAssetDirectory.messageClassS: CtsListenToAssetDirectory.fromJson,
+  StcAssetDirectoryStreamUpdate.messageClassS: StcAssetDirectoryStreamUpdate.fromJson,
+  CtsCreateAssets.messageClassS: CtsCreateAssets.fromJson,
+  CtsDeleteAssets.messageClassS: CtsDeleteAssets.fromJson,
 };
 
 class MessageAndHeader {
@@ -54,46 +60,16 @@ class StcSetSelf extends Message {
   Map<String, dynamic> toJson() => _$StcSetSelfToJson(this);
 }
 
-@JsonSerializable()
-class StcSetClientGlobalStates extends Message {
-  final Map<ClientId, ClientState> states;
+// @JsonSerializable()
+// class PtpRpc extends Message {
+//   final Map<String, dynamic> message;
 
-  StcSetClientGlobalStates({required this.states});
+//   PtpRpc({required this.message});
 
-  @override
-  String get messageClass => '$StcSetClientGlobalStates';
-  static String get messageClassS => '$StcSetClientGlobalStates';
+//   @override
+//   String get messageClass => '$PtpRpc';
+//   static String get messageClassS => '$PtpRpc';
 
-  factory StcSetClientGlobalStates.fromJson(Map<String, dynamic> json) => _$StcSetClientGlobalStatesFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetClientGlobalStatesToJson(this);
-}
-
-@JsonSerializable()
-class CtsSetScopeState extends Message {
-  final UUID? scopeId;
-  final ClientScopeState? state;
-
-  CtsSetScopeState({required this.scopeId, required this.state});
-
-  @override
-  String get messageClass => '$CtsSetScopeState';
-  static String get messageClassS => '$CtsSetScopeState';
-
-  factory CtsSetScopeState.fromJson(Map<String, dynamic> json) => _$CtsSetScopeStateFromJson(json);
-  Map<String, dynamic> toJson() => _$CtsSetScopeStateToJson(this);
-}
-
-@JsonSerializable()
-class StcSetClientScopeStates extends Message {
-  final UUID scopeId;
-  final Map<ClientId, ClientScopeState> states;
-
-  StcSetClientScopeStates({required this.scopeId, required this.states});
-
-  @override
-  String get messageClass => '$StcSetClientScopeStates';
-  static String get messageClassS => '$StcSetClientScopeStates';
-
-  factory StcSetClientScopeStates.fromJson(Map<String, dynamic> json) => _$StcSetClientScopeStatesFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetClientScopeStatesToJson(this);
-}
+//   factory PtpRpc.fromJson(Map<String, dynamic> json) => _$PtpJsonRpcFromJson(json);
+//   Map<String, dynamic> toJson() => _$PtpJsonRpcToJson(this);
+// }

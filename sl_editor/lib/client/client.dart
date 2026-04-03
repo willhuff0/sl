@@ -10,7 +10,7 @@ import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const tickInterval = Duration(milliseconds: 100);
+const tickInterval = Duration(milliseconds: 1000);
 
 Vector4 _intToVec4Color(int value) {
   final color = Color(value);
@@ -19,7 +19,7 @@ Vector4 _intToVec4Color(int value) {
 
 class Scope {
   final UUID scopeId;
-  Map<int, ClientScopeState> states = {};
+  Map<int, ClientSceneState> states = {};
 
   Scope({required this.scopeId});
 }
@@ -27,6 +27,8 @@ class Scope {
 class Client {
   final WebSocketChannel _socket;
   late final ClientId _clientId;
+
+  late final RpcPeer rpc;
 
   final _onClientStatesChangedController = StreamController<UnmodifiableMapView<int, ClientState>>.broadcast();
   late final Stream<UnmodifiableMapView<int, ClientState>> onClientStatesChanged;
@@ -51,6 +53,7 @@ class Client {
   }
 
   Client._({required WebSocketChannel socket}) : _socket = socket {
+    rpc = RpcPeer(sendCallback: _sendRpc);
     _listenSubscription = _socket.stream.listen(_onData);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
@@ -78,7 +81,7 @@ class Client {
       case StcSetSelf setSelf:
         _clientId = setSelf.clientId;
         _scope = Scope(scopeId: 'test-scope-id');
-        _scope!.states[_clientId] = ClientScopeState(viewPosition: null);
+        _scope!.states[_clientId] = ClientSceneState(viewPosition: null);
         break;
       case StcSetClientGlobalStates setClientGlobalStates:
         _clientStates = setClientGlobalStates.states;
@@ -89,8 +92,8 @@ class Client {
         }
         _onClientStatesChangedController.add(UnmodifiableMapView(_clientStates));
         break;
-      case StcSetClientScopeStates setClientScopeStates:
-        if (_scope?.scopeId != setClientScopeStates.scopeId) {
+      case StcSetClientSceneStates setClientScopeStates:
+        if (_scope?.scopeId != setClientScopeStates.sceneId) {
           _sendScopeState();
           return;
         }
@@ -114,6 +117,9 @@ class Client {
       case StcRemoteChanges remoteChanges:
         StateTracker.handleRemoteChanges(remoteChanges);
         break;
+      case PtpRpc jsonRpc:
+        rpc.handleMessage(jsonRpc.message);
+        break;
     }
   }
 
@@ -131,6 +137,14 @@ class Client {
     await _socket.sink.close();
   }
 
+  void _sendRpc(dynamic message) {
+    send(
+      PtpRpc(
+        message: message,
+      ),
+    );
+  }
+
   void send(Message message) {
     _socket.sink.add(
       jsonEncode(
@@ -144,8 +158,8 @@ class Client {
 
   void _sendScopeState() {
     send(
-      CtsSetScopeState(
-        scopeId: _scope?.scopeId,
+      CtsSetSceneState(
+        sceneId: _scope?.scopeId,
         state: _scope?.states[_clientId],
       ),
     );

@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:sl_server/database/database.dart';
+import 'package:sl_server/systems/assets.dart';
+import 'package:sl_server/database/database.dart' as db;
 import 'package:sl_server/state_tracker.dart';
+import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:path/path.dart' as p;
 
-const tickInterval = Duration(milliseconds: 100);
+const tickInterval = Duration(milliseconds: 1000);
 
 final _random = Random();
 final List<int> _colors = [
@@ -21,22 +24,13 @@ final List<int> _colors = [
   0xffec4899,
 ];
 
-class Scope {
-  final UUID scopeId;
-  final Map<int, ClientScopeState> clients = {};
-
-  var hasAnyClientStateChanged = false;
-
-  Scope({required this.scopeId});
-}
-
 class Client {
   final WebSocketChannel socket;
   ClientState state;
 
   int get clientId => state.clientId;
-  UUID? get scopeId => state.scopeId;
   int get color => state.color;
+  UUID? get sceneId => state.sceneId;
 
   Client({
     required this.socket,
@@ -48,11 +42,12 @@ class Server {
   final String rootPath;
 
   late final WebSocketHandler _webSocketHandler;
-  late final Database _database;
-  late final StateTracker _stateTracker;
+  late final db.Database _database;
+
+  late final SceneSystem _sceneSystem;
+  late final AssetSystem _assetSystem;
 
   final Map<int, Client> _clients = {};
-  final Map<UUID, Scope> _scopes = {};
 
   var _nextClientId = 0;
   var _availableColors = List.from(_colors);
@@ -61,8 +56,11 @@ class Server {
 
   Server(this.rootPath) {
     _webSocketHandler = WebSocketHandler(_onConnection, null, null, null);
-    _database = Database(p.join(rootPath, 'db'));
-    _stateTracker = StateTracker(this);
+    _database = db.Database(p.join(rootPath, 'db.sqlite3'));
+
+    _sceneSystem = SceneSystem(this);
+    _assetSystem = AssetSystem(this, _database);
+
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
   }
 
@@ -74,24 +72,33 @@ class Server {
     return _webSocketHandler;
   }
 
+  UnmodifiableMapView<int, Client> getClients() {
+    return UnmodifiableMapView(_clients);
+  }
+
   Future<void> kickClient(Client client, {int? status, String? reason}) async {
     print('Kicking client ${client.clientId}');
 
     await client.socket.sink.close(status, reason);
     _clients.remove(client.clientId);
-    _removeClientFromScope(client);
+
+    _sceneSystem.removeClient(client);
+
     _broadcastClientStates();
   }
 
   void _onConnection(WebSocketChannel socket, _) {
+    final clientId = _nextClientId++;
     final client = Client(
       socket: socket,
+      // rpc: RpcPeer(sendCallback: (message) => _sendRpc(clientId, message)),
       state: ClientState(
-        clientId: _nextClientId++,
-        scopeId: null,
+        clientId: clientId,
+        sceneId: null,
         color: _getNextClientColor(),
       ),
     );
+    // _registerClientRpcHandlers(client);
     _clients[client.clientId] = client;
     send(client, StcSetSelf(clientId: client.clientId));
     _broadcastClientStates();
@@ -99,6 +106,10 @@ class Server {
       ..onError((_) => kickClient(client))
       ..onDone(() => kickClient(client));
   }
+
+  // void _registerClientRpcHandlers(Client client) {
+  //   _assets.registerRpcHandlers(client);
+  // }
 
   void _onData(Client client, dynamic data) {
     print('From ${client.clientId} server received: $data');
@@ -111,48 +122,26 @@ class Server {
 
   void _handleMessage(Client client, Message message) {
     switch (message) {
-      case CtsSetScopeState setScopeState:
-        _setClientScopeState(client, setScopeState.scopeId, setScopeState.state);
-        break;
       case CtsStateChanges stateChanges:
-        _stateTracker.handleClientChanges(client, stateChanges);
+        switch (stateChanges.system) {
+          case StateTrackerSystem.scene:
+            _sceneSystem.stateTracker.handleClientChanges(client, stateChanges);
+            break;
+          case StateTrackerSystem.asset:
+            _assetSystem.stateTracker.handleClientChanges(client, stateChanges);
+            break;
+        }
+        break;
+      default:
+        if (_sceneSystem.handleMessage(client, message)) break;
+        if (_assetSystem.handleMessage(client, message)) break;
         break;
     }
   }
 
   void _tick() {
-    for (final scope in _scopes.values) {
-      if (scope.hasAnyClientStateChanged) {
-        _broadcastClientScopeStates(scope);
-        scope.hasAnyClientStateChanged = false;
-      }
-    }
-  }
-
-  void _setClientScopeState(Client client, UUID? scopeId, ClientScopeState? newState) {
-    if (scopeId == null || newState == null) {
-      _removeClientFromScope(client);
-      return;
-    }
-    if (scopeId != client.scopeId) {
-      _removeClientFromScope(client);
-    }
-
-    var scope = _scopes[scopeId] ?? (_scopes[scopeId] = Scope(scopeId: scopeId));
-    scope.clients[client.clientId] = newState;
-    scope.hasAnyClientStateChanged = true;
-
-    client.state.scopeId = scopeId;
-  }
-
-  void _removeClientFromScope(Client client) {
-    if (client.scopeId == null) return;
-
-    final scope = _scopes[client.scopeId]!;
-    scope.clients.remove(client.clientId);
-
-    if (scope.clients.isEmpty) _scopes.remove(client.scopeId);
-    client.state.scopeId = null;
+    _sceneSystem.tick();
+    _assetSystem.tick();
   }
 
   int _getNextClientColor() {
@@ -168,7 +157,7 @@ class Server {
             clientId,
             ClientState(
               clientId: clientId,
-              scopeId: client.scopeId,
+              sceneId: client.sceneId,
               color: client.color,
             ),
           ),
@@ -177,15 +166,14 @@ class Server {
     );
   }
 
-  void _broadcastClientScopeStates(Scope scope) {
-    broadcast(
-      StcSetClientScopeStates(
-        scopeId: scope.scopeId,
-        states: scope.clients,
-      ),
-      only: scope.clients.keys.map((clientId) => _clients[clientId]!),
-    );
-  }
+  // void _sendRpc(int clientId, dynamic message) {
+  //   send(
+  //     _clients[clientId]!,
+  //     PtpRpc(
+  //       message: message,
+  //     ),
+  //   );
+  // }
 
   void send(Client client, Message message) {
     client.socket.sink.add(
@@ -207,17 +195,15 @@ class Server {
   }
 
   void broadcast(dynamic message, {Iterable<Client>? only, Set<Client>? except}) {
-    final encodedMessage = message.toJson();
+    final encodedMessage = jsonEncode(
+      MessageAndHeader(
+        messageClass: message.messageClass,
+        messageInstance: message.toJson(),
+      ),
+    );
     for (final client in only ?? _clients.values) {
       if (except?.contains(client) ?? false) continue;
-      client.socket.sink.add(
-        jsonEncode(
-          MessageAndHeader(
-            messageClass: message.messageClass,
-            messageInstance: encodedMessage,
-          ),
-        ),
-      );
+      client.socket.sink.add(encodedMessage);
     }
   }
 }

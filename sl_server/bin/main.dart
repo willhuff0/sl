@@ -6,7 +6,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:sl_server/server.dart';
 
 final Map<String, Server> _rooms = {
-  'test-room': Server(),
+  'test-room': Server('test-room'),
 };
 
 final _router = Router()

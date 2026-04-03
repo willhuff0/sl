@@ -43,15 +43,21 @@ abstract class StateTracked {
 
 class StateTracker {
   final Server _server;
+  final StateTrackerSystem _system;
   final Map<UUID, StateTracked> _trackedObjects = {};
   final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
+  final StateTracked? Function(UUID uuid)? _loadObjectFromDisk;
 
-  StateTracker(Server server) : _server = server;
+  StateTracker(
+    this._server,
+    this._system, {
+    StateTracked? Function(UUID uuid)? loadObjectFromDisk,
+  }) : _loadObjectFromDisk = loadObjectFromDisk;
 
   StateTracked? getObject(UUID uuid) {
     var object = _trackedObjects[uuid];
     if (object == null) {
-      object = _loadObjectFromDisk(uuid);
+      object = _loadObjectFromDisk?.call(uuid);
       if (object != null) {
         _trackedObjects[uuid] = object;
       }
@@ -69,7 +75,7 @@ class StateTracker {
 
       var wasObjectJustAdded = false;
       if (trackedObject == null) {
-        trackedObject = _loadObjectFromDisk(stateChange.objectId);
+        trackedObject = _loadObjectFromDisk?.call(stateChange.objectId);
         if (trackedObject == null) {
           if (stateChange.objectClass == null) {
             changeDecisions[clientChangeId] = false;
@@ -101,6 +107,7 @@ class StateTracker {
     _server.send(
       client,
       StcLocalChangeDecisions(
+        system: _system,
         localChangeDecisions: changeDecisions,
       ),
     );
@@ -108,6 +115,7 @@ class StateTracker {
       _server.sendToEach((otherClient) {
         if (otherClient == client) return null;
         return StcRemoteChanges(
+          system: _system,
           remoteChanges: approvedChanges,
           latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
         );
@@ -115,9 +123,13 @@ class StateTracker {
     }
   }
 
-  StateTracked? _loadObjectFromDisk(UUID uuid) {}
-
   StateTracked _createObject(ObjectClass objectClass, UUID uuid) {
     return _constructors[objectClass]!(this, uuid);
+  }
+
+  void preloadObjects(Iterable<StateTracked> objects) {
+    for (final object in objects) {
+      _trackedObjects[object.uuid] = object;
+    }
   }
 }

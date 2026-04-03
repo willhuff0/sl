@@ -148,7 +148,7 @@ class EditorPage extends StatelessWidget {
                           ShadResizablePanel(
                             id: 'node-graph',
                             defaultSize: 0.5,
-                            child: NodeGraphPanel(root: root),
+                            child: NodeGraphPanel(root: null),
                           ),
                           ShadResizablePanel(
                             id: 'asset',
