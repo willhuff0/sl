@@ -17,7 +17,11 @@ class SceneSystem {
   final Map<UUID, Scene> _scenes = {};
 
   SceneSystem(this.server) {
-    stateTracker = StateTracker(server, StateTrackerSystem.scene);
+    stateTracker = StateTracker(
+      server,
+      StateTrackerSystem.scene,
+      getInterestedClients: _getInterestedClients,
+    );
   }
 
   void removeClient(Client client) {
@@ -42,6 +46,12 @@ class SceneSystem {
         scope.hasAnyClientStateChanged = false;
       }
     }
+  }
+
+  Set<Client> _getInterestedClients(UUID uuid) {
+    //final object = stateTracker.getObjectInMemory(uuid);
+    // TOOD
+    return {};
   }
 
   void _setClientSceneState(Client client, UUID? sceneId, ClientSceneState? newState) {

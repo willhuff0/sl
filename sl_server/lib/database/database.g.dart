@@ -61,10 +61,10 @@ class Assets extends Table with TableInfo<Assets, Asset> {
   late final GeneratedColumn<int> blobSize = GeneratedColumn<int>(
     'blob_size',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
+    requiredDuringInsert: false,
+    $customConstraints: '',
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -120,8 +120,6 @@ class Assets extends Table with TableInfo<Assets, Asset> {
         _blobSizeMeta,
         blobSize.isAcceptableOrUnknown(data['blob_size']!, _blobSizeMeta),
       );
-    } else if (isInserting) {
-      context.missing(_blobSizeMeta);
     }
     return context;
   }
@@ -157,7 +155,7 @@ class Assets extends Table with TableInfo<Assets, Asset> {
       blobSize: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}blob_size'],
-      )!,
+      ),
     );
   }
 
@@ -178,14 +176,14 @@ class Asset extends DataClass implements Insertable<Asset> {
   final String name;
   final AssetType type;
   final String? properties;
-  final int blobSize;
+  final int? blobSize;
   const Asset({
     required this.uuid,
     this.parent,
     required this.name,
     required this.type,
     this.properties,
-    required this.blobSize,
+    this.blobSize,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -201,7 +199,9 @@ class Asset extends DataClass implements Insertable<Asset> {
     if (!nullToAbsent || properties != null) {
       map['properties'] = Variable<String>(properties);
     }
-    map['blob_size'] = Variable<int>(blobSize);
+    if (!nullToAbsent || blobSize != null) {
+      map['blob_size'] = Variable<int>(blobSize);
+    }
     return map;
   }
 
@@ -216,7 +216,9 @@ class Asset extends DataClass implements Insertable<Asset> {
       properties: properties == null && nullToAbsent
           ? const Value.absent()
           : Value(properties),
-      blobSize: Value(blobSize),
+      blobSize: blobSize == null && nullToAbsent
+          ? const Value.absent()
+          : Value(blobSize),
     );
   }
 
@@ -233,7 +235,7 @@ class Asset extends DataClass implements Insertable<Asset> {
         serializer.fromJson<int>(json['type']),
       ),
       properties: serializer.fromJson<String?>(json['properties']),
-      blobSize: serializer.fromJson<int>(json['blob_size']),
+      blobSize: serializer.fromJson<int?>(json['blob_size']),
     );
   }
   @override
@@ -245,7 +247,7 @@ class Asset extends DataClass implements Insertable<Asset> {
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<int>(Assets.$convertertype.toJson(type)),
       'properties': serializer.toJson<String?>(properties),
-      'blob_size': serializer.toJson<int>(blobSize),
+      'blob_size': serializer.toJson<int?>(blobSize),
     };
   }
 
@@ -255,14 +257,14 @@ class Asset extends DataClass implements Insertable<Asset> {
     String? name,
     AssetType? type,
     Value<String?> properties = const Value.absent(),
-    int? blobSize,
+    Value<int?> blobSize = const Value.absent(),
   }) => Asset(
     uuid: uuid ?? this.uuid,
     parent: parent.present ? parent.value : this.parent,
     name: name ?? this.name,
     type: type ?? this.type,
     properties: properties.present ? properties.value : this.properties,
-    blobSize: blobSize ?? this.blobSize,
+    blobSize: blobSize.present ? blobSize.value : this.blobSize,
   );
   Asset copyWithCompanion(AssetsCompanion data) {
     return Asset(
@@ -311,7 +313,7 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
   final Value<String> name;
   final Value<AssetType> type;
   final Value<String?> properties;
-  final Value<int> blobSize;
+  final Value<int?> blobSize;
   final Value<int> rowid;
   const AssetsCompanion({
     this.uuid = const Value.absent(),
@@ -328,12 +330,11 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     required String name,
     required AssetType type,
     this.properties = const Value.absent(),
-    required int blobSize,
+    this.blobSize = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : uuid = Value(uuid),
        name = Value(name),
-       type = Value(type),
-       blobSize = Value(blobSize);
+       type = Value(type);
   static Insertable<Asset> custom({
     Expression<String>? uuid,
     Expression<String>? parent,
@@ -360,7 +361,7 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     Value<String>? name,
     Value<AssetType>? type,
     Value<String?>? properties,
-    Value<int>? blobSize,
+    Value<int?>? blobSize,
     Value<int>? rowid,
   }) {
     return AssetsCompanion(
@@ -424,11 +425,19 @@ abstract class _$Database extends GeneratedDatabase {
     'idx_assets_parent',
     'CREATE INDEX idx_assets_parent ON assets (parent)',
   );
+  Selectable<Asset> getAssetByUUID(String uuid) {
+    return customSelect(
+      'SELECT * FROM assets WHERE uuid = ?1',
+      variables: [Variable<String>(uuid)],
+      readsFrom: {assets},
+    ).asyncMap(assets.mapFromRow);
+  }
+
   Selectable<GetAssetsInDirectoryResult> getAssetsInDirectory(
     String? directoryUuid,
   ) {
     return customSelect(
-      'WITH RECURSIVE asset_tree AS (SELECT a.uuid, a.parent, a.name, a.type, a.blob_size, 0 AS depth FROM assets AS a WHERE a.parent = ?1 OR(a.parent IS NULL AND ?1 IS NULL)UNION ALL SELECT sa.uuid, sa.parent, sa.name, sa.type, sa.blob_size, at.depth + 1 FROM assets AS sa JOIN asset_tree AS at ON sa.parent = at.uuid WHERE at.type <> 0) SELECT uuid, parent, name, type, blob_size, depth FROM asset_tree ORDER BY depth, parent, name',
+      'WITH RECURSIVE asset_tree AS (SELECT a.uuid, a.parent, a.name, a.type, a.properties, a.blob_size, 0 AS depth FROM assets AS a WHERE a.parent = ?1 OR(a.parent IS NULL AND ?1 IS NULL)UNION ALL SELECT sa.uuid, sa.parent, sa.name, sa.type, sa.properties, sa.blob_size, at.depth + 1 FROM assets AS sa JOIN asset_tree AS at ON sa.parent = at.uuid WHERE at.type <> 0) SELECT uuid, parent, name, type, properties, blob_size, depth FROM asset_tree ORDER BY depth, parent, name',
       variables: [Variable<String>(directoryUuid)],
       readsFrom: {assets},
     ).map(
@@ -437,7 +446,8 @@ abstract class _$Database extends GeneratedDatabase {
         parent: row.readNullable<String>('parent'),
         name: row.read<String>('name'),
         type: Assets.$convertertype.fromSql(row.read<int>('type')),
-        blobSize: row.read<int>('blob_size'),
+        properties: row.readNullable<String>('properties'),
+        blobSize: row.readNullable<int>('blob_size'),
         depth: row.read<int>('depth'),
       ),
     );
@@ -457,7 +467,7 @@ typedef $AssetsCreateCompanionBuilder =
       required String name,
       required AssetType type,
       Value<String?> properties,
-      required int blobSize,
+      Value<int?> blobSize,
       Value<int> rowid,
     });
 typedef $AssetsUpdateCompanionBuilder =
@@ -467,7 +477,7 @@ typedef $AssetsUpdateCompanionBuilder =
       Value<String> name,
       Value<AssetType> type,
       Value<String?> properties,
-      Value<int> blobSize,
+      Value<int?> blobSize,
       Value<int> rowid,
     });
 
@@ -612,7 +622,7 @@ class $AssetsTableManager
                 Value<String> name = const Value.absent(),
                 Value<AssetType> type = const Value.absent(),
                 Value<String?> properties = const Value.absent(),
-                Value<int> blobSize = const Value.absent(),
+                Value<int?> blobSize = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AssetsCompanion(
                 uuid: uuid,
@@ -630,7 +640,7 @@ class $AssetsTableManager
                 required String name,
                 required AssetType type,
                 Value<String?> properties = const Value.absent(),
-                required int blobSize,
+                Value<int?> blobSize = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AssetsCompanion.insert(
                 uuid: uuid,
@@ -675,14 +685,16 @@ class GetAssetsInDirectoryResult {
   final String? parent;
   final String name;
   final AssetType type;
-  final int blobSize;
+  final String? properties;
+  final int? blobSize;
   final int depth;
   GetAssetsInDirectoryResult({
     required this.uuid,
     this.parent,
     required this.name,
     required this.type,
-    required this.blobSize,
+    this.properties,
+    this.blobSize,
     required this.depth,
   });
 }

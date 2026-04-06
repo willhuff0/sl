@@ -20,6 +20,7 @@ dependencies:
   meta: ^1.18.1
   drift: ^2.32.0
   sqlite3: ^3.1.6
+  collection: ^1.19.1
 
 dev_dependencies:
   lints: ^6.0.0

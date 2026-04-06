@@ -10,6 +10,8 @@ CREATE TABLE assets (
 );
 CREATE INDEX idx_assets_parent ON assets(parent);
 
+getAssetByUUID(:uuid as TEXT): SELECT * FROM assets WHERE uuid = :uuid;
+
 getAssetsInDirectory(:directory_uuid as TEXT OR NULL): WITH RECURSIVE
     asset_tree AS (
         SELECT
@@ -17,6 +19,7 @@ getAssetsInDirectory(:directory_uuid as TEXT OR NULL): WITH RECURSIVE
             a.parent,
             a.name,
             a.type,
+            a.properties,
             a.blob_size,
             0 AS depth
         FROM assets a
@@ -29,6 +32,7 @@ getAssetsInDirectory(:directory_uuid as TEXT OR NULL): WITH RECURSIVE
             sa.parent,
             sa.name,
             sa.type,
+            sa.properties,
             sa.blob_size,
             at.depth + 1
         FROM assets sa
@@ -41,6 +45,7 @@ getAssetsInDirectory(:directory_uuid as TEXT OR NULL): WITH RECURSIVE
         parent,
         name,
         type,
+        properties,
         blob_size,
         depth
     FROM asset_tree

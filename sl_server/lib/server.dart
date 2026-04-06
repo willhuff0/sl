@@ -3,9 +3,8 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:sl_server/systems/assets.dart';
+import 'package:sl_server/systems/asset_system.dart';
 import 'package:sl_server/database/database.dart' as db;
-import 'package:sl_server/state_tracker.dart';
 import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
@@ -91,14 +90,12 @@ class Server {
     final clientId = _nextClientId++;
     final client = Client(
       socket: socket,
-      // rpc: RpcPeer(sendCallback: (message) => _sendRpc(clientId, message)),
       state: ClientState(
         clientId: clientId,
         sceneId: null,
         color: _getNextClientColor(),
       ),
     );
-    // _registerClientRpcHandlers(client);
     _clients[client.clientId] = client;
     send(client, StcSetSelf(clientId: client.clientId));
     _broadcastClientStates();
@@ -106,10 +103,6 @@ class Server {
       ..onError((_) => kickClient(client))
       ..onDone(() => kickClient(client));
   }
-
-  // void _registerClientRpcHandlers(Client client) {
-  //   _assets.registerRpcHandlers(client);
-  // }
 
   void _onData(Client client, dynamic data) {
     print('From ${client.clientId} server received: $data');
@@ -165,15 +158,6 @@ class Server {
       ),
     );
   }
-
-  // void _sendRpc(int clientId, dynamic message) {
-  //   send(
-  //     _clients[clientId]!,
-  //     PtpRpc(
-  //       message: message,
-  //     ),
-  //   );
-  // }
 
   void send(Client client, Message message) {
     client.socket.sink.add(

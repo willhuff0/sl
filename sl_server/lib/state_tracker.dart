@@ -46,18 +46,26 @@ class StateTracker {
   final StateTrackerSystem _system;
   final Map<UUID, StateTracked> _trackedObjects = {};
   final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
-  final StateTracked? Function(UUID uuid)? _loadObjectFromDisk;
+
+  final Set<Client> Function(UUID uuid)? _getInterestedClients;
+  final Future<StateTracked?> Function(UUID uuid)? _loadObjectFromDisk;
 
   StateTracker(
     this._server,
     this._system, {
-    StateTracked? Function(UUID uuid)? loadObjectFromDisk,
-  }) : _loadObjectFromDisk = loadObjectFromDisk;
+    Set<Client> Function(UUID uuid)? getInterestedClients,
+    Future<StateTracked?> Function(UUID uuid)? loadObjectFromDisk,
+  }) : _getInterestedClients = getInterestedClients,
+       _loadObjectFromDisk = loadObjectFromDisk;
 
-  StateTracked? getObject(UUID uuid) {
+  StateTracked? getObjectInMemory(UUID uuid) {
+    return _trackedObjects[uuid];
+  }
+
+  Future<StateTracked?> getObject(UUID uuid) async {
     var object = _trackedObjects[uuid];
     if (object == null) {
-      object = _loadObjectFromDisk?.call(uuid);
+      object = await _loadObjectFromDisk?.call(uuid);
       if (object != null) {
         _trackedObjects[uuid] = object;
       }
@@ -65,17 +73,20 @@ class StateTracker {
     return object;
   }
 
-  void handleClientChanges(Client client, CtsStateChanges stateChanges) {
+  Future<void> handleClientChanges(Client client, CtsStateChanges stateChanges) async {
     final Map<ClientChangeId, bool> changeDecisions = {};
     final List<StateChange> approvedChanges = [];
 
-    stateChanges.stateChanges.forEach((clientChangeId, stateChange) {
+    for (final entry in stateChanges.stateChanges.entries) {
+      final clientChangeId = entry.key;
+      final stateChange = entry.value;
+
       _latestAcknowledgedChangeIds[client.clientId] = clientChangeId;
       var trackedObject = _trackedObjects[stateChange.objectId];
 
       var wasObjectJustAdded = false;
       if (trackedObject == null) {
-        trackedObject = _loadObjectFromDisk?.call(stateChange.objectId);
+        trackedObject = await _loadObjectFromDisk?.call(stateChange.objectId);
         if (trackedObject == null) {
           if (stateChange.objectClass == null) {
             changeDecisions[clientChangeId] = false;
@@ -102,7 +113,7 @@ class StateTracker {
       } else {
         changeDecisions[clientChangeId] = false;
       }
-    });
+    }
 
     _server.send(
       client,
@@ -112,14 +123,35 @@ class StateTracker {
       ),
     );
     if (approvedChanges.isNotEmpty) {
-      _server.sendToEach((otherClient) {
-        if (otherClient == client) return null;
-        return StcRemoteChanges(
-          system: _system,
-          remoteChanges: approvedChanges,
-          latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
-        );
-      });
+      if (_getInterestedClients != null) {
+        final interestedClientsToChanges = <Client, List<StateChange>>{};
+        for (final change in approvedChanges) {
+          final interestedClients = _getInterestedClients(change.objectId);
+          for (final client in interestedClients) {
+            var interestingChanges = interestedClientsToChanges[client] ??= [];
+            interestingChanges.add(change);
+          }
+        }
+        interestedClientsToChanges.forEach((client, changes) {
+          _server.send(
+            client,
+            StcRemoteChanges(
+              system: _system,
+              remoteChanges: changes,
+              latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[client.clientId] ?? 0,
+            ),
+          );
+        });
+      } else {
+        _server.sendToEach((otherClient) {
+          if (otherClient == client) return null;
+          return StcRemoteChanges(
+            system: _system,
+            remoteChanges: approvedChanges,
+            latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
+          );
+        });
+      }
     }
   }
 
@@ -131,5 +163,9 @@ class StateTracker {
     for (final object in objects) {
       _trackedObjects[object.uuid] = object;
     }
+  }
+
+  bool isObjectLoaded(UUID uuid) {
+    return _trackedObjects.containsKey(uuid);
   }
 }
