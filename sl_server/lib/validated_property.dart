@@ -30,6 +30,10 @@ class ValidatedProperty<T> {
       value = delta[key];
     }
   }
+
+  void getDeltaFromNull(Delta builder) {
+    builder[key] = value;
+  }
 }
 
 bool vector3Validator(_, dynamic v) {

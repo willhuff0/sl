@@ -1,11 +1,13 @@
 import 'package:meta/meta.dart';
+import 'package:sl_server/objects/asset.dart';
 import 'package:sl_server/objects/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_server/validated_property.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 final Map<ObjectClass, StateTracked Function(StateTracker, UUID)> _constructors = {
-  Node.objectClass: Node.new,
+  Node.objectClassS: Node.new,
+  TrackedAsset.objectClassS: TrackedAsset.new,
 };
 
 abstract class StateTracked {
@@ -24,7 +26,10 @@ abstract class StateTracked {
 
   StateTracked(this.tracker, this.uuid);
 
+  ObjectClass get objectClass;
+
   @mustCallSuper
+  @mustBeOverridden
   bool isValid(Delta delta) {
     try {
       if (!doesExist.value) return false;
@@ -36,8 +41,15 @@ abstract class StateTracked {
   }
 
   @mustCallSuper
+  @mustBeOverridden
   void applyDelta(Delta delta) {
     doesExist.set(this, delta);
+  }
+
+  @mustCallSuper
+  @mustBeOverridden
+  void getDeltaFromNull(Delta builder) {
+    if (!doesExist.value) doesExist.getDeltaFromNull(builder);
   }
 }
 
@@ -47,13 +59,13 @@ class StateTracker {
   final Map<UUID, StateTracked> _trackedObjects = {};
   final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
 
-  final Set<Client> Function(UUID uuid)? _getInterestedClients;
+  final Set<Client> Function(UUID? scope, UUID uuid)? _getInterestedClients;
   final Future<StateTracked?> Function(UUID uuid)? _loadObjectFromDisk;
 
   StateTracker(
     this._server,
     this._system, {
-    Set<Client> Function(UUID uuid)? getInterestedClients,
+    Set<Client> Function(UUID? scope, UUID uuid)? getInterestedClients,
     Future<StateTracked?> Function(UUID uuid)? loadObjectFromDisk,
   }) : _getInterestedClients = getInterestedClients,
        _loadObjectFromDisk = loadObjectFromDisk;
@@ -73,7 +85,12 @@ class StateTracker {
     return object;
   }
 
-  Future<void> handleClientChanges(Client client, CtsStateChanges stateChanges) async {
+  Future<void> handleClientChanges(
+    Client client,
+    CtsStateChanges stateChanges, {
+    void Function(StateTracked)? insertBuilder,
+    void Function(Delta, StateTracked)? updateBuilder,
+  }) async {
     final Map<ClientChangeId, bool> changeDecisions = {};
     final List<StateChange> approvedChanges = [];
 
@@ -85,6 +102,7 @@ class StateTracker {
       var trackedObject = _trackedObjects[stateChange.objectId];
 
       var wasObjectJustAdded = false;
+      var wasObjectJustCreated = false;
       if (trackedObject == null) {
         trackedObject = await _loadObjectFromDisk?.call(stateChange.objectId);
         if (trackedObject == null) {
@@ -94,14 +112,18 @@ class StateTracker {
             return;
           }
           trackedObject = _createObject(stateChange.objectClass!, stateChange.objectId);
+        } else {
+          wasObjectJustCreated = true;
         }
         wasObjectJustAdded = true;
       }
 
       if (trackedObject.isValid(stateChange.delta)) {
+        trackedObject.applyDelta(stateChange.delta);
         changeDecisions[clientChangeId] = true;
         approvedChanges.add(
           StateChange(
+            scope: stateChange.scope,
             objectClass: stateChange.objectClass,
             objectId: stateChange.objectId,
             delta: stateChange.delta,
@@ -109,6 +131,11 @@ class StateTracker {
         );
         if (wasObjectJustAdded) {
           _trackedObjects[stateChange.objectId] = trackedObject;
+        }
+        if (wasObjectJustCreated) {
+          insertBuilder?.call(trackedObject);
+        } else {
+          updateBuilder?.call(stateChange.delta, trackedObject);
         }
       } else {
         changeDecisions[clientChangeId] = false;
@@ -126,8 +153,9 @@ class StateTracker {
       if (_getInterestedClients != null) {
         final interestedClientsToChanges = <Client, List<StateChange>>{};
         for (final change in approvedChanges) {
-          final interestedClients = _getInterestedClients(change.objectId);
-          for (final client in interestedClients) {
+          final interestedClients = _getInterestedClients(change.scope, change.objectId);
+          for (final interestedClient in interestedClients) {
+            if (interestedClient == client) continue;
             var interestingChanges = interestedClientsToChanges[client] ??= [];
             interestingChanges.add(change);
           }
@@ -159,10 +187,30 @@ class StateTracker {
     return _constructors[objectClass]!(this, uuid);
   }
 
-  void preloadObjects(Iterable<StateTracked> objects) {
+  void preloadObjectsForClient(Client client, UUID? scope, Iterable<StateTracked> objects) {
+    final changes = <StateChange>[];
     for (final object in objects) {
       _trackedObjects[object.uuid] = object;
+
+      final builder = <String, dynamic>{};
+      object.getDeltaFromNull(builder);
+      changes.add(
+        StateChange(
+          scope: scope,
+          objectClass: object.objectClass,
+          objectId: object.uuid,
+          delta: builder,
+        ),
+      );
     }
+    _server.send(
+      client,
+      StcRemoteChanges(
+        system: _system,
+        remoteChanges: changes,
+        latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[client.clientId] ?? 0,
+      ),
+    );
   }
 
   bool isObjectLoaded(UUID uuid) {

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:sl_server/systems/asset_system.dart';
-import 'package:sl_server/database/database.dart' as db;
+import 'package:sl_shared/src/database/database.dart' as db;
 import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
@@ -75,18 +76,19 @@ class Server {
     return UnmodifiableMapView(_clients);
   }
 
-  Future<void> kickClient(Client client, {int? status, String? reason}) async {
-    print('Kicking client ${client.clientId}');
+  Future<void> removeClient(Client client, {int? status, String? reason}) async {
+    print('Removing client ${client.clientId}');
 
     await client.socket.sink.close(status, reason);
     _clients.remove(client.clientId);
 
-    _sceneSystem.removeClient(client);
+    await _sceneSystem.removeClient(client);
+    await _assetSystem.removeClient(client);
 
     _broadcastClientStates();
   }
 
-  void _onConnection(WebSocketChannel socket, _) {
+  void _onConnection(WebSocketChannel socket, _) async {
     final clientId = _nextClientId++;
     final client = Client(
       socket: socket,
@@ -99,42 +101,55 @@ class Server {
     _clients[client.clientId] = client;
     send(client, StcSetSelf(clientId: client.clientId));
     _broadcastClientStates();
-    socket.stream.listen((data) => _onData(client, data))
-      ..onError((_) => kickClient(client))
-      ..onDone(() => kickClient(client));
+
+    try {
+      await for (final data in socket.stream) {
+        await _onData(client, data);
+      }
+    } catch (e) {
+      print('Error occurred while handling message for client ${client.clientId}');
+      await removeClient(client);
+    }
+    await removeClient(client);
   }
 
-  void _onData(Client client, dynamic data) {
-    print('From ${client.clientId} server received: $data');
+  Future<void> _onData(Client client, dynamic data) async {
+    print('From ${client.clientId} server received: (${data.runtimeType}) $data');
 
-    final json = jsonDecode(data) as Map<String, dynamic>;
-    final messageAndHeader = MessageAndHeader.fromJson(json);
+    switch (data) {
+      case String string:
+        final json = jsonDecode(string) as Map<String, dynamic>;
+        final messageAndHeader = MessageAndHeader.fromJson(json);
 
-    _handleMessage(client, messageAndHeader.messageInstance);
+        await _handleMessage(client, messageAndHeader.messageInstance);
+        break;
+      case Uint8List bytes:
+        await _assetSystem.handleBinary(client, bytes);
+        break;
+    }
   }
 
-  void _handleMessage(Client client, Message message) {
+  Future<void> _handleMessage(Client client, Message message) async {
     switch (message) {
       case CtsStateChanges stateChanges:
         switch (stateChanges.system) {
           case StateTrackerSystem.scene:
-            _sceneSystem.stateTracker.handleClientChanges(client, stateChanges);
+            await _sceneSystem.stateTracker.handleClientChanges(client, stateChanges);
             break;
           case StateTrackerSystem.asset:
-            _assetSystem.stateTracker.handleClientChanges(client, stateChanges);
+            await _assetSystem.handleClientChanges(client, stateChanges);
             break;
         }
         break;
       default:
-        if (_sceneSystem.handleMessage(client, message)) break;
-        if (_assetSystem.handleMessage(client, message)) break;
+        if (await _sceneSystem.handleMessage(client, message)) break;
+        if (await _assetSystem.handleMessage(client, message)) break;
         break;
     }
   }
 
   void _tick() {
     _sceneSystem.tick();
-    _assetSystem.tick();
   }
 
   int _getNextClientColor() {

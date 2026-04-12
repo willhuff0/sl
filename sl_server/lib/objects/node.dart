@@ -75,7 +75,9 @@ class Node extends StateTracked {
 
   Node(super.tracker, super.uuid);
 
-  static ObjectClass get objectClass => 'node';
+  @override
+  ObjectClass get objectClass => 'node';
+  static ObjectClass get objectClassS => 'node';
 
   @override
   bool isValid(Delta delta) {
@@ -100,5 +102,16 @@ class Node extends StateTracked {
     lRot.set(this, delta);
     lScale.set(this, delta);
     super.applyDelta(delta);
+  }
+
+  @override
+  void getDeltaFromNull(Delta builder) {
+    // TODO: json serializer
+    name.getDeltaFromNull(builder);
+    parent.getDeltaFromNull(builder);
+    lPos.getDeltaFromNull(builder);
+    lRot.getDeltaFromNull(builder);
+    lScale.getDeltaFromNull(builder);
+    super.getDeltaFromNull(builder);
   }
 }

@@ -6,70 +6,6 @@ part of 'asset.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AssetCreateInfo _$AssetCreateInfoFromJson(Map<String, dynamic> json) =>
-    AssetCreateInfo(
-      uuid: json['uuid'] as String,
-      parent: json['parent'] as String?,
-      name: json['name'] as String,
-      type: $enumDecode(_$AssetTypeEnumMap, json['type']),
-    );
-
-Map<String, dynamic> _$AssetCreateInfoToJson(AssetCreateInfo instance) =>
-    <String, dynamic>{
-      'uuid': instance.uuid,
-      'parent': instance.parent,
-      'name': instance.name,
-      'type': _$AssetTypeEnumMap[instance.type]!,
-    };
-
-const _$AssetTypeEnumMap = {
-  AssetType.directory: 'directory',
-  AssetType.unsupported: 'unsupported',
-  AssetType.propertiesOnly: 'propertiesOnly',
-  AssetType.texture: 'texture',
-  AssetType.mesh: 'mesh',
-  AssetType.model: 'model',
-  AssetType.shader: 'shader',
-  AssetType.nodeTree: 'nodeTree',
-};
-
-AssetEntry _$AssetEntryFromJson(Map<String, dynamic> json) => AssetEntry(
-  uuid: json['uuid'] as String,
-  name: json['name'] as String,
-  type: $enumDecode(_$AssetTypeEnumMap, json['type']),
-  subAssets: (json['subAssets'] as List<dynamic>)
-      .map((e) => AssetEntry.fromJson(e as Map<String, dynamic>))
-      .toList(),
-  blobSize: (json['blobSize'] as num?)?.toInt(),
-);
-
-Map<String, dynamic> _$AssetEntryToJson(AssetEntry instance) =>
-    <String, dynamic>{
-      'uuid': instance.uuid,
-      'name': instance.name,
-      'type': _$AssetTypeEnumMap[instance.type]!,
-      'subAssets': instance.subAssets,
-      'blobSize': instance.blobSize,
-    };
-
-CtsCreateAssets _$CtsCreateAssetsFromJson(Map<String, dynamic> json) =>
-    CtsCreateAssets(
-      createInfos: (json['createInfos'] as List<dynamic>)
-          .map((e) => AssetCreateInfo.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-
-Map<String, dynamic> _$CtsCreateAssetsToJson(CtsCreateAssets instance) =>
-    <String, dynamic>{'createInfos': instance.createInfos};
-
-CtsDeleteAssets _$CtsDeleteAssetsFromJson(Map<String, dynamic> json) =>
-    CtsDeleteAssets(
-      uuids: (json['uuids'] as List<dynamic>).map((e) => e as String).toList(),
-    );
-
-Map<String, dynamic> _$CtsDeleteAssetsToJson(CtsDeleteAssets instance) =>
-    <String, dynamic>{'uuids': instance.uuids};
-
 CtsListenToAssetDirectory _$CtsListenToAssetDirectoryFromJson(
   Map<String, dynamic> json,
 ) => CtsListenToAssetDirectory(directory: json['directory'] as String?);
@@ -78,35 +14,74 @@ Map<String, dynamic> _$CtsListenToAssetDirectoryToJson(
   CtsListenToAssetDirectory instance,
 ) => <String, dynamic>{'directory': instance.directory};
 
-StcAssetDirectoryStreamUpdate _$StcAssetDirectoryStreamUpdateFromJson(
-  Map<String, dynamic> json,
-) => StcAssetDirectoryStreamUpdate(
-  directory: json['directory'] as String?,
-  updated: (json['updated'] as List<dynamic>)
-      .map((e) => AssetEntry.fromJson(e as Map<String, dynamic>))
-      .toList(),
-  removed: (json['removed'] as List<dynamic>).map((e) => e as String).toList(),
-);
+CtsRequestAssetBlob _$CtsRequestAssetBlobFromJson(Map<String, dynamic> json) =>
+    CtsRequestAssetBlob(
+      uuid: json['uuid'] as String,
+      offset: (json['offset'] as num).toInt(),
+      length: (json['length'] as num).toInt(),
+    );
 
-Map<String, dynamic> _$StcAssetDirectoryStreamUpdateToJson(
-  StcAssetDirectoryStreamUpdate instance,
+Map<String, dynamic> _$CtsRequestAssetBlobToJson(
+  CtsRequestAssetBlob instance,
 ) => <String, dynamic>{
-  'directory': instance.directory,
-  'updated': instance.updated,
-  'removed': instance.removed,
+  'uuid': instance.uuid,
+  'offset': instance.offset,
+  'length': instance.length,
 };
 
-PtpAssetBlob _$PtpAssetBlobFromJson(Map<String, dynamic> json) => PtpAssetBlob(
-  uuid: json['uuid'] as String,
-  offset: (json['offset'] as num).toInt(),
-  size: (json['size'] as num).toInt(),
-  data: json['data'] as String,
-);
+PtpAssetBlobStart _$PtpAssetBlobStartFromJson(Map<String, dynamic> json) =>
+    PtpAssetBlobStart(
+      uuid: json['uuid'] as String,
+      offset: (json['offset'] as num).toInt(),
+      length: (json['length'] as num).toInt(),
+      size: (json['size'] as num).toInt(),
+    );
 
-Map<String, dynamic> _$PtpAssetBlobToJson(PtpAssetBlob instance) =>
+Map<String, dynamic> _$PtpAssetBlobStartToJson(PtpAssetBlobStart instance) =>
     <String, dynamic>{
       'uuid': instance.uuid,
       'offset': instance.offset,
+      'length': instance.length,
       'size': instance.size,
-      'data': instance.data,
     };
+
+PtpAssetBlobEnd _$PtpAssetBlobEndFromJson(Map<String, dynamic> json) =>
+    PtpAssetBlobEnd(uuid: json['uuid'] as String);
+
+Map<String, dynamic> _$PtpAssetBlobEndToJson(PtpAssetBlobEnd instance) =>
+    <String, dynamic>{'uuid': instance.uuid};
+
+StcAssetBlobProgress _$StcAssetBlobProgressFromJson(
+  Map<String, dynamic> json,
+) => StcAssetBlobProgress(
+  uuid: json['uuid'] as String,
+  bytesReceived: (json['bytesReceived'] as num).toInt(),
+);
+
+Map<String, dynamic> _$StcAssetBlobProgressToJson(
+  StcAssetBlobProgress instance,
+) => <String, dynamic>{
+  'uuid': instance.uuid,
+  'bytesReceived': instance.bytesReceived,
+};
+
+PtpAssetBlobError _$PtpAssetBlobErrorFromJson(Map<String, dynamic> json) =>
+    PtpAssetBlobError(
+      uuid: json['uuid'] as String?,
+      error: $enumDecode(_$AssetBlobErrorEnumMap, json['error']),
+    );
+
+Map<String, dynamic> _$PtpAssetBlobErrorToJson(PtpAssetBlobError instance) =>
+    <String, dynamic>{
+      'uuid': instance.uuid,
+      'error': _$AssetBlobErrorEnumMap[instance.error]!,
+    };
+
+const _$AssetBlobErrorEnumMap = {
+  AssetBlobError.assetDoesNotExist: 'assetDoesNotExist',
+  AssetBlobError.assetBlobLocked: 'assetBlobLocked',
+  AssetBlobError.operationNotStarted: 'operationNotStarted',
+  AssetBlobError.simultaneousUploadsFromSingleClientNotAllowed:
+      'simultaneousUploadsFromSingleClientNotAllowed',
+  AssetBlobError.operationTimedOut: 'operationTimedOut',
+};

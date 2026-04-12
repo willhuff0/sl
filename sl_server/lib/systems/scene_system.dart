@@ -24,11 +24,11 @@ class SceneSystem {
     );
   }
 
-  void removeClient(Client client) {
+  Future<void> removeClient(Client client) async {
     _removeClientFromScene(client);
   }
 
-  bool handleMessage(Client client, Message message) {
+  Future<bool> handleMessage(Client client, Message message) async {
     switch (message) {
       case CtsSetSceneState setSceneState:
         _setClientSceneState(client, setSceneState.sceneId, setSceneState.state);
@@ -48,10 +48,8 @@ class SceneSystem {
     }
   }
 
-  Set<Client> _getInterestedClients(UUID uuid) {
-    //final object = stateTracker.getObjectInMemory(uuid);
-    // TOOD
-    return {};
+  Set<Client> _getInterestedClients(UUID? scope, UUID uuid) {
+    return _scenes[scope]?.clients.keys.map((clientId) => server.getClients()[clientId]!).toSet() ?? {};
   }
 
   void _setClientSceneState(Client client, UUID? sceneId, ClientSceneState? newState) {
@@ -61,11 +59,12 @@ class SceneSystem {
     }
     if (sceneId != client.sceneId) {
       _removeClientFromScene(client);
+      _loadAndSendEntireScene(client, sceneId);
     }
 
-    var scope = _scenes[sceneId] ?? (_scenes[sceneId] = Scene(sceneId));
-    scope.clients[client.clientId] = newState;
-    scope.hasAnyClientStateChanged = true;
+    var scene = _scenes[sceneId] ?? (_scenes[sceneId] = Scene(sceneId));
+    scene.clients[client.clientId] = newState;
+    scene.hasAnyClientStateChanged = true;
 
     client.state.sceneId = sceneId;
   }
@@ -87,6 +86,29 @@ class SceneSystem {
         states: scene.clients,
       ),
       only: scene.clients.keys.map((clientId) => server.getClients()[clientId]!),
+    );
+  }
+
+  Future<void> _loadAndSendEntireScene(Client client, UUID sceneId) async {
+    final rows = await database.getAssetsInDirectory(directory).get();
+    _stateTracker.preloadObjectsForClient(
+      client,
+      directory,
+      rows
+          .where((row) => !_stateTracker.isObjectLoaded(row.uuid))
+          .map(
+            (row) => TrackedAsset.fromDatabase(
+              _stateTracker,
+              Asset(
+                uuid: row.uuid,
+                parent: row.parent,
+                name: row.name,
+                type: row.type,
+                properties: row.properties,
+                blobSize: row.blobSize,
+              ),
+            ),
+          ),
     );
   }
 }

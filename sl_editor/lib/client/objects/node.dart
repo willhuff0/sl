@@ -1,14 +1,13 @@
 import 'dart:collection';
 
 import 'package:sl_editor/client/state_tracker.dart';
+import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_engine/node.dart' as engine;
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
-final Map<engine.Node, Node> _engineNodeToTracker = {};
-
-class Node extends StateTracked {
+class Node extends SceneStateTracked {
   final TrackedProperty<String> name = TrackedProperty(
     path: 'name',
     value: 'New Node',
@@ -46,17 +45,13 @@ class Node extends StateTracked {
 
   static ObjectClass get objectClass => 'node';
 
-  static Node getTrackerForEngineNode(engine.Node node) {
-    return _engineNodeToTracker[node]!;
-  }
-
-  static Node create() {
-    final node = Node(generateUuid());
-    node.createThis('node');
+  static Node create(StateTracker tracker) {
+    final node = Node(tracker, generateUuid());
+    node.createThis(objectClass);
     return node;
   }
 
-  Node(super.uuid)
+  Node(super.tracker, super.uuid)
     : engineNode = engine.Node(name: 'New Node'),
       super(
         doesExistEffect: (node, newDoesExist) {
@@ -66,8 +61,6 @@ class Node extends StateTracked {
           }
         },
       ) {
-    _engineNodeToTracker[engineNode] = this;
-
     // TODO: temporary
     // root.addChild(engineNode);
     // engineNode.addComponent(MeshComponent(mesh: cubeMesh));
@@ -97,7 +90,7 @@ class Node extends StateTracked {
   static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
     final node = (receiver as Node);
     if (node.parent.get() != null) {
-      final parentNode = StateTracker.getObject<Node>(node.parent.get()!.uuid)!;
+      final parentNode = receiver.tracker.getObject<Node>(node.parent.get()!.uuid)!;
       parentNode.children.remove(node.parent.get()!.order);
       parentNode.engineNode.removeChild(node.engineNode);
     } else {
@@ -105,7 +98,7 @@ class Node extends StateTracked {
       // root.removeChild(node.engineNode);
     }
     if (newParent != null) {
-      final newParentNode = StateTracker.getObject<Node>(newParent.uuid)!;
+      final newParentNode = receiver.tracker.getObject<Node>(newParent.uuid)!;
       newParentNode.children[newParent.order] = node;
       newParentNode.engineNode.addChild(node.engineNode);
     } else {

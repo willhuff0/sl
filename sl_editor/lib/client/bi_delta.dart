@@ -38,13 +38,15 @@ class BiStateChange {
     required this.biDelta,
   });
 
-  StateChange getForwardStateChange() => StateChange(
+  StateChange getForwardStateChange(UUID? scope) => StateChange(
+    scope: scope,
     objectClass: objectClass,
     objectId: objectId,
     delta: biDelta.delta,
   );
 
-  StateChange getInverseStateChange() => StateChange(
+  StateChange getInverseStateChange(UUID? scope) => StateChange(
+    scope: scope,
     objectClass: objectClass,
     objectId: objectId,
     delta: biDelta.inverseDelta,

@@ -14,12 +14,14 @@ enum StateTrackerSystem {
 
 @JsonSerializable()
 class StateChange {
+  final UUID? scope;
   @JsonKey(includeIfNull: false)
   final ObjectClass? objectClass;
   final UUID objectId;
   final Delta delta;
 
   StateChange({
+    required this.scope,
     this.objectClass,
     required this.objectId,
     required this.delta,

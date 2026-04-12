@@ -55,6 +55,17 @@ class Assets extends Table with TableInfo<Assets, Asset> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _blobSizeMeta = const VerificationMeta(
     'blobSize',
   );
@@ -66,6 +77,17 @@ class Assets extends Table with TableInfo<Assets, Asset> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _blobUpdatedAtMeta = const VerificationMeta(
+    'blobUpdatedAt',
+  );
+  late final GeneratedColumn<String> blobUpdatedAt = GeneratedColumn<String>(
+    'blob_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     uuid,
@@ -73,7 +95,9 @@ class Assets extends Table with TableInfo<Assets, Asset> {
     name,
     type,
     properties,
+    updatedAt,
     blobSize,
+    blobUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -115,10 +139,25 @@ class Assets extends Table with TableInfo<Assets, Asset> {
         properties.isAcceptableOrUnknown(data['properties']!, _propertiesMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
     if (data.containsKey('blob_size')) {
       context.handle(
         _blobSizeMeta,
         blobSize.isAcceptableOrUnknown(data['blob_size']!, _blobSizeMeta),
+      );
+    }
+    if (data.containsKey('blob_updated_at')) {
+      context.handle(
+        _blobUpdatedAtMeta,
+        blobUpdatedAt.isAcceptableOrUnknown(
+          data['blob_updated_at']!,
+          _blobUpdatedAtMeta,
+        ),
       );
     }
     return context;
@@ -152,9 +191,17 @@ class Assets extends Table with TableInfo<Assets, Asset> {
         DriftSqlType.string,
         data['${effectivePrefix}properties'],
       ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      ),
       blobSize: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}blob_size'],
+      ),
+      blobUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}blob_updated_at'],
       ),
     );
   }
@@ -176,14 +223,18 @@ class Asset extends DataClass implements Insertable<Asset> {
   final String name;
   final AssetType type;
   final String? properties;
+  final String? updatedAt;
   final int? blobSize;
+  final String? blobUpdatedAt;
   const Asset({
     required this.uuid,
     this.parent,
     required this.name,
     required this.type,
     this.properties,
+    this.updatedAt,
     this.blobSize,
+    this.blobUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -199,8 +250,14 @@ class Asset extends DataClass implements Insertable<Asset> {
     if (!nullToAbsent || properties != null) {
       map['properties'] = Variable<String>(properties);
     }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<String>(updatedAt);
+    }
     if (!nullToAbsent || blobSize != null) {
       map['blob_size'] = Variable<int>(blobSize);
+    }
+    if (!nullToAbsent || blobUpdatedAt != null) {
+      map['blob_updated_at'] = Variable<String>(blobUpdatedAt);
     }
     return map;
   }
@@ -216,9 +273,15 @@ class Asset extends DataClass implements Insertable<Asset> {
       properties: properties == null && nullToAbsent
           ? const Value.absent()
           : Value(properties),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
       blobSize: blobSize == null && nullToAbsent
           ? const Value.absent()
           : Value(blobSize),
+      blobUpdatedAt: blobUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(blobUpdatedAt),
     );
   }
 
@@ -235,7 +298,9 @@ class Asset extends DataClass implements Insertable<Asset> {
         serializer.fromJson<int>(json['type']),
       ),
       properties: serializer.fromJson<String?>(json['properties']),
+      updatedAt: serializer.fromJson<String?>(json['updated_at']),
       blobSize: serializer.fromJson<int?>(json['blob_size']),
+      blobUpdatedAt: serializer.fromJson<String?>(json['blob_updated_at']),
     );
   }
   @override
@@ -247,7 +312,9 @@ class Asset extends DataClass implements Insertable<Asset> {
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<int>(Assets.$convertertype.toJson(type)),
       'properties': serializer.toJson<String?>(properties),
+      'updated_at': serializer.toJson<String?>(updatedAt),
       'blob_size': serializer.toJson<int?>(blobSize),
+      'blob_updated_at': serializer.toJson<String?>(blobUpdatedAt),
     };
   }
 
@@ -257,14 +324,20 @@ class Asset extends DataClass implements Insertable<Asset> {
     String? name,
     AssetType? type,
     Value<String?> properties = const Value.absent(),
+    Value<String?> updatedAt = const Value.absent(),
     Value<int?> blobSize = const Value.absent(),
+    Value<String?> blobUpdatedAt = const Value.absent(),
   }) => Asset(
     uuid: uuid ?? this.uuid,
     parent: parent.present ? parent.value : this.parent,
     name: name ?? this.name,
     type: type ?? this.type,
     properties: properties.present ? properties.value : this.properties,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     blobSize: blobSize.present ? blobSize.value : this.blobSize,
+    blobUpdatedAt: blobUpdatedAt.present
+        ? blobUpdatedAt.value
+        : this.blobUpdatedAt,
   );
   Asset copyWithCompanion(AssetsCompanion data) {
     return Asset(
@@ -275,7 +348,11 @@ class Asset extends DataClass implements Insertable<Asset> {
       properties: data.properties.present
           ? data.properties.value
           : this.properties,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       blobSize: data.blobSize.present ? data.blobSize.value : this.blobSize,
+      blobUpdatedAt: data.blobUpdatedAt.present
+          ? data.blobUpdatedAt.value
+          : this.blobUpdatedAt,
     );
   }
 
@@ -287,14 +364,24 @@ class Asset extends DataClass implements Insertable<Asset> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('properties: $properties, ')
-          ..write('blobSize: $blobSize')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('blobSize: $blobSize, ')
+          ..write('blobUpdatedAt: $blobUpdatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(uuid, parent, name, type, properties, blobSize);
+  int get hashCode => Object.hash(
+    uuid,
+    parent,
+    name,
+    type,
+    properties,
+    updatedAt,
+    blobSize,
+    blobUpdatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -304,7 +391,9 @@ class Asset extends DataClass implements Insertable<Asset> {
           other.name == this.name &&
           other.type == this.type &&
           other.properties == this.properties &&
-          other.blobSize == this.blobSize);
+          other.updatedAt == this.updatedAt &&
+          other.blobSize == this.blobSize &&
+          other.blobUpdatedAt == this.blobUpdatedAt);
 }
 
 class AssetsCompanion extends UpdateCompanion<Asset> {
@@ -313,7 +402,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
   final Value<String> name;
   final Value<AssetType> type;
   final Value<String?> properties;
+  final Value<String?> updatedAt;
   final Value<int?> blobSize;
+  final Value<String?> blobUpdatedAt;
   final Value<int> rowid;
   const AssetsCompanion({
     this.uuid = const Value.absent(),
@@ -321,7 +412,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     this.name = const Value.absent(),
     this.type = const Value.absent(),
     this.properties = const Value.absent(),
+    this.updatedAt = const Value.absent(),
     this.blobSize = const Value.absent(),
+    this.blobUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AssetsCompanion.insert({
@@ -330,7 +423,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     required String name,
     required AssetType type,
     this.properties = const Value.absent(),
+    this.updatedAt = const Value.absent(),
     this.blobSize = const Value.absent(),
+    this.blobUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : uuid = Value(uuid),
        name = Value(name),
@@ -341,7 +436,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     Expression<String>? name,
     Expression<int>? type,
     Expression<String>? properties,
+    Expression<String>? updatedAt,
     Expression<int>? blobSize,
+    Expression<String>? blobUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -350,7 +447,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
       if (name != null) 'name': name,
       if (type != null) 'type': type,
       if (properties != null) 'properties': properties,
+      if (updatedAt != null) 'updated_at': updatedAt,
       if (blobSize != null) 'blob_size': blobSize,
+      if (blobUpdatedAt != null) 'blob_updated_at': blobUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -361,7 +460,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     Value<String>? name,
     Value<AssetType>? type,
     Value<String?>? properties,
+    Value<String?>? updatedAt,
     Value<int?>? blobSize,
+    Value<String?>? blobUpdatedAt,
     Value<int>? rowid,
   }) {
     return AssetsCompanion(
@@ -370,7 +471,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
       name: name ?? this.name,
       type: type ?? this.type,
       properties: properties ?? this.properties,
+      updatedAt: updatedAt ?? this.updatedAt,
       blobSize: blobSize ?? this.blobSize,
+      blobUpdatedAt: blobUpdatedAt ?? this.blobUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -393,8 +496,14 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
     if (properties.present) {
       map['properties'] = Variable<String>(properties.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
     if (blobSize.present) {
       map['blob_size'] = Variable<int>(blobSize.value);
+    }
+    if (blobUpdatedAt.present) {
+      map['blob_updated_at'] = Variable<String>(blobUpdatedAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -410,7 +519,9 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('properties: $properties, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('blobSize: $blobSize, ')
+          ..write('blobUpdatedAt: $blobUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -437,7 +548,7 @@ abstract class _$Database extends GeneratedDatabase {
     String? directoryUuid,
   ) {
     return customSelect(
-      'WITH RECURSIVE asset_tree AS (SELECT a.uuid, a.parent, a.name, a.type, a.properties, a.blob_size, 0 AS depth FROM assets AS a WHERE a.parent = ?1 OR(a.parent IS NULL AND ?1 IS NULL)UNION ALL SELECT sa.uuid, sa.parent, sa.name, sa.type, sa.properties, sa.blob_size, at.depth + 1 FROM assets AS sa JOIN asset_tree AS at ON sa.parent = at.uuid WHERE at.type <> 0) SELECT uuid, parent, name, type, properties, blob_size, depth FROM asset_tree ORDER BY depth, parent, name',
+      'WITH RECURSIVE asset_tree AS (SELECT a.uuid, a.parent, a.name, a.type, a.properties, a.updated_at, a.blob_size, a.blob_updated_at, 0 AS depth FROM assets AS a WHERE a.parent = ?1 OR(a.parent IS NULL AND ?1 IS NULL)UNION ALL SELECT sa.uuid, sa.parent, sa.name, sa.type, sa.properties, sa.updated_at, sa.blob_size, sa.blob_updated_at, at.depth + 1 FROM assets AS sa JOIN asset_tree AS at ON sa.parent = at.uuid WHERE at.type <> 0) SELECT uuid, parent, name, type, properties, updated_at, blob_size, blob_updated_at, depth FROM asset_tree ORDER BY depth, parent, name',
       variables: [Variable<String>(directoryUuid)],
       readsFrom: {assets},
     ).map(
@@ -447,7 +558,9 @@ abstract class _$Database extends GeneratedDatabase {
         name: row.read<String>('name'),
         type: Assets.$convertertype.fromSql(row.read<int>('type')),
         properties: row.readNullable<String>('properties'),
+        updatedAt: row.readNullable<String>('updated_at'),
         blobSize: row.readNullable<int>('blob_size'),
+        blobUpdatedAt: row.readNullable<String>('blob_updated_at'),
         depth: row.read<int>('depth'),
       ),
     );
@@ -467,7 +580,9 @@ typedef $AssetsCreateCompanionBuilder =
       required String name,
       required AssetType type,
       Value<String?> properties,
+      Value<String?> updatedAt,
       Value<int?> blobSize,
+      Value<String?> blobUpdatedAt,
       Value<int> rowid,
     });
 typedef $AssetsUpdateCompanionBuilder =
@@ -477,7 +592,9 @@ typedef $AssetsUpdateCompanionBuilder =
       Value<String> name,
       Value<AssetType> type,
       Value<String?> properties,
+      Value<String?> updatedAt,
       Value<int?> blobSize,
+      Value<String?> blobUpdatedAt,
       Value<int> rowid,
     });
 
@@ -515,8 +632,18 @@ class $AssetsFilterComposer extends Composer<_$Database, Assets> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get blobSize => $composableBuilder(
     column: $table.blobSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get blobUpdatedAt => $composableBuilder(
+    column: $table.blobUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -554,8 +681,18 @@ class $AssetsOrderingComposer extends Composer<_$Database, Assets> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get blobSize => $composableBuilder(
     column: $table.blobSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get blobUpdatedAt => $composableBuilder(
+    column: $table.blobUpdatedAt,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -585,8 +722,16 @@ class $AssetsAnnotationComposer extends Composer<_$Database, Assets> {
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
   GeneratedColumn<int> get blobSize =>
       $composableBuilder(column: $table.blobSize, builder: (column) => column);
+
+  GeneratedColumn<String> get blobUpdatedAt => $composableBuilder(
+    column: $table.blobUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $AssetsTableManager
@@ -622,7 +767,9 @@ class $AssetsTableManager
                 Value<String> name = const Value.absent(),
                 Value<AssetType> type = const Value.absent(),
                 Value<String?> properties = const Value.absent(),
+                Value<String?> updatedAt = const Value.absent(),
                 Value<int?> blobSize = const Value.absent(),
+                Value<String?> blobUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AssetsCompanion(
                 uuid: uuid,
@@ -630,7 +777,9 @@ class $AssetsTableManager
                 name: name,
                 type: type,
                 properties: properties,
+                updatedAt: updatedAt,
                 blobSize: blobSize,
+                blobUpdatedAt: blobUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -640,7 +789,9 @@ class $AssetsTableManager
                 required String name,
                 required AssetType type,
                 Value<String?> properties = const Value.absent(),
+                Value<String?> updatedAt = const Value.absent(),
                 Value<int?> blobSize = const Value.absent(),
+                Value<String?> blobUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AssetsCompanion.insert(
                 uuid: uuid,
@@ -648,7 +799,9 @@ class $AssetsTableManager
                 name: name,
                 type: type,
                 properties: properties,
+                updatedAt: updatedAt,
                 blobSize: blobSize,
+                blobUpdatedAt: blobUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -686,7 +839,9 @@ class GetAssetsInDirectoryResult {
   final String name;
   final AssetType type;
   final String? properties;
+  final String? updatedAt;
   final int? blobSize;
+  final String? blobUpdatedAt;
   final int depth;
   GetAssetsInDirectoryResult({
     required this.uuid,
@@ -694,7 +849,9 @@ class GetAssetsInDirectoryResult {
     required this.name,
     required this.type,
     this.properties,
+    this.updatedAt,
     this.blobSize,
+    this.blobUpdatedAt,
     required this.depth,
   });
 }

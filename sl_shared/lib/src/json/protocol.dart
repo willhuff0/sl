@@ -7,17 +7,22 @@ typedef MessageFactory = Message Function(Map<String, dynamic> json);
 final Map<String, MessageFactory> _factories = {
   StcSetSelf.messageClassS: StcSetSelf.fromJson,
   StcSetClientGlobalStates.messageClassS: StcSetClientGlobalStates.fromJson,
-  CtsSetSceneState.messageClassS: CtsSetSceneState.fromJson,
-  StcSetClientSceneStates.messageClassS: StcSetClientSceneStates.fromJson,
+
+  // State Tracking
   StcRemoteChanges.messageClassS: StcRemoteChanges.fromJson,
   StcLocalChangeDecisions.messageClassS: StcLocalChangeDecisions.fromJson,
   CtsStateChanges.messageClassS: CtsStateChanges.fromJson,
-  // PtpRpc.messageClassS: PtpRpc.fromJson,
-  PtpAssetBlob.messageClassS: PtpAssetBlob.fromJson,
+
+  // Scenes
+  CtsSetSceneState.messageClassS: CtsSetSceneState.fromJson,
+  StcSetClientSceneStates.messageClassS: StcSetClientSceneStates.fromJson,
+
+  // Assets
   CtsListenToAssetDirectory.messageClassS: CtsListenToAssetDirectory.fromJson,
-  StcAssetDirectoryStreamUpdate.messageClassS: StcAssetDirectoryStreamUpdate.fromJson,
-  CtsCreateAssets.messageClassS: CtsCreateAssets.fromJson,
-  CtsDeleteAssets.messageClassS: CtsDeleteAssets.fromJson,
+  PtpAssetBlobStart.messageClassS: PtpAssetBlobStart.fromJson,
+  PtpAssetBlobEnd.messageClassS: PtpAssetBlobEnd.fromJson,
+  StcAssetBlobProgress.messageClassS: StcAssetBlobProgress.fromJson,
+  PtpAssetBlobError.messageClassS: PtpAssetBlobError.fromJson,
 };
 
 class MessageAndHeader {
@@ -59,17 +64,3 @@ class StcSetSelf extends Message {
   factory StcSetSelf.fromJson(Map<String, dynamic> json) => _$StcSetSelfFromJson(json);
   Map<String, dynamic> toJson() => _$StcSetSelfToJson(this);
 }
-
-// @JsonSerializable()
-// class PtpRpc extends Message {
-//   final Map<String, dynamic> message;
-
-//   PtpRpc({required this.message});
-
-//   @override
-//   String get messageClass => '$PtpRpc';
-//   static String get messageClassS => '$PtpRpc';
-
-//   factory PtpRpc.fromJson(Map<String, dynamic> json) => _$PtpJsonRpcFromJson(json);
-//   Map<String, dynamic> toJson() => _$PtpJsonRpcToJson(this);
-// }

@@ -1,5 +1,6 @@
 targets:
   $default:
     builders:
-      drift_dev:analyzer:
-        enabled: true
+      drift_dev:
+        options:
+          store_date_time_values_as_text: false

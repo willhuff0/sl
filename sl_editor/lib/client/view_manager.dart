@@ -35,12 +35,12 @@ class ViewManager {
     );
   }
 
-  static void setRemoteViewPositions(Map<int, (Vector4, ViewPosition)> viewPositions) {
+  static void setRemoteViewPositions(StateTracker tracker, Map<int, (Vector4, ViewPosition)> viewPositions) {
     Selector.setRemoteSelected(
       viewPositions.map(
         (clientId, value) => MapEntry(clientId, (
           value.$1,
-          value.$2.selection.map((uuid) => (StateTracker.getObject(uuid) as Node).engineNode).toSet(),
+          value.$2.selection.map((uuid) => (tracker.getObject(uuid) as Node).engineNode).toSet(),
         )),
       ),
     );

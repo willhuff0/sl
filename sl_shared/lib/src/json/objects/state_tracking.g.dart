@@ -7,6 +7,7 @@ part of 'state_tracking.dart';
 // **************************************************************************
 
 StateChange _$StateChangeFromJson(Map<String, dynamic> json) => StateChange(
+  scope: json['scope'] as String?,
   objectClass: json['objectClass'] as String?,
   objectId: json['objectId'] as String,
   delta: json['delta'] as Map<String, dynamic>,
@@ -14,6 +15,7 @@ StateChange _$StateChangeFromJson(Map<String, dynamic> json) => StateChange(
 
 Map<String, dynamic> _$StateChangeToJson(StateChange instance) =>
     <String, dynamic>{
+      'scope': instance.scope,
       'objectClass': ?instance.objectClass,
       'objectId': instance.objectId,
       'delta': instance.delta,

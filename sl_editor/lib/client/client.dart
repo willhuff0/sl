@@ -1,40 +1,27 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:ui';
+import 'dart:typed_data';
 
+import 'package:sl_editor/client/systems/asset_system.dart';
+import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
-import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
-import 'package:vector_math/vector_math.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const tickInterval = Duration(milliseconds: 1000);
-
-Vector4 _intToVec4Color(int value) {
-  final color = Color(value);
-  return Vector4(color.r, color.g, color.b, color.a);
-}
-
-class Scope {
-  final UUID scopeId;
-  Map<int, ClientSceneState> states = {};
-
-  Scope({required this.scopeId});
-}
 
 class Client {
   final WebSocketChannel _socket;
   late final ClientId _clientId;
 
-  late final RpcPeer rpc;
-
   final _onClientStatesChangedController = StreamController<UnmodifiableMapView<int, ClientState>>.broadcast();
   late final Stream<UnmodifiableMapView<int, ClientState>> onClientStatesChanged;
   Map<int, ClientState> _clientStates = {};
 
-  Scope? _scope;
+  late final SceneSystem _sceneSystem;
+  late final AssetSystem _assetSystem;
 
   late final StreamSubscription _listenSubscription;
   late final Timer _tickTimer;
@@ -53,35 +40,52 @@ class Client {
   }
 
   Client._({required WebSocketChannel socket}) : _socket = socket {
-    rpc = RpcPeer(sendCallback: _sendRpc);
-    _listenSubscription = _socket.stream.listen(_onData);
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
+
+    _sceneSystem = SceneSystem(this);
+    _assetSystem = AssetSystem(this);
+
     ViewManager.init();
+
     _instance = this;
+    _listen();
   }
 
   void dispose() {
     _listenSubscription.cancel();
     _socket.sink.close();
     _tickTimer.cancel();
+    _assetSystem.dispose();
+  }
+
+  void _listen() async {
+    await for (final data in _socket.stream) {
+      await _onData(data);
+    }
   }
 
   Future<void> _onData(dynamic data) async {
     print('Client received: $data');
 
     if (_socket.closeCode != null) return;
-    final json = jsonDecode(data) as Map<String, dynamic>;
-    final messageAndHeader = MessageAndHeader.fromJson(json);
-    _handleMessage(messageAndHeader.messageInstance);
+
+    switch (data) {
+      case String string:
+        final json = jsonDecode(string) as Map<String, dynamic>;
+        final messageAndHeader = MessageAndHeader.fromJson(json);
+        _handleMessage(messageAndHeader.messageInstance);
+        break;
+      case Uint8List bytes:
+        await _assetSystem.handleBinary(bytes);
+        break;
+    }
   }
 
   Future<void> _handleMessage(Message message) async {
     switch (message) {
       case StcSetSelf setSelf:
         _clientId = setSelf.clientId;
-        _scope = Scope(scopeId: 'test-scope-id');
-        _scope!.states[_clientId] = ClientSceneState(viewPosition: null);
         break;
       case StcSetClientGlobalStates setClientGlobalStates:
         _clientStates = setClientGlobalStates.states;
@@ -92,57 +96,43 @@ class Client {
         }
         _onClientStatesChangedController.add(UnmodifiableMapView(_clientStates));
         break;
-      case StcSetClientSceneStates setClientScopeStates:
-        if (_scope?.scopeId != setClientScopeStates.sceneId) {
-          _sendScopeState();
-          return;
-        }
-        _scope!.states = setClientScopeStates.states;
-        ViewManager.setRemoteViewPositions(
-          Map.fromEntries(
-            _scope!.states.entries
-                .where((entry) => entry.value.viewPosition != null)
-                .map(
-                  (entry) => MapEntry(entry.key, (
-                    _intToVec4Color(_clientStates[entry.key]!.color),
-                    entry.value.viewPosition!,
-                  )),
-                ),
-          ),
-        );
-        break;
       case StcLocalChangeDecisions localChangeDecisions:
-        StateTracker.handleChangeDecisions(localChangeDecisions);
+        switch (localChangeDecisions.system) {
+          case StateTrackerSystem.scene:
+            _sceneSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
+            break;
+          case StateTrackerSystem.asset:
+            _assetSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
+            break;
+        }
         break;
       case StcRemoteChanges remoteChanges:
-        StateTracker.handleRemoteChanges(remoteChanges);
+        switch (remoteChanges.system) {
+          case StateTrackerSystem.scene:
+            _sceneSystem.stateTracker.handleRemoteChanges(remoteChanges);
+            break;
+          case StateTrackerSystem.asset:
+            _assetSystem.stateTracker.handleRemoteChanges(remoteChanges);
+            break;
+        }
         break;
-      case PtpRpc jsonRpc:
-        rpc.handleMessage(jsonRpc.message);
+      default:
+        if (await _sceneSystem.handleMessage(message)) break;
+        if (await _assetSystem.handleMessage(message)) break;
         break;
     }
   }
 
   void _tick() {
-    if (_scope != null && ViewManager.hasViewChangedAndUpdate()) {
-      _scope!.states[_clientId]!.viewPosition = ViewManager.getViewPosition();
-      _sendScopeState();
-    }
-    if (StateTracker.hasLocalChanges()) {
-      StateTracker.submitLocalChanges();
-    }
+    _sceneSystem.tick();
   }
 
   Future<void> _leave() async {
     await _socket.sink.close();
   }
 
-  void _sendRpc(dynamic message) {
-    send(
-      PtpRpc(
-        message: message,
-      ),
-    );
+  void sendBinary(Uint8List bytes) {
+    _socket.sink.add(bytes);
   }
 
   void send(Message message) {
@@ -152,15 +142,6 @@ class Client {
           messageClass: message.messageClass,
           messageInstance: message,
         ),
-      ),
-    );
-  }
-
-  void _sendScopeState() {
-    send(
-      CtsSetSceneState(
-        sceneId: _scope?.scopeId,
-        state: _scope?.states[_clientId],
       ),
     );
   }
