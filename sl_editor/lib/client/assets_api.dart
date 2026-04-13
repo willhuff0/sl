@@ -1,125 +1,47 @@
-import 'dart:async';
-import 'dart:typed_data';
-
+import 'package:cross_file/cross_file.dart';
+import 'package:path/path.dart' as p;
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:uuid/uuid.dart';
 
-class AssetTransferProgress {
-  final int byteSize;
-  final int bytesCompleted;
-  final double progress;
-
-  AssetTransferProgress({
-    required this.byteSize,
-    required this.bytesCompleted,
-    required this.progress,
-  });
-}
-
-class AssetTransferOperation {
-  final UUID uuid;
-  final int byteSize;
-
-  final BytesBuilder _data = BytesBuilder();
-
-  late final Completer<Uint8List> _completer = Completer();
-
-  final _progressController = StreamController<AssetTransferProgress>.broadcast();
-  late final Stream<AssetTransferProgress> progressStream;
-
-  AssetTransferOperation({required this.uuid, required this.byteSize}) {
-    progressStream = _progressController.stream;
-  }
-
-  Future<Uint8List> get onComplete => _completer.future;
-
-  void addData(Uint8List newData) {
-    if (_completer.isCompleted) return;
-    if (_data.length + newData.length > byteSize) throw Exception('Asset Transfer Byte Buffer overflowed');
-
-    _data.add(newData);
-    _progressController.add(
-      AssetTransferProgress(
-        byteSize: byteSize,
-        bytesCompleted: _data.length,
-        progress: byteSize / _data.length,
-      ),
-    );
-    if (_data.length == byteSize) {
-      _completer.complete(_data.toBytes());
-      _progressController.close();
-    }
-  }
-}
+const _extensionToAssetType = <String, AssetType>{
+  '.jpg': .texture,
+  '.jpeg': .texture,
+  '.png': .texture,
+  '.gltf': .model,
+  '.glb': .model,
+};
 
 class AssetsApi {
-  static final Map<UUID, AssetTransferOperation> _downloads = {};
-  // static final Map<UUID, AssetTransferOperation> _uploads = {};
+  static Future<void> addAssets(UUID? directory, List<XFile> files) async {
+    final database = Client.get().assetSystem.database;
 
-  static Future<List<AssetEntry>> getAssetsInDirectory(UUID? directory) async {
-    return (await Client.get().rpc.callRemoteMethod('getAssetsInDirectory', directory) as List)
-        .map(
-          (json) => AssetEntry.fromJson(json),
-        )
-        .toList();
-  }
+    final parent = directory;
+    final updatedAt = DateTime.now().toIso8601String();
+    final blobUpdatedAt = updatedAt;
 
-  static Future<AssetEntry> createAsset(UUID? parent, String name, AssetType type) async {
-    final uuid = await Client.get().rpc.callRemoteMethod('createAsset', {
-      'parent': ?parent,
-      'name': name,
-      'type': type.index,
-    });
-
-    return AssetEntry(
-      uuid: uuid,
-      name: name,
-      type: type,
-      subAssets: [],
-      blobSize: 0,
-    );
-  }
-
-  static Future<void> deleteAsset(UUID uuid) async {
-    await Client.get().rpc.callRemoteMethod('deleteAsset', uuid);
-  }
-
-  // static Future<AssetTransferOperation> setAssetData(UUID uuid, Uint8List data) async {
-  //   var operation = _uploads[uuid];
-  //   if (operation != null) return operation;
-
-  //   operation = _uploads[uuid] = AssetTransferOperation(
-  //     uuid: uuid,
-  //     byteSize: data.length,
-  //   );
-  //   operation.onComplete.then((_) {
-  //     _uploads.remove(uuid);
-  //   });
-
-  //   final allowed = await Client.get().rpc.callRemoteMethod('setAssetData', uuid);
-  //   if (!allowed) {
-  //     // TODO: error
-  //   }
-
-  //   return operation;
-  // }
-
-  static Future<AssetTransferOperation> getAssetData(UUID uuid) async {
-    // TODO: cache in browser
-
-    var operation = _downloads[uuid];
-    if (operation != null) return operation;
-
-    final size = await Client.get().rpc.callRemoteMethod('getAssetData', uuid);
-    if (size == 0) {
-      // TODO: error
+    final arguments = [];
+    final uuidToFile = <UUID, XFile>{};
+    for (final file in files) {
+      final uuid = Uuid().v4();
+      final name = file.name;
+      final type = (_extensionToAssetType[p.extension(file.name).toLowerCase()] ?? .unsupported).name;
+      arguments.addAll([uuid, parent, name, type, updatedAt, blobUpdatedAt]);
+      uuidToFile[uuid] = file;
     }
 
-    operation = _downloads[uuid] = AssetTransferOperation(
-      uuid: uuid,
-      byteSize: size,
-    );
+    print(arguments);
 
-    return operation;
+    await database.execute('''
+INSERT INTO assets (uuid, parent, name, type, updated_at, blob_updated_at)
+VALUES
+  ${List.generate(files.length, (i) => '  (?${i + 1}, ?${i + 2}, ?${i + 3}, ?${i + 4}, ?${i + 5}, ?${i + 6})').join(',\n')};
+''', arguments);
+
+    for (final entry in uuidToFile.entries) {
+      final uuid = entry.key;
+      final file = entry.value;
+      await Client.get().assetSystem.uploadAssetBlob(uuid, file);
+    }
   }
 }

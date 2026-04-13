@@ -19,6 +19,7 @@ dependencies:
   vector_math: ^2.2.0
   meta: ^1.18.1
   collection: ^1.19.1
+  sqlite_crdt: ^3.0.4
 
 dev_dependencies:
   lints: ^6.0.0

@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
-import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
-import 'package:sl_shared/src/database/database.dart';
-import 'package:sl_server/objects/asset.dart';
 import 'package:sl_server/server.dart';
-import 'package:sl_server/state_tracker.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:sqlite_crdt/sqlite_crdt.dart';
+import 'package:uuid/uuid.dart';
 
 class _UploadOperation {
   final UUID uuid;
@@ -38,16 +37,18 @@ class _UploadOperation {
     required void Function() onTimeout,
     required String path,
   }) async {
-    final file = await File(path).open(mode: .writeOnlyAppend);
-    await file.truncate(size);
-    await file.setPosition(offset);
+    final file = File(path);
+    await file.create(recursive: true);
+    final writer = await file.open(mode: .writeOnlyAppend);
+    await writer.truncate(size);
+    await writer.setPosition(offset);
     return _UploadOperation(
       uuid: uuid,
       offset: offset,
       length: length,
       size: size,
       onTimeout: onTimeout,
-      file: file,
+      file: writer,
     );
   }
 
@@ -89,82 +90,44 @@ class _UploadOperation {
 
 class AssetSystem {
   final Server server;
-  final Database database;
+  final SqliteCrdt _database;
 
-  late final StateTracker _stateTracker;
-
-  final Map<Client, UUID?> _clientToSubscribedDirectories = {};
-  final Map<UUID?, Set<Client>> _directoryToSubscribedClients = {};
+  final Map<Client, CrdtSync> _clientToCrdtSync = {};
 
   final Map<Client, _UploadOperation> _uploads = {};
   final Set<UUID> _locked = {};
 
-  AssetSystem(this.server, this.database) {
-    _stateTracker = StateTracker(
-      server,
-      StateTrackerSystem.asset,
-      getInterestedClients: _getInterestedClients,
-      loadObjectFromDisk: _loadObjectFromDisk,
-    );
-  }
+  AssetSystem(this.server, this._database);
 
   String _getPathOfAssetBlob(UUID uuid) {
     return p.join(server.rootPath, 'blobs', uuid);
   }
 
+  Future<void> addClient(Client client) async {
+    _clientToCrdtSync[client] = CrdtSync.server(
+      _database,
+      send: (message) => server.send(client, PtpCrdtSync(message: message)),
+      verbose: true,
+    );
+  }
+
   Future<void> removeClient(Client client) async {
-    _removeClientListenDirectory(client);
+    _clientToCrdtSync.remove(client);
     await _clientAbandonUpload(client);
-  }
-
-  String? _encodeAssetProperties(dynamic properties) {
-    if (properties == null) return null;
-    return jsonEncode(properties);
-  }
-
-  Future<void> handleClientChanges(Client client, CtsStateChanges stateChanges) async {
-    await database.batch((b) async {
-      await _stateTracker.handleClientChanges(
-        client,
-        stateChanges,
-        insertBuilder: (tracked) {
-          tracked = tracked as TrackedAsset;
-          b.insert(
-            database.assets,
-            AssetsCompanion.insert(
-              uuid: tracked.uuid,
-              parent: Value.absentIfNull(tracked.parent.value),
-              name: tracked.name.value,
-              type: tracked.type.value,
-              properties: Value.absentIfNull(_encodeAssetProperties(tracked.properties.value)),
-              blobSize: Value.absentIfNull(tracked.blobSize.value),
-            ),
-          );
-        },
-        updateBuilder: (change, tracked) {
-          tracked = tracked as TrackedAsset;
-          b.update(
-            database.assets,
-            AssetsCompanion(
-              parent: change.containsKey(tracked.parent.key) ? Value(tracked.parent.value) : Value.absent(),
-              name: change.containsKey(tracked.name.key) ? Value(tracked.name.value) : Value.absent(),
-              type: change.containsKey(tracked.type.key) ? Value(tracked.type.value) : Value.absent(),
-              properties: change.containsKey(tracked.properties.key)
-                  ? Value(_encodeAssetProperties(tracked.properties.value))
-                  : Value.absent(),
-              blobSize: change.containsKey(tracked.blobSize.key) ? Value(tracked.blobSize.value) : Value.absent(),
-            ),
-            where: (a) => a.uuid.equals(tracked.uuid),
-          );
-        },
-      );
-    });
   }
 
   Future<bool> handleMessage(Client client, Message message) async {
     switch (message) {
-      case CtsListenToAssetDirectory listenToAssetDirectory:
-        _setClientListenDirectory(client, listenToAssetDirectory.directory);
+      case PtpCrdtSync crdtSync:
+        _clientToCrdtSync[client]!.syncSocket.receive(crdtSync.message);
+        break;
+      case CtsRequestAssetBlob request:
+        await _sendAssetBlobToClient(
+          client,
+          request.uuid,
+          request.offset,
+          request.length == -1 ? null : request.length,
+        );
         break;
       case PtpAssetBlobStart startOp:
         await _startUploadOp(client, startOp.uuid, startOp.offset, startOp.length, startOp.size);
@@ -176,24 +139,6 @@ class AssetSystem {
         return false;
     }
     return true;
-  }
-
-  Set<Client> _getInterestedClients(UUID? scope, UUID uuid) {
-    return _directoryToSubscribedClients[scope] ?? {};
-
-    // var tracked = _stateTracker.getObjectInMemory(uuid) as TrackedAsset?;
-    // while (tracked != null && tracked.type.value != .directory) {
-    //   final parent = tracked.parent.value;
-    //   if (parent == null) throw Exception('Asset tree is disconnected.');
-    //   tracked = _stateTracker.getObjectInMemory(parent) as TrackedAsset?;
-    // }
-    // return _directoryToSubscribedClients[tracked?.uuid] ?? {};
-  }
-
-  Future<StateTracked?> _loadObjectFromDisk(UUID uuid) async {
-    final asset = await database.getAssetByUUID(uuid).getSingleOrNull();
-    if (asset == null) return null;
-    return TrackedAsset.fromDatabase(_stateTracker, asset, false);
   }
 
   Future<void> _startUploadOp(Client client, UUID uuid, int offset, int length, int size) async {
@@ -287,63 +232,55 @@ class AssetSystem {
     }
   }
 
-  void _setClientListenDirectory(Client client, UUID? directory) {
-    if (_clientToSubscribedDirectories.containsKey(client)) {
-      if (directory != _clientToSubscribedDirectories[client]) {
-        _removeClientListenDirectory(client);
-      }
+  Future<void> _sendAssetBlobToClient(Client client, UUID uuid, int offset, int? length) async {
+    if (_locked.contains(uuid)) {
+      // TODO: error
+      return;
     }
+    _locked.add(uuid);
 
-    if (directory != _clientToSubscribedDirectories[client]) {}
-
-    final current = _clientToSubscribedDirectories[client];
-    if (current != null) {
-      final subscribedClientsToCurrent = _directoryToSubscribedClients[current]!;
-      subscribedClientsToCurrent.remove(client);
-      if (subscribedClientsToCurrent.isEmpty) {
-        _directoryToSubscribedClients.remove(current);
+    try {
+      final file = File(_getPathOfAssetBlob(uuid));
+      if (!await file.exists()) {
+        print('client requested an asset blob which doesn\'t exist');
+        return;
       }
+
+      final fileSize = await file.length();
+      length ??= fileSize;
+
+      server.send(
+        client,
+        PtpAssetBlobStart(
+          uuid: uuid,
+          offset: offset,
+          length: length,
+          size: fileSize,
+        ),
+      );
+
+      final reader = await file.open();
+      await reader.setPosition(offset);
+
+      final buffer = Uint8List(assetBlobChunkSize + 16); // prepended with uuid
+      Uuid.parse(uuid, buffer: buffer);
+      var bytesRemaining = length;
+      while (bytesRemaining > 0) {
+        final chunkSize = await reader.readInto(buffer, 16, min(assetBlobChunkSize, bytesRemaining) + 16);
+        if (chunkSize == 0) break;
+
+        server.sendBinary(client, buffer.buffer.asUint8List(0, chunkSize + 16));
+        bytesRemaining -= chunkSize;
+      }
+    } finally {
+      _locked.remove(uuid);
+
+      server.send(
+        client,
+        PtpAssetBlobEnd(
+          uuid: uuid,
+        ),
+      );
     }
-
-    _clientToSubscribedDirectories[client] = directory;
-    final subscribedClients = _directoryToSubscribedClients[directory] ??= {};
-    subscribedClients.add(client);
-
-    // await _sendEntireDirectory(client, directory);
-    _loadAndSendEntireDirectory(client, directory);
-  }
-
-  void _removeClientListenDirectory(Client client) {
-    if (!_clientToSubscribedDirectories.containsKey(client)) return;
-
-    final directory = _clientToSubscribedDirectories.remove(client);
-    final subscribedClients = _directoryToSubscribedClients[directory]!;
-    subscribedClients.remove(client);
-
-    if (subscribedClients.isEmpty) _directoryToSubscribedClients.remove(directory);
-  }
-
-  Future<void> _loadAndSendEntireDirectory(Client client, UUID? directory) async {
-    final rows = await database.getAssetsInDirectory(directory).get();
-    _stateTracker.preloadObjectsForClient(
-      client,
-      directory,
-      rows
-          .where((row) => !_stateTracker.isObjectLoaded(row.uuid))
-          .map(
-            (row) => TrackedAsset.fromDatabase(
-              _stateTracker,
-              Asset(
-                uuid: row.uuid,
-                parent: row.parent,
-                name: row.name,
-                type: row.type,
-                properties: row.properties,
-                blobSize: row.blobSize,
-              ),
-              false,
-            ),
-          ),
-    );
   }
 }

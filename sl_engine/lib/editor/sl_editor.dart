@@ -1,6 +1,7 @@
 import 'dart:js_interop';
 
 import 'package:sl_engine/editor/fly_camera.dart';
+import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
@@ -12,8 +13,10 @@ import 'package:web/web.dart' as web;
 
 class SLEditor {
   static FlyCamera? _camera;
+  static ModelPreviewGenerator? _modelPreviewGenerator;
 
   static FlyCamera? get camera => _camera;
+  static ModelPreviewGenerator? get modelPreviewGenerator => _modelPreviewGenerator;
 
   static Future<void> initSlEditorMode(web.HTMLCanvasElement canvas_) async {
     canvas_.onContextMenu.listen((event) {
@@ -33,6 +36,7 @@ class SLEditor {
     Renderer.init();
     await DebugDraw.init();
     await Selector.init(_camera!);
+    _modelPreviewGenerator = await ModelPreviewGenerator.create();
 
     web.window.requestAnimationFrame(_frame.toJS);
   }

@@ -18,11 +18,14 @@ final Map<String, MessageFactory> _factories = {
   StcSetClientSceneStates.messageClassS: StcSetClientSceneStates.fromJson,
 
   // Assets
-  CtsListenToAssetDirectory.messageClassS: CtsListenToAssetDirectory.fromJson,
+  CtsRequestAssetBlob.messageClassS: CtsRequestAssetBlob.fromJson,
   PtpAssetBlobStart.messageClassS: PtpAssetBlobStart.fromJson,
   PtpAssetBlobEnd.messageClassS: PtpAssetBlobEnd.fromJson,
   StcAssetBlobProgress.messageClassS: StcAssetBlobProgress.fromJson,
   PtpAssetBlobError.messageClassS: PtpAssetBlobError.fromJson,
+
+  // Crdt Sync
+  PtpCrdtSync.messageClassS: PtpCrdtSync.fromJson,
 };
 
 class MessageAndHeader {

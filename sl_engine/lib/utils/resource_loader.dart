@@ -9,12 +9,22 @@ bool _isHtmlFile(String body) {
   return body.startsWith('<!DOCTYPE html>') || body.startsWith('<html>');
 }
 
-class ResourceLoader {
-  static Uri getUri(String path) {
+abstract interface class ResourceLoader {
+  Future<String?> loadString(String path);
+  Future<Uint8List?> loadBytes(String path);
+}
+
+class BuiltInResourceLoader implements ResourceLoader {
+  static BuiltInResourceLoader? _instance;
+  static BuiltInResourceLoader get() {
+    return _instance ??= BuiltInResourceLoader();
+  }
+
+  Uri getUri(String path) {
     return Uri.parse(p.join('resources', path));
   }
 
-  static Future<http.Response?> load(String path) async {
+  Future<http.Response?> load(String path) async {
     final uri = getUri(path);
     final response = await http.get(uri);
     if (response.statusCode == 404) {
@@ -30,11 +40,13 @@ class ResourceLoader {
     return response;
   }
 
-  static Future<String?> loadString(String path) async {
+  @override
+  Future<String?> loadString(String path) async {
     return (await load(path))?.body;
   }
 
-  static Future<Uint8List?> loadBytes(String path) async {
+  @override
+  Future<Uint8List?> loadBytes(String path) async {
     return (await load(path))?.bodyBytes;
   }
 }

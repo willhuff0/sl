@@ -3,25 +3,28 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:sl_editor/client/file_system.dart';
 import 'package:sl_editor/client/systems/asset_system.dart';
 import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const tickInterval = Duration(milliseconds: 1000);
 
 class Client {
   final WebSocketChannel _socket;
+  final SqliteCrdt _database;
   late final ClientId _clientId;
 
   final _onClientStatesChangedController = StreamController<UnmodifiableMapView<int, ClientState>>.broadcast();
   late final Stream<UnmodifiableMapView<int, ClientState>> onClientStatesChanged;
   Map<int, ClientState> _clientStates = {};
 
-  late final SceneSystem _sceneSystem;
-  late final AssetSystem _assetSystem;
+  late final SceneSystem sceneSystem;
+  late final AssetSystem assetSystem;
 
   late final StreamSubscription _listenSubscription;
   late final Timer _tickTimer;
@@ -29,9 +32,11 @@ class Client {
   static Future<Client> connect({
     required Uri serverUri,
   }) async {
+    await SlFileSystem.init('test-room');
+    final database = await openDatabase('test-room/db.sqlite3');
     final socket = WebSocketChannel.connect(serverUri);
     await socket.ready;
-    return Client._(socket: socket);
+    return Client._(socket: socket, database: database);
   }
 
   static late Client _instance;
@@ -39,12 +44,16 @@ class Client {
     return _instance;
   }
 
-  Client._({required WebSocketChannel socket}) : _socket = socket {
+  Client._({
+    required WebSocketChannel socket,
+    required SqliteCrdt database,
+  }) : _socket = socket,
+       _database = database {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
 
-    _sceneSystem = SceneSystem(this);
-    _assetSystem = AssetSystem(this);
+    sceneSystem = SceneSystem(this);
+    assetSystem = AssetSystem(this, _database);
 
     ViewManager.init();
 
@@ -56,7 +65,7 @@ class Client {
     _listenSubscription.cancel();
     _socket.sink.close();
     _tickTimer.cancel();
-    _assetSystem.dispose();
+    assetSystem.dispose();
   }
 
   void _listen() async {
@@ -66,7 +75,11 @@ class Client {
   }
 
   Future<void> _onData(dynamic data) async {
-    print('Client received: $data');
+    if (data is Uint8List) {
+      print('Client received ${data.length} bytes');
+    } else {
+      print('Client received: $data');
+    }
 
     if (_socket.closeCode != null) return;
 
@@ -74,10 +87,10 @@ class Client {
       case String string:
         final json = jsonDecode(string) as Map<String, dynamic>;
         final messageAndHeader = MessageAndHeader.fromJson(json);
-        _handleMessage(messageAndHeader.messageInstance);
+        await _handleMessage(messageAndHeader.messageInstance);
         break;
       case Uint8List bytes:
-        await _assetSystem.handleBinary(bytes);
+        await assetSystem.handleBinary(bytes);
         break;
     }
   }
@@ -99,32 +112,33 @@ class Client {
       case StcLocalChangeDecisions localChangeDecisions:
         switch (localChangeDecisions.system) {
           case StateTrackerSystem.scene:
-            _sceneSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
+            sceneSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
             break;
           case StateTrackerSystem.asset:
-            _assetSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
+            // _assetSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
             break;
         }
         break;
       case StcRemoteChanges remoteChanges:
         switch (remoteChanges.system) {
           case StateTrackerSystem.scene:
-            _sceneSystem.stateTracker.handleRemoteChanges(remoteChanges);
+            sceneSystem.stateTracker.handleRemoteChanges(remoteChanges);
             break;
           case StateTrackerSystem.asset:
-            _assetSystem.stateTracker.handleRemoteChanges(remoteChanges);
+            // _assetSystem.stateTracker.handleRemoteChanges(remoteChanges);
             break;
         }
         break;
       default:
-        if (await _sceneSystem.handleMessage(message)) break;
-        if (await _assetSystem.handleMessage(message)) break;
+        if (await sceneSystem.handleMessage(message)) break;
+        if (await assetSystem.handleMessage(message)) break;
+        print('Client has no handler for message with class ${message.messageClass}');
         break;
     }
   }
 
   void _tick() {
-    _sceneSystem.tick();
+    sceneSystem.tick();
   }
 
   Future<void> _leave() async {

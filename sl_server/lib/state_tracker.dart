@@ -1,5 +1,4 @@
 import 'package:meta/meta.dart';
-import 'package:sl_server/objects/asset.dart';
 import 'package:sl_server/objects/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_server/validated_property.dart';
@@ -7,7 +6,6 @@ import 'package:sl_shared/sl_shared.dart';
 
 final Map<ObjectClass, StateTracked Function(StateTracker, UUID)> _constructors = {
   Node.objectClassS: Node.new,
-  TrackedAsset.objectClassS: TrackedAsset.new,
 };
 
 abstract class StateTracked {

@@ -59,7 +59,7 @@ class SceneSystem {
     }
     if (sceneId != client.sceneId) {
       _removeClientFromScene(client);
-      _loadAndSendEntireScene(client, sceneId);
+      // _loadAndSendEntireScene(client, sceneId);
     }
 
     var scene = _scenes[sceneId] ?? (_scenes[sceneId] = Scene(sceneId));
@@ -89,26 +89,26 @@ class SceneSystem {
     );
   }
 
-  Future<void> _loadAndSendEntireScene(Client client, UUID sceneId) async {
-    final rows = await database.getAssetsInDirectory(directory).get();
-    _stateTracker.preloadObjectsForClient(
-      client,
-      directory,
-      rows
-          .where((row) => !_stateTracker.isObjectLoaded(row.uuid))
-          .map(
-            (row) => TrackedAsset.fromDatabase(
-              _stateTracker,
-              Asset(
-                uuid: row.uuid,
-                parent: row.parent,
-                name: row.name,
-                type: row.type,
-                properties: row.properties,
-                blobSize: row.blobSize,
-              ),
-            ),
-          ),
-    );
-  }
+  // Future<void> _loadAndSendEntireScene(Client client, UUID sceneId) async {
+  //   final rows = await database.getAssetsInDirectory(directory).get();
+  //   _stateTracker.preloadObjectsForClient(
+  //     client,
+  //     directory,
+  //     rows
+  //         .where((row) => !_stateTracker.isObjectLoaded(row.uuid))
+  //         .map(
+  //           (row) => TrackedAsset.fromDatabase(
+  //             _stateTracker,
+  //             Asset(
+  //               uuid: row.uuid,
+  //               parent: row.parent,
+  //               name: row.name,
+  //               type: row.type,
+  //               properties: row.properties,
+  //               blobSize: row.blobSize,
+  //             ),
+  //           ),
+  //         ),
+  //   );
+  // }
 }

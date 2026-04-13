@@ -110,7 +110,7 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
     }
 
     final selected = Selector.getSelected().first;
-    final tracked = editor.Node.getTrackerForEngineNode(selected);
+    final tracked = null; // TODO: editor.Node.getTrackerForEngineNode(selected);
 
     return ListView(
       controller: _scrollController,

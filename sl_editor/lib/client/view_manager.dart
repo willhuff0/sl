@@ -31,7 +31,7 @@ class ViewManager {
       orientation: (_lastViewPosition!.$2.x, _lastViewPosition!.$2.y, _lastViewPosition!.$2.z, _lastViewPosition!.$2.w),
       fov: _lastViewPosition!.$3,
       cursor: (0.0, 0.0),
-      selection: Selector.getSelected().map((node) => Node.getTrackerForEngineNode(node).uuid).toSet(),
+      selection: {}, // TODO: Selector.getSelected().map((node) => Node.getTrackerForEngineNode(node).uuid).toSet(),
     );
   }
 

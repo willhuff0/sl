@@ -1,24 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets_api.dart';
+import 'package:sl_editor/client/client.dart';
+import 'package:sl_engine/editor/sl_editor.dart';
+import 'package:sl_engine/gl/gltf_loader.dart';
+import 'package:sl_engine/logger.dart';
+import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:sl_shared/sl_shared.dart';
-
-final _tC = StreamController.broadcast();
-final _s = _tC.stream;
+import 'package:image/image.dart' as img;
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({super.key});
 
   void _onDropFiles(DropDoneDetails details) async {
-    for (final file in details.files) {
-      final name = file.name;
-      //final bytes = await file.readAsBytes();
-      await AssetsApi.createAsset(null, name, AssetType.unsupported);
-      _tC.add(null);
-    }
+    await AssetsApi.addAssets(null, details.files);
   }
 
   @override
@@ -42,13 +42,12 @@ class AssetPanel extends StatelessWidget {
               Expanded(child: Container()),
               ShadBreadcrumbDropdown(
                 items: [
-                  ShadBreadcrumbDropMenuItem(
-                    child: Text('Test Asset'),
-                    onPressed: () async {
-                      await AssetsApi.createAsset(null, 'Test Asset', AssetType.mesh);
-                      _tC.add(null);
-                    },
-                  ),
+                  // ShadBreadcrumbDropMenuItem(
+                  //   child: Text('Test Asset'),
+                  //   onPressed: () async {
+                  //     await AssetsApi.createAsset(null, 'Test Asset', AssetType.mesh);
+                  //   },
+                  // ),
                 ],
                 showDropdownArrow: true,
                 arrowGap: 0.0,
@@ -79,9 +78,11 @@ class AssetPanel extends StatelessWidget {
           ),
         ),
         SizedBox(height: 4.0),
-        DropTarget(
-          onDragDone: _onDropFiles,
-          child: _AssetDirectoryViewer(directory: null),
+        Expanded(
+          child: DropTarget(
+            onDragDone: _onDropFiles,
+            child: _AssetDirectoryViewer(directory: null),
+          ),
         ),
       ],
     );
@@ -98,13 +99,18 @@ class _AssetDirectoryViewer extends StatefulWidget {
 }
 
 class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
-  List<AssetEntry>? _assets;
+  Map<UUID, Asset>? _assets;
+  List<FoldedAsset>? _foldedAssets;
   late final StreamSubscription _subscription;
 
   @override
   void initState() {
-    _load();
-    _subscription = _s.listen((_) => _load());
+    _subscription = watchAssetsInDirectory(Client.get().assetSystem.database, widget.directory).listen((event) {
+      setState(() {
+        _assets = event.$1;
+        _foldedAssets = event.$2;
+      });
+    });
     super.initState();
   }
 
@@ -112,14 +118,6 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
   void dispose() {
     _subscription.cancel();
     super.dispose();
-  }
-
-  Future<void> _load() async {
-    final assets = await AssetsApi.getAssetsInDirectory(widget.directory);
-    if (!mounted) return;
-    setState(() {
-      _assets = assets;
-    });
   }
 
   @override
@@ -133,9 +131,9 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
             child: Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
-              children: _assets!
+              children: _foldedAssets!
                   .map(
-                    (asset) => _AssetEntryWidget(asset: asset),
+                    (foldedAsset) => _AssetEntryWidget(asset: _assets![foldedAsset.uuid]!),
                   )
                   .toList(),
             ),
@@ -144,20 +142,20 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
 }
 
 class _AssetEntryWidget extends StatelessWidget {
-  final AssetEntry asset;
+  final Asset asset;
 
   const _AssetEntryWidget({super.key, required this.asset});
 
-  IconData _getIcon(AssetType type) {
+  Widget _getPreview(AssetType type) {
     return switch (type) {
-      .directory => LucideIcons.folder,
-      .unsupported => LucideIcons.fileQuestionMark,
-      .propertiesOnly => LucideIcons.braces,
-      .texture => LucideIcons.image,
-      .mesh => LucideIcons.pyramid,
-      .model => LucideIcons.file,
-      .shader => LucideIcons.code,
-      .nodeTree => LucideIcons.listTree,
+      .directory => Icon(LucideIcons.folder),
+      .unsupported => Icon(LucideIcons.fileQuestionMark),
+      .propertiesOnly => Icon(LucideIcons.braces),
+      .texture => _ImageAssetPreviewWidget(asset: asset),
+      .mesh => Icon(LucideIcons.pyramid),
+      .model => _ModelAssetPreviewWidget(asset: asset),
+      .shader => Icon(LucideIcons.code),
+      .nodeTree => Icon(LucideIcons.listTree),
     };
   }
 
@@ -172,10 +170,7 @@ class _AssetEntryWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Icon(
-                _getIcon(asset.type),
-                size: 36.0,
-              ),
+              child: _getPreview(asset.type),
             ),
             Text(
               asset.name,
@@ -186,6 +181,124 @@ class _AssetEntryWidget extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ImageAssetPreviewWidget extends StatefulWidget {
+  final Asset asset;
+
+  const _ImageAssetPreviewWidget({super.key, required this.asset});
+
+  @override
+  State<_ImageAssetPreviewWidget> createState() => _ImageAssetPreviewWidgetState();
+}
+
+class _ImageAssetPreviewWidgetState extends State<_ImageAssetPreviewWidget> {
+  Uint8List? _data;
+
+  @override
+  void initState() {
+    _load();
+    super.initState();
+  }
+
+  void _load() async {
+    final data = await Client.get().assetSystem.getAssetBlob(widget.asset.uuid);
+    if (mounted) {
+      setState(() {
+        _data = data;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(4.0),
+      child: _data == null ? Center(child: CircularProgressIndicator()) : Image.memory(_data!),
+    );
+  }
+}
+
+class StubResourceLoader implements ResourceLoader {
+  final Uint8List bytes;
+
+  StubResourceLoader(this.bytes);
+
+  @override
+  Future<Uint8List?> loadBytes(String path) async {
+    return bytes;
+  }
+
+  @override
+  Future<String?> loadString(String path) async {
+    return utf8.decode(bytes);
+  }
+}
+
+class _ModelAssetPreviewWidget extends StatefulWidget {
+  final Asset asset;
+
+  const _ModelAssetPreviewWidget({super.key, required this.asset});
+
+  @override
+  State<_ModelAssetPreviewWidget> createState() => __ModelAssetPreviewWidgetState();
+}
+
+class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
+  static final _previewCache = <UUID, Uint8List>{};
+
+  Uint8List? _data;
+
+  void initState() {
+    _load();
+    super.initState();
+  }
+
+  void _load() async {
+    final cached = _previewCache[widget.asset.uuid];
+    if (cached != null) {
+      setState(() {
+        _data = cached;
+      });
+    }
+
+    final modelData = await Client.get().assetSystem.getAssetBlob(widget.asset.uuid);
+    if (modelData == null) {
+      Logger.log(
+        'Failed to load asset blob while generating model preview for ${widget.asset.name} (${widget.asset.uuid})',
+      );
+      return;
+    }
+
+    final gltf = await GLTF.load('stub.glb', resourceLoader: StubResourceLoader(modelData));
+    if (gltf == null) {
+      Logger.log('Failed to parse glb while generating model preview for ${widget.asset.name} (${widget.asset.uuid})');
+      return;
+    }
+
+    while (SLEditor.modelPreviewGenerator == null) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+    final raw = SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 128);
+    if (raw.isEmpty) return;
+    final image = img.Image.fromBytes(width: 128, height: 128, bytes: raw.buffer, numChannels: 4);
+    final data = img.encodePng(image);
+
+    _previewCache[widget.asset.uuid] = data;
+    if (mounted) {
+      setState(() {
+        _data = data;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(4.0),
+      child: _data == null ? Center(child: CircularProgressIndicator()) : Image.memory(_data!),
     );
   }
 }

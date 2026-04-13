@@ -53,7 +53,7 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Cube'),
                     onPressed: () {
-                      editor.Node.create();
+                      // editor.Node.create();
                     },
                   ),
                 ],

@@ -4,13 +4,11 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
-import 'package:sembast_web/sembast_web.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/client/file_system.dart';
-import 'package:sl_editor/client/objects/asset.dart';
-import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
 
@@ -151,55 +149,24 @@ class DownloadOperation {
 }
 
 class AssetSystem {
-  final _dbStore = stringMapStoreFactory.store();
-  final _dbFactory = databaseFactoryWeb;
-
   final Client client;
-  late final StateTracker<TrackedAsset> stateTracker;
+  final SqliteCrdt database;
+  final CrdtSync crdtSync;
 
-  final _onAssetCountChangedController = StreamController.broadcast();
-  late final Stream onAssetCountChanged;
-
-  AssetSystem(this.client) {
-    stateTracker = StateTracker<TrackedAsset>(
-      .asset,
-      constructors: {
-        TrackedAsset.objectClass: TrackedAsset.new,
-      },
-      onObjectAdded: _onAssetAdded,
-      onObjectRemoved: _onAssetRemoved,
-    );
-    onAssetCountChanged = _onAssetCountChangedController.stream;
-  }
-
-  UUID? _subscribedDirectory;
+  AssetSystem(this.client, this.database)
+    : crdtSync = CrdtSync.client(
+        database,
+        send: (message) => client.send(PtpCrdtSync(message: message)),
+        verbose: true,
+      );
 
   final Map<UUID, (Completer<DownloadOperation>, bool keepCopyInMemory)> pendingDownloads = {};
   final Map<UUID, DownloadOperation> downloads = {};
   final Map<UUID, UploadOperation> uploads = {};
   final Set<UUID> _locked = {};
 
-  final Map<UUID?, List<FoldedAsset>> _directoryToFoldedAssets = {};
-
   Future<void> dispose() async {
-    await _db?.close();
-  }
-
-  void _onAssetAdded(TrackedAsset asset) {
-    _onAssetCountChangedController.add(null);
-  }
-
-  void _onAssetRemoved(TrackedAsset asset) {
-    _onAssetCountChangedController.add(null);
-  }
-
-  List<FoldedAsset> getAssetsInDirectory(UUID? directory) {
-    return _directoryToFoldedAssets[directory] ?? [];
-  }
-
-  Database? _db;
-  Future<Database> _getDatabase() async {
-    return _db ??= await _dbFactory.openDatabase('assets');
+    await database.close();
   }
 
   web.FileSystemDirectoryHandle? _blobsRoot;
@@ -238,19 +205,22 @@ class AssetSystem {
       if (downloadOperation != null) {
         return downloadOperation.onComplete;
       }
+
+      final uploadOperation = uploads[uuid];
+      if (uploadOperation != null) {
+        await uploadOperation.onComplete;
+      }
     }
 
-    final db = await _getDatabase();
-    final entry = await _dbStore.record(uuid).get(db);
-    if (entry != null && entry['isBlobLocal'] == true) {
-      final file = await (await _getFileOfAssetBlob(uuid)).getFile().toDart;
+    final file = await (await _getFileOfAssetBlob(uuid)).getFile().toDart;
+    if (file.size != 0) {
       final arrayBuffer = (await file.arrayBuffer().toDart).toDart;
       return arrayBuffer.asUint8List();
-    } else {
-      final downloadOperation = await downloadAssetBlob(uuid, keepCopyInMemory: true);
-      if (downloadOperation == null) return null;
-      return downloadOperation.onComplete;
     }
+
+    final downloadOperation = await downloadAssetBlob(uuid, keepCopyInMemory: true);
+    if (downloadOperation == null) return null;
+    return downloadOperation.onComplete;
   }
 
   Future<DownloadOperation?> downloadAssetBlob(
@@ -281,7 +251,7 @@ class AssetSystem {
     return pendingDownload.$1.future;
   }
 
-  void uploadAssetBlob(UUID uuid, XFile file, {int offset = 0, int? length}) async {
+  Future<void> uploadAssetBlob(UUID uuid, XFile file, {int offset = 0, int? length}) async {
     if (_locked.contains(uuid)) {
       Logger.log(
         '[ASSET] Tried to upload to an asset blob which was locked.',
@@ -300,6 +270,15 @@ class AssetSystem {
         offset: offset,
         length: length,
         size: fileSize,
+      );
+
+      client.send(
+        PtpAssetBlobStart(
+          uuid: uuid,
+          offset: offset,
+          length: length,
+          size: fileSize,
+        ),
       );
 
       final cacheFile = await _getFileOfAssetBlob(uuid);
@@ -336,30 +315,24 @@ class AssetSystem {
           ),
         );
       }
-
-      final db = await _getDatabase();
-      await _dbStore.record(uuid).put(db, {
-        'uuid': uuid,
-        'isBlobLocal': true,
-      }, merge: true);
     } finally {
       await cacheSink?.close().toDart;
       await uploads.remove(uuid)?.finish();
       _locked.remove(uuid);
-    }
-  }
 
-  void listenToDirectory(UUID? directory) {
-    _subscribedDirectory = directory;
-    client.send(
-      CtsListenToAssetDirectory(
-        directory: directory,
-      ),
-    );
+      client.send(
+        PtpAssetBlobEnd(
+          uuid: uuid,
+        ),
+      );
+    }
   }
 
   Future<bool> handleMessage(Message message) async {
     switch (message) {
+      case PtpCrdtSync crdtSyncMessage:
+        crdtSync.syncSocket.receive(crdtSyncMessage.message);
+        break;
       case PtpAssetBlobStart startOp:
         await _startDownloadOp(startOp.uuid, startOp.offset, startOp.length, startOp.size);
         break;
@@ -430,13 +403,6 @@ class AssetSystem {
     }
 
     await download.finish();
-
-    final db = await _getDatabase();
-    await _dbStore.record(uuid).put(db, {
-      'uuid': uuid,
-      'isBlobLocal': true,
-    }, merge: true);
-
     _locked.remove(uuid);
   }
 

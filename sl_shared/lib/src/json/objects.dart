@@ -6,6 +6,7 @@ export 'objects/view_position.dart';
 export 'objects/fraction.dart';
 export 'objects/parent_and_order.dart';
 export 'objects/asset.dart';
+export 'objects/crdt_sync.dart';
 
 typedef ClientId = int;
 typedef UUID = String;

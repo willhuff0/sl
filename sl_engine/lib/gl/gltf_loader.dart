@@ -82,14 +82,17 @@ class GLTF {
   final Node root;
   final String? copyright;
   final String? generator;
+  final Aabb3? aabb;
 
   GLTF({
     required this.root,
     required this.copyright,
     required this.generator,
+    this.aabb,
   });
 
-  static Future<GLTF?> load(String path, {String? sceneName}) async {
+  static Future<GLTF?> load(String path, {String? sceneName, ResourceLoader? resourceLoader}) async {
+    resourceLoader ??= BuiltInResourceLoader.get();
     _shader ??= (await Shader.load('shaders/gltf/gltf'))!;
 
     final directory = p.dirname(path);
@@ -100,7 +103,7 @@ class GLTF {
     Map<String, dynamic> json;
     switch (extension) {
       case '.glb':
-        final response = await ResourceLoader.loadBytes(path);
+        final response = await resourceLoader.loadBytes(path);
         if (response == null) return null;
         final buffer = response.buffer;
         final bytes = buffer.asByteData();
@@ -150,7 +153,7 @@ class GLTF {
         glbBuffer = buffer.asUint8List(offset, binaryChunkLength);
         break;
       case '.gltf':
-        final response = await ResourceLoader.loadString(path);
+        final response = await resourceLoader.loadString(path);
         if (response == null) return null;
         json = jsonDecode(response);
         break;
@@ -219,7 +222,7 @@ class GLTF {
             cache = bufferIndexToBytes[index] = response.bodyBytes;
           } else {
             final resolved = p.join(directory, uri.path);
-            final bytes = await ResourceLoader.loadBytes(resolved);
+            final bytes = await resourceLoader!.loadBytes(resolved);
             if (bytes == null) return null;
             cache = bufferIndexToBytes[index] = bytes;
           }

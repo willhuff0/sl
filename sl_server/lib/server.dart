@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:sl_server/systems/asset_system.dart';
-import 'package:sl_shared/src/database/database.dart' as db;
 import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:path/path.dart' as p;
 
@@ -40,9 +41,9 @@ class Client {
 
 class Server {
   final String rootPath;
+  final SqliteCrdt _database;
 
   late final WebSocketHandler _webSocketHandler;
-  late final db.Database _database;
 
   late final SceneSystem _sceneSystem;
   late final AssetSystem _assetSystem;
@@ -54,9 +55,8 @@ class Server {
 
   late final Timer _tickTimer;
 
-  Server(this.rootPath) {
-    _webSocketHandler = WebSocketHandler(_onConnection, null, null, null);
-    _database = db.Database(p.join(rootPath, 'db.sqlite3'));
+  Server._(this.rootPath, this._database) {
+    _webSocketHandler = WebSocketHandler(_onConnection, null, null, Duration(seconds: 20));
 
     _sceneSystem = SceneSystem(this);
     _assetSystem = AssetSystem(this, _database);
@@ -64,8 +64,15 @@ class Server {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
   }
 
-  void dispose() {
+  static Future<Server> create(String rootPath) async {
+    final absoluteRootPath = Directory(rootPath).absolute.path;
+    await Directory(absoluteRootPath).create(recursive: true);
+    return Server._(absoluteRootPath, await openDatabase(p.join(absoluteRootPath, 'db.sqlite3')));
+  }
+
+  Future<void> dispose() async {
     _tickTimer.cancel();
+    await _database.close();
   }
 
   WebSocketHandler getWebSocketHandler() {
@@ -102,19 +109,25 @@ class Server {
     send(client, StcSetSelf(clientId: client.clientId));
     _broadcastClientStates();
 
-    try {
-      await for (final data in socket.stream) {
-        await _onData(client, data);
-      }
-    } catch (e) {
-      print('Error occurred while handling message for client ${client.clientId}');
-      await removeClient(client);
+    await _assetSystem.addClient(client);
+
+    // try {
+    await for (final data in socket.stream) {
+      await _onData(client, data);
     }
+    // } catch (e) {
+    //   print('Error occurred while handling message for client ${client.clientId}: $e');
+    //   await removeClient(client);
+    // }
     await removeClient(client);
   }
 
   Future<void> _onData(Client client, dynamic data) async {
-    print('From ${client.clientId} server received: (${data.runtimeType}) $data');
+    if (data is Uint8List) {
+      print('From ${client.clientId} server received ${data.length} bytes');
+    } else {
+      print('From ${client.clientId} server received: $data');
+    }
 
     switch (data) {
       case String string:
@@ -137,13 +150,14 @@ class Server {
             await _sceneSystem.stateTracker.handleClientChanges(client, stateChanges);
             break;
           case StateTrackerSystem.asset:
-            await _assetSystem.handleClientChanges(client, stateChanges);
+            // await _assetSystem.handleClientChanges(client, stateChanges);
             break;
         }
         break;
       default:
         if (await _sceneSystem.handleMessage(client, message)) break;
         if (await _assetSystem.handleMessage(client, message)) break;
+        print('Server has no handler for message with class ${message.messageClass}');
         break;
     }
   }
@@ -172,6 +186,10 @@ class Server {
         ),
       ),
     );
+  }
+
+  void sendBinary(Client client, Uint8List bytes) {
+    client.socket.sink.add(bytes);
   }
 
   void send(Client client, Message message) {

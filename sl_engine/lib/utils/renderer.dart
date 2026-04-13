@@ -121,6 +121,18 @@ class Renderer {
     });
   }
 
+  // static void renderNode(Node node) {
+  //   for (final child in node.children) {
+  //     renderNode(child);
+  //   }
+
+  //   final (material, mesh) = _nodes[node]!;
+
+  //   material.bind();
+  //   mesh.bind();
+  //   mesh.draw();
+  // }
+
   static void renderAll() {
     _materials.forEach((material, meshes) {
       material.bind();

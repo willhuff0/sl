@@ -97,20 +97,20 @@ enum AssetType {
 //   Map<String, dynamic> toJson() => _$CtsDeleteAssetsToJson(this);
 // }
 
-@JsonSerializable()
-class CtsListenToAssetDirectory extends Message {
-  final UUID? directory;
+// @JsonSerializable()
+// class CtsListenToAssetDirectory extends Message {
+//   final UUID? directory;
 
-  CtsListenToAssetDirectory({required this.directory});
+//   CtsListenToAssetDirectory({required this.directory});
 
-  @override
-  String get messageClass => '$CtsListenToAssetDirectory';
-  static String get messageClassS => '$CtsListenToAssetDirectory';
+//   @override
+//   String get messageClass => '$CtsListenToAssetDirectory';
+//   static String get messageClassS => '$CtsListenToAssetDirectory';
 
-  factory CtsListenToAssetDirectory.fromJson(Map<String, dynamic> json) => _$CtsListenToAssetDirectoryFromJson(json);
+//   factory CtsListenToAssetDirectory.fromJson(Map<String, dynamic> json) => _$CtsListenToAssetDirectoryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$CtsListenToAssetDirectoryToJson(this);
-}
+//   Map<String, dynamic> toJson() => _$CtsListenToAssetDirectoryToJson(this);
+// }
 
 // @JsonSerializable()
 // class StcAssetDirectoryStreamUpdate extends Message {

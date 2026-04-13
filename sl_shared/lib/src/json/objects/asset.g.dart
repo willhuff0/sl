@@ -6,14 +6,6 @@ part of 'asset.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-CtsListenToAssetDirectory _$CtsListenToAssetDirectoryFromJson(
-  Map<String, dynamic> json,
-) => CtsListenToAssetDirectory(directory: json['directory'] as String?);
-
-Map<String, dynamic> _$CtsListenToAssetDirectoryToJson(
-  CtsListenToAssetDirectory instance,
-) => <String, dynamic>{'directory': instance.directory};
-
 CtsRequestAssetBlob _$CtsRequestAssetBlobFromJson(Map<String, dynamic> json) =>
     CtsRequestAssetBlob(
       uuid: json['uuid'] as String,

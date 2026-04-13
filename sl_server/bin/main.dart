@@ -5,9 +5,7 @@ import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:sl_server/server.dart';
 
-final Map<String, Server> _rooms = {
-  'test-room': Server('test-room'),
-};
+final Map<String, Server> _rooms = {};
 
 final _router = Router()
   ..get('/', _rootHandler)
@@ -26,12 +24,22 @@ Response _joinRoomHandler(Request req) {
 }
 
 void main(List<String> args) async {
-  final ip = InternetAddress.anyIPv4;
+  try {
+    _rooms['test-room'] = await Server.create('test-room');
 
-  final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
+    final ip = InternetAddress.anyIPv4;
 
-  final port = int.parse(Platform.environment['PORT'] ?? '8080');
-  final server = await serve(handler, ip, port);
+    final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
 
-  print('Server listening on port ${server.port}');
+    final port = int.parse(Platform.environment['PORT'] ?? '8080');
+    final server = await serve(handler, ip, port);
+
+    print('Server listening on port ${server.port}');
+
+    await for (final _ in stdin) {}
+  } finally {
+    for (final room in _rooms.values) {
+      await room.dispose();
+    }
+  }
 }
