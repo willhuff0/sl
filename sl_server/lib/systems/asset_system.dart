@@ -232,7 +232,7 @@ class AssetSystem {
     }
   }
 
-  Future<void> _sendAssetBlobToClient(Client client, UUID uuid, int offset, int? length) async {
+  Future<void> _sendAssetBlobToClient(Client client, UUID uuid, int offset) async {
     if (_locked.contains(uuid)) {
       // TODO: error
       return;
@@ -247,14 +247,12 @@ class AssetSystem {
       }
 
       final fileSize = await file.length();
-      length ??= fileSize;
 
       server.send(
         client,
         PtpAssetBlobStart(
           uuid: uuid,
           offset: offset,
-          length: length,
           size: fileSize,
         ),
       );
@@ -264,7 +262,7 @@ class AssetSystem {
 
       final buffer = Uint8List(assetBlobChunkSize + 16); // prepended with uuid
       Uuid.parse(uuid, buffer: buffer);
-      var bytesRemaining = length;
+      var bytesRemaining = fileSize;
       while (bytesRemaining > 0) {
         final chunkSize = await reader.readInto(buffer, 16, min(assetBlobChunkSize, bytesRemaining) + 16);
         if (chunkSize == 0) break;

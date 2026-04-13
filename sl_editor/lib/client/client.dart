@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:sl_editor/client/file_system.dart';
-import 'package:sl_editor/client/systems/asset_system.dart';
+import 'package:sl_editor/client/systems/asset_system_old.dart';
 import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_engine/logger.dart';

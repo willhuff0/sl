@@ -18,7 +18,8 @@ CREATE TABLE assets (
     properties TEXT,
     updated_at TEXT NOT NULL,
     blob_size INTEGER,
-    blob_updated_at TEXT NOT NULL
+    blob_updated_at TEXT,
+    blob_upload_progress INTEGER
 );
 ''');
       await db.execute('CREATE INDEX idx_assets_parent ON assets(parent);');
@@ -45,6 +46,7 @@ WITH RECURSIVE
           a.updated_at,
           a.blob_size,
           a.blob_updated_at,
+          a.blob_upload_progress,
           0 AS depth
       FROM assets a
       WHERE a.parent = ?1 OR (a.parent IS NULL AND ?1 IS NULL)
@@ -60,6 +62,7 @@ WITH RECURSIVE
           sa.updated_at,
           sa.blob_size,
           sa.blob_updated_at,
+          sa..blob_upload_progress,
           at.depth + 1
       FROM assets sa
       JOIN asset_tree at
@@ -75,6 +78,7 @@ WITH RECURSIVE
       updated_at,
       blob_size,
       blob_updated_at,
+      blob_upload_progress,
       depth
   FROM asset_tree
   ORDER BY depth, parent, name;

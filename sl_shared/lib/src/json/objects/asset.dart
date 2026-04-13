@@ -133,9 +133,11 @@ enum AssetType {
 @JsonSerializable()
 class CtsRequestAssetBlob extends Message {
   final UUID uuid;
+  final int offset;
 
   CtsRequestAssetBlob({
     required this.uuid,
+    required this.offset,
   });
 
   @override
@@ -150,10 +152,12 @@ class CtsRequestAssetBlob extends Message {
 @JsonSerializable()
 class PtpAssetBlobStart extends Message {
   final UUID uuid;
+  final int offset;
   final int size;
 
   PtpAssetBlobStart({
     required this.uuid,
+    required this.offset,
     required this.size,
   });
 
@@ -202,18 +206,10 @@ class StcAssetBlobProgress extends Message {
   Map<String, dynamic> toJson() => _$StcAssetBlobProgressToJson(this);
 }
 
-enum AssetBlobError {
-  assetDoesNotExist,
-  assetBlobLocked,
-  operationNotStarted,
-  simultaneousUploadsFromSingleClientNotAllowed,
-  operationTimedOut,
-}
-
 @JsonSerializable()
 class PtpAssetBlobError extends Message {
   final UUID? uuid;
-  final AssetBlobError error;
+  final String error;
 
   PtpAssetBlobError({
     required this.uuid,
