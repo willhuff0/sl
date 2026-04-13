@@ -30,8 +30,6 @@ class AssetsApi {
       uuidToFile[uuid] = file;
     }
 
-    print(arguments);
-
     await database.execute('''
 INSERT INTO assets (uuid, parent, name, type, updated_at, blob_updated_at)
 VALUES

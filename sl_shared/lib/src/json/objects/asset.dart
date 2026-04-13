@@ -133,13 +133,9 @@ enum AssetType {
 @JsonSerializable()
 class CtsRequestAssetBlob extends Message {
   final UUID uuid;
-  final int offset;
-  final int length;
 
   CtsRequestAssetBlob({
     required this.uuid,
-    required this.offset,
-    required this.length,
   });
 
   @override
@@ -154,14 +150,10 @@ class CtsRequestAssetBlob extends Message {
 @JsonSerializable()
 class PtpAssetBlobStart extends Message {
   final UUID uuid;
-  final int offset;
-  final int length;
   final int size;
 
   PtpAssetBlobStart({
     required this.uuid,
-    required this.offset,
-    required this.length,
     required this.size,
   });
 

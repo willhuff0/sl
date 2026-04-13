@@ -7,35 +7,20 @@ part of 'asset.dart';
 // **************************************************************************
 
 CtsRequestAssetBlob _$CtsRequestAssetBlobFromJson(Map<String, dynamic> json) =>
-    CtsRequestAssetBlob(
-      uuid: json['uuid'] as String,
-      offset: (json['offset'] as num).toInt(),
-      length: (json['length'] as num).toInt(),
-    );
+    CtsRequestAssetBlob(uuid: json['uuid'] as String);
 
 Map<String, dynamic> _$CtsRequestAssetBlobToJson(
   CtsRequestAssetBlob instance,
-) => <String, dynamic>{
-  'uuid': instance.uuid,
-  'offset': instance.offset,
-  'length': instance.length,
-};
+) => <String, dynamic>{'uuid': instance.uuid};
 
 PtpAssetBlobStart _$PtpAssetBlobStartFromJson(Map<String, dynamic> json) =>
     PtpAssetBlobStart(
       uuid: json['uuid'] as String,
-      offset: (json['offset'] as num).toInt(),
-      length: (json['length'] as num).toInt(),
       size: (json['size'] as num).toInt(),
     );
 
 Map<String, dynamic> _$PtpAssetBlobStartToJson(PtpAssetBlobStart instance) =>
-    <String, dynamic>{
-      'uuid': instance.uuid,
-      'offset': instance.offset,
-      'length': instance.length,
-      'size': instance.size,
-    };
+    <String, dynamic>{'uuid': instance.uuid, 'size': instance.size};
 
 PtpAssetBlobEnd _$PtpAssetBlobEndFromJson(Map<String, dynamic> json) =>
     PtpAssetBlobEnd(uuid: json['uuid'] as String);

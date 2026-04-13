@@ -163,10 +163,15 @@ class AssetSystem {
   final Map<UUID, (Completer<DownloadOperation>, bool keepCopyInMemory)> pendingDownloads = {};
   final Map<UUID, DownloadOperation> downloads = {};
   final Map<UUID, UploadOperation> uploads = {};
-  final Set<UUID> _locked = {};
 
   Future<void> dispose() async {
     await database.close();
+  }
+
+  Future<int?> _getAssetBlobSizeOnServer(UUID uuid) async {
+    final row = await database.query('SELECT * FROM assets WHERE uuid = ?1', [uuid]);
+    if (row.isEmpty) return null;
+    return row.first['blobSize'] as int? ?? 0;
   }
 
   web.FileSystemDirectoryHandle? _blobsRoot;
@@ -181,12 +186,12 @@ class AssetSystem {
         .toDart;
   }
 
-  Future<web.FileSystemFileHandle> _getFileOfAssetBlob(UUID uuid) async {
+  Future<web.FileSystemFileHandle> _getFileOfAssetBlob(UUID uuid, {bool create = false}) async {
     return await (await _getBlobsRoot())
         .getFileHandle(
           uuid,
           web.FileSystemGetFileOptions(
-            create: true,
+            create: create,
           ),
         )
         .toDart;
@@ -194,7 +199,6 @@ class AssetSystem {
 
   Future<Uint8List?> getAssetBlob(UUID uuid) async {
     {
-      // may have different offset and length
       final pendingDownload = pendingDownloads[uuid];
       if (pendingDownload != null) {
         final downloadOperation = await pendingDownload.$1.future;
@@ -212,11 +216,13 @@ class AssetSystem {
       }
     }
 
-    final file = await (await _getFileOfAssetBlob(uuid)).getFile().toDart;
-    if (file.size != 0) {
-      final arrayBuffer = (await file.arrayBuffer().toDart).toDart;
-      return arrayBuffer.asUint8List();
-    }
+    try {
+      final file = await (await _getFileOfAssetBlob(uuid, create: false)).getFile().toDart;
+      if (file.size != 0) {
+        final arrayBuffer = (await file.arrayBuffer().toDart).toDart;
+        return arrayBuffer.asUint8List();
+      }
+    } catch (_) {}
 
     final downloadOperation = await downloadAssetBlob(uuid, keepCopyInMemory: true);
     if (downloadOperation == null) return null;
@@ -225,26 +231,28 @@ class AssetSystem {
 
   Future<DownloadOperation?> downloadAssetBlob(
     UUID uuid, {
-    int offset = 0,
-    int length = -1,
     bool keepCopyInMemory = false,
   }) async {
-    if (_locked.contains(uuid)) {
-      Logger.log(
-        '[ASSET] Tried to download to an asset blob which was locked.',
-        .error,
-      );
-      return null;
+    {
+      final pendingDownload = pendingDownloads[uuid];
+      if (pendingDownload != null) {
+        return await pendingDownload.$1.future;
+      }
+
+      final downloadOperation = downloads[uuid];
+      if (downloadOperation != null) {
+        return downloadOperation;
+      }
     }
-    _locked.add(uuid);
+
+    final sizeOnServer = await _getAssetBlobSizeOnServer(uuid);
+    if (sizeOnServer == null) {}
 
     final pendingDownload = pendingDownloads[uuid] = (Completer(), keepCopyInMemory);
 
     client.send(
       CtsRequestAssetBlob(
         uuid: uuid,
-        offset: offset,
-        length: length,
       ),
     );
 
