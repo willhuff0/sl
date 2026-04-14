@@ -162,8 +162,8 @@ class _AssetEntryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 1024.0,
-      height: 1024.0,
+      width: 500.0,
+      height: 500.0,
       child: ShadCard(
         padding: EdgeInsets.all(8.0),
         child: Column(

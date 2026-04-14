@@ -9,6 +9,8 @@ layout(std140) uniform SL {
 
 in vec3 v_position;
 in vec3 v_normal;
+in vec3 v_tangent;
+in vec3 v_bitangent;
 in vec2 v_uv;
 
 out vec4 o_color;
@@ -89,16 +91,10 @@ void main() {
     
     vec3 N = normalize(v_normal);
     if (u_hasNormalTexture) {
-        // Reconstruct TBN matrix using screen-space derivatives
-        vec3 pos_dx = dFdx(v_position);
-        vec3 pos_dy = dFdy(v_position);
-        vec2 tex_dx = dFdx(v_uv);
-        vec2 tex_dy = dFdy(v_uv);
-        vec3 t = (tex_dy.y * pos_dx - tex_dx.y * pos_dy) / (tex_dx.x * tex_dy.y - tex_dy.x * tex_dx.y);
+        vec3 t = normalize(v_tangent);
+        vec3 b = normalize(v_bitangent);
         vec3 ng = normalize(v_normal);
         
-        t = normalize(t - ng * dot(ng, t)); // orthogonalize
-        vec3 b = normalize(cross(ng, t));   // bitangent
         mat3 tbn = mat3(t, b, ng);
         
         vec3 nTex = texture(u_normalTexture, v_uv).rgb * 2.0 - 1.0;

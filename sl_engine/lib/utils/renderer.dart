@@ -23,7 +23,26 @@ class RendererUniforms {
     final builder = BytesBuilder();
 
     builder.add(modelMat.storage.buffer.asUint8List());
-    builder.add(normalMat.storage.buffer.asUint8List());
+
+    final normalMatStorage = normalMat.storage;
+    final paddedNormalMat = Float32List(12);
+
+    // Column 0
+    paddedNormalMat[0] = normalMatStorage[0];
+    paddedNormalMat[1] = normalMatStorage[1];
+    paddedNormalMat[2] = normalMatStorage[2];
+
+    // Column 1
+    paddedNormalMat[4] = normalMatStorage[3];
+    paddedNormalMat[5] = normalMatStorage[4];
+    paddedNormalMat[6] = normalMatStorage[5];
+
+    // Column 2
+    paddedNormalMat[8] = normalMatStorage[6];
+    paddedNormalMat[9] = normalMatStorage[7];
+    paddedNormalMat[10] = normalMatStorage[8];
+
+    builder.add(paddedNormalMat.buffer.asUint8List());
 
     return builder.toBytes().toJS;
   }
@@ -59,6 +78,7 @@ class Renderer {
 
   static void init() {
     _uniformBuffer = Buffer(GL.UNIFORM_BUFFER);
+    _uniformBuffer.bind();
     _uniformBuffer.bindToUniformBuffer(1);
   }
 
@@ -159,6 +179,7 @@ class Renderer {
     final modelMat = node.getMatrix();
     final normalMat = modelMat.getNormalMatrix();
 
+    _uniformBuffer.bind();
     _uniformBuffer.write(
       RendererUniforms(
         modelMat: modelMat,

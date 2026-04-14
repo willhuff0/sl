@@ -32,6 +32,7 @@ class SL {
 
   static void init() {
     _buffer = Buffer(GL.UNIFORM_BUFFER);
+    _buffer.bind();
     _buffer.bindToUniformBuffer(0);
   }
 

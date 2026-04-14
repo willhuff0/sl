@@ -13,7 +13,7 @@ import 'package:vector_math/vector_math.dart';
 
 class ModelPreviewGenerator {
   static const _fov = 60.0;
-  static const _distancePadding = 1.15;
+  static const _distancePadding = 1.0;
 
   late final Shader _previewShader;
 
@@ -73,12 +73,8 @@ class ModelPreviewGenerator {
         viewPos: viewPos,
       ),
     );
-    Renderer.renderUnregisteredNodeCustomShader(
+    Renderer.renderUnregisteredNode(
       node,
-      bindUniformsCallback: (node) {
-        _previewShader.setUniform('u_modelMat', node.getMatrix());
-        _previewShader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
-      },
     );
 
     node.enterScene();

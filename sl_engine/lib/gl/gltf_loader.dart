@@ -80,7 +80,7 @@ const _componentSizes = {
 const _attributeInfo = {
   'POSITION': (0, 3),
   'NORMAL': (1, 3),
-  'TANGENT': (2, 3),
+  'TANGENT': (2, 4),
   'TEXCOORD_0': (3, 2),
 };
 
@@ -101,6 +101,7 @@ class GLTF {
 
   static Future<Shader> _loadShader() async {
     final shader = (await Shader.load('shaders/gltf/gltf'))!;
+    shader.bind();
     shader.setUniform('u_baseColorTexture', 0);
     shader.setUniform('u_metallicRoughnessTexture', 1);
     shader.setUniform('u_normalTexture', 2);
@@ -255,7 +256,7 @@ class GLTF {
       return cache;
     }
 
-    Future<Buffer?> getAndBindGpuBufferFromView(int index) async {
+    Future<Buffer?> getAndBindGpuBufferFromView(int index, [int? inferredTarget]) async {
       var cache = bufferViewIndexToGpuBuffer[index];
       if (cache == null) {
         final bufferView = bufferViews[index];
@@ -264,7 +265,7 @@ class GLTF {
         final bufferIndex = bufferView['buffer'] as int;
         final bytes = await getBufferBytes(bufferIndex);
         if (bytes == null) return null;
-        final target = bufferView['target'] as int?;
+        final target = bufferView['target'] as int? ?? inferredTarget;
         if (target == null) {
           Logger.log('Tried to interpret a buffer view which does not contain vertex or index data as a vertex or index array while loading a GLTF \'$path\'.', .warning);
           return null;
@@ -287,7 +288,7 @@ class GLTF {
         if (uriString != null) {
           final uri = Uri.parse(uriString);
           if (uri.data != null) {
-            final result = Image.loadFromMemory(uri.data!.contentAsBytes());
+            final result = await Image.loadFromMemory(uri.data!.contentAsBytes());
             if (result == null) {
               Logger.log('Failed to load an image from a data uri while loading a GLTF \'$path\'.', .warning);
               return null;
@@ -299,7 +300,7 @@ class GLTF {
               Logger.log('Failed to load an image over the network while loading a GLTF \'$path\'. HTTP GET to \'$uri\' returned status code ${response.statusCode}.', .warning);
               return null;
             }
-            final result = Image.loadFromMemory(response.bodyBytes);
+            final result = await Image.loadFromMemory(response.bodyBytes);
             if (result == null) {
               Logger.log('Failed to load an image over the network while loading a GLTF \'$path\'.', .warning);
               return null;
@@ -309,7 +310,7 @@ class GLTF {
             final resolved = p.join(directory, uri.path);
             final bytes = await resourceLoader!.loadBytes(resolved);
             if (bytes == null) return null;
-            final result = Image.loadFromMemory(bytes);
+            final result = await Image.loadFromMemory(bytes);
             if (result == null) {
               Logger.log('Failed to load an image from relative path while loading a GLTF \'$path\'.', .warning);
               return null;
@@ -329,7 +330,7 @@ class GLTF {
           final bytes = await getBufferBytes(bufferIndex);
           if (bytes == null) return null;
 
-          final result = Image.loadFromMemory(bytes.buffer.asUint8List(bytes.offsetInBytes + byteOffset, byteLength));
+          final result = await Image.loadFromMemory(bytes.buffer.asUint8List(bytes.offsetInBytes + byteOffset, byteLength));
           if (result == null) {
             Logger.log('Failed to load an image from bufferView while loading a GLTF \'$path\'.', .warning);
             return null;
@@ -347,8 +348,8 @@ class GLTF {
 
         final samplerIndex = texture['sampler'] as int?;
         final sampler = samplerIndex == null ? null : samplers[samplerIndex] as Map<String, dynamic>;
-        final magFilter = sampler?['magFilter'] as int? ?? GL.LINEAR_MIPMAP_LINEAR;
-        final minFilter = sampler?['minFilter'] as int? ?? GL.LINEAR_MIPMAP_LINEAR;
+        final magFilter = sampler?['magFilter'] as int? ?? GL.LINEAR;
+        final minFilter = sampler?['minFilter'] as int? ?? GL.LINEAR;
         final wrapS = sampler?['wrapS'] as int? ?? GL.REPEAT;
         final wrapT = sampler?['wrapT'] as int? ?? GL.REPEAT;
 
@@ -395,7 +396,7 @@ class GLTF {
           final result = await getGpuTexture(textureIndex);
           if (result == null) return false;
 
-          textures[index] = result;
+          textures[slot] = result;
           return true;
         }
 
@@ -502,7 +503,7 @@ class GLTF {
             final bufferView = bufferViews[bufferViewIndex];
             final byteStride = bufferView['byteStride'] as int? ?? 0;
 
-            final gpuBuffer = await getAndBindGpuBufferFromView(bufferViewIndex);
+            final gpuBuffer = await getAndBindGpuBufferFromView(bufferViewIndex, GL.ARRAY_BUFFER);
             if (gpuBuffer == null) continue;
 
             gl.enableVertexAttribArray(index);
@@ -519,14 +520,14 @@ class GLTF {
             meshCount = accessor['count'] as int;
             // TODO: sparse
 
-            final gpuBuffer = await getAndBindGpuBufferFromView(bufferViewIndex);
+            final gpuBuffer = await getAndBindGpuBufferFromView(bufferViewIndex, GL.ELEMENT_ARRAY_BUFFER);
             if (gpuBuffer == null) continue;
           }
 
           final materialIndex = primitive['material'] as int?;
           Material? material;
           if (materialIndex != null) {
-            material = await getGpuMaterial(index);
+            material = await getGpuMaterial(materialIndex);
           }
           material ??= (await getGpuMaterial(-1))!;
 

@@ -5,6 +5,7 @@ import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/utils/renderer.dart';
@@ -38,6 +39,10 @@ class SLEditor {
     await Selector.init(_camera!);
     _modelPreviewGenerator = await ModelPreviewGenerator.create();
 
+    final model = await GLTF.load('models/FlightHelmet.glb');
+    model!.root.lScale = Vector3.all(10.0);
+    model!.root.enterScene();
+
     web.window.requestAnimationFrame(_frame.toJS);
   }
 
@@ -70,7 +75,6 @@ class SLEditor {
 
     DebugDraw.drawPoint(Vector3(0.0, 0.0, 0.0), size: 4);
 
-    gl.cullFace(GL.NONE);
     Renderer.renderAll();
     Selector.draw();
   }

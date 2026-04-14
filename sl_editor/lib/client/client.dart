@@ -14,7 +14,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 const tickInterval = Duration(milliseconds: 1000);
 
 class Client {
-  final WebSocketChannel _socket;
+  late final WebSocketChannel _socket;
   final SqliteCrdt _database;
   late final ClientId _clientId;
 
@@ -39,6 +39,7 @@ class Client {
     );
     client.assetSystem = await AssetSystem.create(client, database, 'test-room');
     await socket.ready;
+    client._listen();
     return client;
   }
 
@@ -60,7 +61,6 @@ class Client {
     ViewManager.init();
 
     _instance = this;
-    _listen();
   }
 
   void dispose() {

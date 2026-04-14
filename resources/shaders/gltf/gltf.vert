@@ -13,16 +13,21 @@ layout(std140) uniform Renderer {
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec4 a_tangent;
 layout(location = 3) in vec2 a_uv;
 
 out vec3 v_position;
 out vec3 v_normal;
+out vec3 v_tangent;
+out vec3 v_bitangent;
 out vec2 v_uv;
 
 void main() {
     vec4 position = renderer.modelMat * vec4(a_position, 1.0);
     v_position = vec3(position);
     v_normal = renderer.normalMat * a_normal;
+    v_tangent = renderer.normalMat * a_tangent.xyz;
+    v_bitangent = cross(v_normal, v_tangent) * a_tangent.w;
     v_uv = a_uv;
 
     gl_Position = sl.viewProjMat * position;
