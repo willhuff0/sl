@@ -3,9 +3,35 @@ import 'dart:typed_data';
 
 import 'package:sl_engine/gl/buffer.dart';
 import 'package:sl_engine/gl/gl.dart';
+import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' hide Float32List;
 
 abstract interface class Mesh {
+  static Aabb3 generateBoundsFromPoints(Iterable<Vector3> points) {
+    var minX = double.infinity;
+    var maxX = double.negativeInfinity;
+    var minY = double.infinity;
+    var maxY = double.negativeInfinity;
+    var minZ = double.infinity;
+    var maxZ = double.negativeInfinity;
+
+    for (final point in points) {
+      if (point.x < minX) minX = point.x;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.y > maxY) maxY = point.y;
+      if (point.z < minZ) minZ = point.z;
+      if (point.z > maxZ) maxZ = point.z;
+    }
+
+    return Aabb3.minMax(
+      Vector3(minX, minY, minZ),
+      Vector3(maxX, maxY, maxZ),
+    );
+  }
+
+  Aabb3 get bounds;
+
   void bind();
   void draw();
   void unbind();
@@ -57,6 +83,11 @@ final class CubeMesh implements Mesh {
   late final WebGLVertexArrayObject _vao;
   late final Buffer _vertexBuffer;
   late final Buffer _indexBuffer;
+  @override
+  final bounds = Aabb3.centerAndHalfExtents(
+    Vector3.zero(),
+    Vector3(0.25, 0.25, 0.25),
+  );
 
   CubeMesh() {
     _vao = gl.createVertexArray()!;

@@ -105,7 +105,7 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
 
   @override
   void initState() {
-    _subscription = watchAssetsInDirectory(Client.get().assetSystem.database, widget.directory).listen((event) {
+    _subscription = watchAssetsInDirectory(Client.get().assetSystem.sharedDatabase, widget.directory).listen((event) {
       setState(() {
         _assets = event.$1;
         _foldedAssets = event.$2;
@@ -162,8 +162,8 @@ class _AssetEntryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 100.0,
-      height: 100.0,
+      width: 1024.0,
+      height: 1024.0,
       child: ShadCard(
         padding: EdgeInsets.all(8.0),
         child: Column(
@@ -247,51 +247,49 @@ class _ModelAssetPreviewWidget extends StatefulWidget {
 }
 
 class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
-  static final _previewCache = <UUID, Uint8List>{};
-
+  late final StreamSubscription _assetBlobSubscription;
   Uint8List? _data;
 
   void initState() {
-    _load();
+    _assetBlobSubscription = Client.get().assetSystem.watchAssetBlob(widget.asset.uuid).listen((bytes) async {
+      if (bytes == null) {
+        if (mounted) {
+          setState(() {
+            _data = null;
+          });
+        }
+        return;
+      }
+
+      final gltf = await GLTF.load('stub.glb', resourceLoader: StubResourceLoader(bytes));
+      if (gltf == null) {
+        Logger.log(
+          'Failed to parse glb while generating model preview for ${widget.asset.name} (${widget.asset.uuid})',
+        );
+        return;
+      }
+
+      while (SLEditor.modelPreviewGenerator == null) {
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      final raw = SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 1024);
+      if (raw.isEmpty) return;
+      final image = img.Image.fromBytes(width: 1024, height: 1024, bytes: raw.buffer, numChannels: 4);
+      final data = img.encodePng(image);
+
+      if (mounted) {
+        setState(() {
+          _data = data;
+        });
+      }
+    });
     super.initState();
   }
 
-  void _load() async {
-    final cached = _previewCache[widget.asset.uuid];
-    if (cached != null) {
-      setState(() {
-        _data = cached;
-      });
-    }
-
-    final modelData = await Client.get().assetSystem.getAssetBlob(widget.asset.uuid);
-    if (modelData == null) {
-      Logger.log(
-        'Failed to load asset blob while generating model preview for ${widget.asset.name} (${widget.asset.uuid})',
-      );
-      return;
-    }
-
-    final gltf = await GLTF.load('stub.glb', resourceLoader: StubResourceLoader(modelData));
-    if (gltf == null) {
-      Logger.log('Failed to parse glb while generating model preview for ${widget.asset.name} (${widget.asset.uuid})');
-      return;
-    }
-
-    while (SLEditor.modelPreviewGenerator == null) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
-    final raw = SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 128);
-    if (raw.isEmpty) return;
-    final image = img.Image.fromBytes(width: 128, height: 128, bytes: raw.buffer, numChannels: 4);
-    final data = img.encodePng(image);
-
-    _previewCache[widget.asset.uuid] = data;
-    if (mounted) {
-      setState(() {
-        _data = data;
-      });
-    }
+  @override
+  void dispose() {
+    _assetBlobSubscription.cancel();
+    super.dispose();
   }
 
   @override

@@ -1,16 +1,20 @@
 import 'dart:js_interop';
+import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/node.dart';
+import 'package:sl_engine/utils/bounds.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 
 class ModelPreviewGenerator {
+  static const _fov = 60.0;
+  static const _distancePadding = 1.15;
+
   late final Shader _previewShader;
 
   late final RenderTexture _outputTexture;
@@ -41,11 +45,27 @@ class ModelPreviewGenerator {
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
     gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
 
-    // calculate bounding box
+    final bounds = Bounds.computeBounds(node);
 
-    final viewPos = Vector3(2.0, 2.0, 2.0);
-    final viewMat = makeViewMatrix(viewPos, Vector3.zero(), Vector3(0.0, 1.0, 0.0));
-    final projMat = makePerspectiveMatrix(radians(60.0), 1.0, 0.1, 4.0);
+    final center = bounds.center;
+
+    final radius = ((bounds.max - bounds.min) * 0.5).length;
+    final distance = (radius / tan(radians(_fov) * 0.5)) * _distancePadding;
+
+    final viewDir = Vector3(-1.0, -0.8, -1.0)..normalize();
+    final viewPos = center - viewDir * distance;
+
+    final viewMat = makeViewMatrix(
+      viewPos,
+      center,
+      Vector3(0.0, 1.0, 0.0),
+    );
+    final projMat = makePerspectiveMatrix(
+      radians(_fov),
+      1.0,
+      max(0.01, distance - radius * 2.0), // near
+      distance + radius * 2.0, //            far
+    );
     SL.setUniforms(
       SLUniforms(
         viewProjMat: projMat * viewMat,
@@ -60,6 +80,8 @@ class ModelPreviewGenerator {
         _previewShader.setUniform('u_normalMat', node.getMatrix().getNormalMatrix());
       },
     );
+
+    node.enterScene();
 
     final pixels = JSUint8Array.withLength(size * size * 4);
     gl.readPixels(0, 0, size, size, GL.RGBA, GL.UNSIGNED_BYTE, pixels);

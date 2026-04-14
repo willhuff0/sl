@@ -132,6 +132,7 @@ class Shader {
     _uniforms = _lookupUniforms(_program);
 
     tryBindUniformBlock('SL', 0);
+    tryBindUniformBlock('Renderer', 1);
   }
 
   static Future<Shader?> load(String pathWithoutExtension) {

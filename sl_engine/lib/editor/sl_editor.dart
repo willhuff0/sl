@@ -68,6 +68,9 @@ class SLEditor {
     _setEngineUbo();
     _bindAndClearCanvas();
 
+    DebugDraw.drawPoint(Vector3(0.0, 0.0, 0.0), size: 4);
+
+    gl.cullFace(GL.NONE);
     Renderer.renderAll();
     Selector.draw();
   }

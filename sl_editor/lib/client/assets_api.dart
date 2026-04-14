@@ -14,7 +14,7 @@ const _extensionToAssetType = <String, AssetType>{
 
 class AssetsApi {
   static Future<void> addAssets(UUID? directory, List<XFile> files) async {
-    final database = Client.get().assetSystem.database;
+    final database = Client.get().assetSystem.sharedDatabase;
 
     final parent = directory;
     final updatedAt = DateTime.now().toIso8601String();
@@ -39,7 +39,7 @@ VALUES
     for (final entry in uuidToFile.entries) {
       final uuid = entry.key;
       final file = entry.value;
-      await Client.get().assetSystem.uploadAssetBlob(uuid, file);
+      await Client.get().assetSystem.upload(uuid, file);
     }
   }
 }

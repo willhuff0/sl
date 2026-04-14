@@ -62,7 +62,7 @@ WITH RECURSIVE
           sa.updated_at,
           sa.blob_size,
           sa.blob_updated_at,
-          sa..blob_upload_progress,
+          sa.blob_upload_progress,
           at.depth + 1
       FROM assets sa
       JOIN asset_tree at

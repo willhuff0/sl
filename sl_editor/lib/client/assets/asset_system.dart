@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:sl_editor/client/assets/asset_blob_filesystem.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
 import 'package:sl_editor/client/client.dart';
@@ -54,21 +55,64 @@ class AssetSystem {
     );
   }
 
+  SqliteCrdt get sharedDatabase => _sharedDatabase;
+
+  Future<bool> handleMessage(Message message) async {
+    switch (message) {
+      case PtpCrdtSync crdtSync:
+        _crdtSync.syncSocket.receive(crdtSync.message);
+        break;
+      case PtpAssetBlobStart startOp:
+        await _blobTransferer.handleStartDownload(startOp.uuid, startOp.offset, startOp.size);
+        break;
+      case StcAssetBlobProgress progress:
+        await _blobTransferer.handleUploadProgress(progress.uuid, progress.bytesReceived);
+      case PtpAssetBlobEnd endOp:
+        await _blobTransferer.handleEndDownload(endOp.uuid);
+        break;
+      case PtpAssetBlobError error:
+        Logger.log('[SERVER] Asset blob error: ${error.error}');
+        break;
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  Future<void> handleBinary(Uint8List bytes) async {
+    return _blobTransferer.handleBinary(bytes);
+  }
+
+  Future<void> upload(UUID uuid, XFile file, {int offset = 0}) async {
+    return _blobTransferer.upload(uuid, file, offset: offset);
+  }
+
   Future<void> ensureBlobsAvailable(Set<UUID> uuids) async {
     await Future.wait(uuids.map((uuid) => getAssetBlob(uuid, keepCopyInMemory: false)));
   }
 
   Stream<Uint8List?> watchAssetBlob(UUID uuid) {
+    DateTime? lastQuery;
     return _sharedDatabase
         .watch('SELECT uuid, blob_size, blob_updated_at FROM assets WHERE uuid = ?1', () => [uuid])
-        .map((rows) {
+        .asyncMap((rows) async {
           if (rows.isEmpty) return null;
 
           final blobSize = rows.first['blob_size'] as int?;
           if (blobSize == null) return null;
 
-          // final blobUpdatedAt = rows.first['blob_updated_at'] as DateTIme
-        });
+          final blobUpdatedAtString = rows.first['blob_updated_at'] as String?;
+          if (blobUpdatedAtString == null) return null;
+          final blobUpdatedAt = DateTime.parse(blobUpdatedAtString);
+
+          if (lastQuery == null || blobUpdatedAt.isAfter(lastQuery!)) {
+            lastQuery = blobUpdatedAt;
+            return await getAssetBlob(uuid);
+          }
+
+          return Uint8List(0);
+        })
+        .where((bytes) => bytes?.isNotEmpty ?? true);
   }
 
   Future<Uint8List?> getAssetBlob(UUID uuid, {bool keepCopyInMemory = true}) async {

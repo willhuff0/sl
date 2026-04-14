@@ -6,6 +6,7 @@ import 'package:sl_engine/gl/buffer.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/gl/texture.dart';
 import 'package:sl_engine/node.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -30,16 +31,22 @@ class RendererUniforms {
 
 class Material {
   Shader shader;
-  final Map<String, dynamic> uniforms = {};
+  final Map<String, dynamic> uniforms;
+  final Map<int, Texture> textures;
 
   Material({
     required this.shader,
+    required this.uniforms,
+    required this.textures,
   });
 
   void bind() {
     shader.bind();
     uniforms.forEach((name, value) {
       shader.setUniform(name, value);
+    });
+    textures.forEach((slot, texture) {
+      texture.bind(slot);
     });
   }
 }
@@ -121,17 +128,19 @@ class Renderer {
     });
   }
 
-  // static void renderNode(Node node) {
-  //   for (final child in node.children) {
-  //     renderNode(child);
-  //   }
+  static void renderUnregisteredNode(Node node) {
+    for (final child in node.children) {
+      renderUnregisteredNode(child);
+    }
 
-  //   final (material, mesh) = _nodes[node]!;
-
-  //   material.bind();
-  //   mesh.bind();
-  //   mesh.draw();
-  // }
+    final meshComponents = node.components.whereType<MeshComponent>();
+    for (final meshComponents in meshComponents) {
+      meshComponents.material.bind();
+      meshComponents.mesh.bind();
+      _setUboForNode(node);
+      meshComponents.mesh.draw();
+    }
+  }
 
   static void renderAll() {
     _materials.forEach((material, meshes) {

@@ -202,7 +202,7 @@ class AssetBlobTransferer {
         ),
       );
 
-      final cacheFile = await _blobFilesystem.getFileOfAssetBlob(uuid);
+      final cacheFile = await _blobFilesystem.getFileOfAssetBlob(uuid, create: true);
       cacheSink = await cacheFile
           .createWritable(
             web.FileSystemCreateWritableOptions(
@@ -212,6 +212,8 @@ class AssetBlobTransferer {
           .toDart;
       await cacheSink.truncate(size).toDart;
       await cacheSink.seek(offset).toDart;
+
+      // TODO: check under this
 
       final networkBuffer = Uint8List(assetBlobChunkSize + 16); // prepended with uuid
       Uuid.parse(uuid, buffer: networkBuffer);
@@ -224,9 +226,10 @@ class AssetBlobTransferer {
           final networkChunkLength = min(fileChunk.length - i, assetBlobChunkSize);
           if (networkChunkLength <= 0) break;
 
-          final networkChunk = fileChunk.buffer.asUint8List(i, networkChunkLength);
-          networkBuffer.setRange(16, networkBuffer.length, networkChunk);
-          _client.sendBinary(networkBuffer);
+          final networkChunk = Uint8List.sublistView(fileChunk, i, i + networkChunkLength);
+          networkBuffer.setRange(16, 16 + networkChunk.length, networkChunk);
+
+          _client.sendBinary(networkBuffer.buffer.asUint8List(0, networkChunkLength + 16));
 
           i += networkChunkLength;
         }
@@ -252,6 +255,24 @@ class AssetBlobTransferer {
       await cacheSink?.close().toDart;
       await _uploads.remove(uuid)?.finish();
     }
+  }
+
+  Future<void> handleUploadProgress(UUID uuid, int bytesReceived) async {
+    final upload = _uploads[uuid];
+    if (upload == null) {
+      Logger.log(
+        'Server send a progress notification for an upload of the blob for asset $uuid while an upload was not in progress.',
+        .error,
+      );
+      return;
+    }
+    upload.addProgress(
+      AssetTransferProgress(
+        byteLength: upload.size - upload.offset,
+        bytesCompleted: bytesReceived,
+        progress: bytesReceived / (upload.size - upload.offset),
+      ),
+    );
   }
 
   Future<DownloadOperation?> getActiveDownload(UUID uuid) async {

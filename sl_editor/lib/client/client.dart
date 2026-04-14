@@ -3,8 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:sl_editor/client/file_system.dart';
-import 'package:sl_editor/client/systems/asset_system_old.dart';
+import 'package:sl_editor/client/assets/asset_system.dart';
 import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_engine/logger.dart';
@@ -32,11 +31,15 @@ class Client {
   static Future<Client> connect({
     required Uri serverUri,
   }) async {
-    await SlFileSystem.init('test-room');
     final database = await openDatabase('test-room/db.sqlite3');
     final socket = WebSocketChannel.connect(serverUri);
+    final client = Client._(
+      socket: socket,
+      database: database,
+    );
+    client.assetSystem = await AssetSystem.create(client, database, 'test-room');
     await socket.ready;
-    return Client._(socket: socket, database: database);
+    return client;
   }
 
   static late Client _instance;
@@ -53,7 +56,6 @@ class Client {
     onClientStatesChanged = _onClientStatesChangedController.stream;
 
     sceneSystem = SceneSystem(this);
-    assetSystem = AssetSystem(this, _database);
 
     ViewManager.init();
 
@@ -65,7 +67,6 @@ class Client {
     _listenSubscription.cancel();
     _socket.sink.close();
     _tickTimer.cancel();
-    assetSystem.dispose();
   }
 
   void _listen() async {

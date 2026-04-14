@@ -12,7 +12,6 @@ import 'package:uuid/uuid.dart';
 class _UploadOperation {
   final UUID uuid;
   final int offset;
-  final int length;
   final int size;
 
   final void Function() onTimeout;
@@ -22,7 +21,6 @@ class _UploadOperation {
   _UploadOperation({
     required this.uuid,
     required this.offset,
-    required this.length,
     required this.size,
     required this.onTimeout,
     required RandomAccessFile file,
@@ -32,7 +30,6 @@ class _UploadOperation {
   static Future<_UploadOperation> openFile({
     required UUID uuid,
     required int offset,
-    required int length,
     required int size,
     required void Function() onTimeout,
     required String path,
@@ -45,7 +42,6 @@ class _UploadOperation {
     return _UploadOperation(
       uuid: uuid,
       offset: offset,
-      length: length,
       size: size,
       onTimeout: onTimeout,
       file: writer,
@@ -60,9 +56,6 @@ class _UploadOperation {
     _timeoutTimer = Timer(assetBlobTimeout, _onTimeout);
 
     _bytesReceived += chunk.length;
-    if (_bytesReceived > length) {
-      // TODO: check size
-    }
     await _file.writeFrom(chunk);
 
     _progressIntervalCounter = (_progressIntervalCounter + 1) % assetBlobProgressInterval;
@@ -122,15 +115,10 @@ class AssetSystem {
         _clientToCrdtSync[client]!.syncSocket.receive(crdtSync.message);
         break;
       case CtsRequestAssetBlob request:
-        await _sendAssetBlobToClient(
-          client,
-          request.uuid,
-          request.offset,
-          request.length == -1 ? null : request.length,
-        );
+        await _sendAssetBlobToClient(client, request.uuid, request.offset);
         break;
       case PtpAssetBlobStart startOp:
-        await _startUploadOp(client, startOp.uuid, startOp.offset, startOp.length, startOp.size);
+        await _startUploadOp(client, startOp.uuid, startOp.offset, startOp.size);
         break;
       case PtpAssetBlobEnd endOp:
         await _endUploadOp(client, endOp.uuid);
@@ -141,13 +129,17 @@ class AssetSystem {
     return true;
   }
 
-  Future<void> _startUploadOp(Client client, UUID uuid, int offset, int length, int size) async {
+  // Future<void> _downloadToClient(Client client, UUID uuid, int offset) async {
+
+  // }
+
+  Future<void> _startUploadOp(Client client, UUID uuid, int offset, int size) async {
     if (_uploads.containsKey(client)) {
       server.send(
         client,
         PtpAssetBlobError(
           uuid: null,
-          error: .simultaneousUploadsFromSingleClientNotAllowed,
+          error: 'simultaneousUploadsFromSingleClientNotAllowed',
         ),
       );
       return;
@@ -157,7 +149,7 @@ class AssetSystem {
         client,
         PtpAssetBlobError(
           uuid: uuid,
-          error: .assetBlobLocked,
+          error: 'assetBlobLocked',
         ),
       );
       return;
@@ -167,7 +159,6 @@ class AssetSystem {
     _uploads[client] = await _UploadOperation.openFile(
       uuid: uuid,
       offset: offset,
-      length: length,
       size: size,
       onTimeout: () => _onUploadTimeout(client),
       path: _getPathOfAssetBlob(uuid),
@@ -181,15 +172,20 @@ class AssetSystem {
         client,
         PtpAssetBlobError(
           uuid: null,
-          error: .operationNotStarted,
+          error: 'operationNotStarted',
         ),
       );
       return;
     }
 
-    final progressUpdate = await upload.addChunk(bytes);
+    final progressUpdate = await upload.addChunk(bytes.sublist(16));
     if (progressUpdate != null) {
       server.send(client, progressUpdate);
+
+      await _database.execute(
+        'UPDATE assets SET blob_upload_progress = ?1 WHERE uuid = ?2;',
+        [progressUpdate.bytesReceived, upload.uuid],
+      );
     }
   }
 
@@ -200,7 +196,7 @@ class AssetSystem {
         client,
         PtpAssetBlobError(
           uuid: uuid,
-          error: .operationNotStarted,
+          error: 'operationNotStarted',
         ),
       );
       return;
@@ -208,6 +204,12 @@ class AssetSystem {
 
     await upload.finish();
     _locked.remove(upload.uuid);
+
+    final blobUpdatedAt = DateTime.now().toIso8601String();
+    await _database.execute(
+      'UPDATE assets SET blob_size = ?1, blob_updated_at = ?2, blob_upload_progress = ?3 WHERE uuid = ?4;',
+      [upload.size, blobUpdatedAt, null, uuid],
+    );
   }
 
   void _onUploadTimeout(Client client) {
@@ -218,7 +220,7 @@ class AssetSystem {
         client,
         PtpAssetBlobError(
           uuid: upload.uuid,
-          error: .operationTimedOut,
+          error: 'operationTimedOut',
         ),
       );
     }

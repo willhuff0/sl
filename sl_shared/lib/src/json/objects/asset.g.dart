@@ -7,20 +7,28 @@ part of 'asset.dart';
 // **************************************************************************
 
 CtsRequestAssetBlob _$CtsRequestAssetBlobFromJson(Map<String, dynamic> json) =>
-    CtsRequestAssetBlob(uuid: json['uuid'] as String);
+    CtsRequestAssetBlob(
+      uuid: json['uuid'] as String,
+      offset: (json['offset'] as num).toInt(),
+    );
 
 Map<String, dynamic> _$CtsRequestAssetBlobToJson(
   CtsRequestAssetBlob instance,
-) => <String, dynamic>{'uuid': instance.uuid};
+) => <String, dynamic>{'uuid': instance.uuid, 'offset': instance.offset};
 
 PtpAssetBlobStart _$PtpAssetBlobStartFromJson(Map<String, dynamic> json) =>
     PtpAssetBlobStart(
       uuid: json['uuid'] as String,
+      offset: (json['offset'] as num).toInt(),
       size: (json['size'] as num).toInt(),
     );
 
 Map<String, dynamic> _$PtpAssetBlobStartToJson(PtpAssetBlobStart instance) =>
-    <String, dynamic>{'uuid': instance.uuid, 'size': instance.size};
+    <String, dynamic>{
+      'uuid': instance.uuid,
+      'offset': instance.offset,
+      'size': instance.size,
+    };
 
 PtpAssetBlobEnd _$PtpAssetBlobEndFromJson(Map<String, dynamic> json) =>
     PtpAssetBlobEnd(uuid: json['uuid'] as String);
@@ -45,20 +53,8 @@ Map<String, dynamic> _$StcAssetBlobProgressToJson(
 PtpAssetBlobError _$PtpAssetBlobErrorFromJson(Map<String, dynamic> json) =>
     PtpAssetBlobError(
       uuid: json['uuid'] as String?,
-      error: $enumDecode(_$AssetBlobErrorEnumMap, json['error']),
+      error: json['error'] as String,
     );
 
 Map<String, dynamic> _$PtpAssetBlobErrorToJson(PtpAssetBlobError instance) =>
-    <String, dynamic>{
-      'uuid': instance.uuid,
-      'error': _$AssetBlobErrorEnumMap[instance.error]!,
-    };
-
-const _$AssetBlobErrorEnumMap = {
-  AssetBlobError.assetDoesNotExist: 'assetDoesNotExist',
-  AssetBlobError.assetBlobLocked: 'assetBlobLocked',
-  AssetBlobError.operationNotStarted: 'operationNotStarted',
-  AssetBlobError.simultaneousUploadsFromSingleClientNotAllowed:
-      'simultaneousUploadsFromSingleClientNotAllowed',
-  AssetBlobError.operationTimedOut: 'operationTimedOut',
-};
+    <String, dynamic>{'uuid': instance.uuid, 'error': instance.error};

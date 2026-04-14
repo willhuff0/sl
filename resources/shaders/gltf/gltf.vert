@@ -6,19 +6,24 @@ layout(std140) uniform SL {
     vec3 viewPos;
 } sl;
 
-uniform mat4 u_modelMat;
-uniform mat3 u_normalMat;
+layout(std140) uniform Renderer {
+    mat4 modelMat;
+    mat3 normalMat;
+} renderer;
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
+layout(location = 3) in vec2 a_uv;
 
 out vec3 v_position;
 out vec3 v_normal;
+out vec2 v_uv;
 
 void main() {
-    vec4 position = u_modelMat * vec4(a_position, 1.0);
+    vec4 position = renderer.modelMat * vec4(a_position, 1.0);
     v_position = vec3(position);
-    v_normal = u_normalMat * a_normal;
+    v_normal = renderer.normalMat * a_normal;
+    v_uv = a_uv;
 
     gl_Position = sl.viewProjMat * position;
 }

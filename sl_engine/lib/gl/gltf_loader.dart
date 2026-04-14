@@ -8,6 +8,7 @@ import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/gl/texture.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/utils/renderer.dart';
@@ -22,6 +23,8 @@ class _GLTFMeshPrimitive implements Mesh {
   final int offset;
   final int count;
   final int? indexType;
+  @override
+  final Aabb3 bounds;
 
   _GLTFMeshPrimitive._({
     required this.vao,
@@ -29,6 +32,7 @@ class _GLTFMeshPrimitive implements Mesh {
     required this.offset,
     required this.count,
     required this.indexType,
+    required this.bounds,
   });
 
   @override
@@ -53,6 +57,10 @@ class _GLTFMeshPrimitive implements Mesh {
 
 Vector3 _listToVector3(List<dynamic> list) {
   return Vector3(list[0], list[1], list[2]);
+}
+
+Vector4 _listToVector4(List<dynamic> list) {
+  return Vector4(list[0], list[1], list[2], list[3]);
 }
 
 Quaternion _listToQuaternion(List<dynamic> list) {
@@ -91,9 +99,17 @@ class GLTF {
     this.aabb,
   });
 
+  static Future<Shader> _loadShader() async {
+    final shader = (await Shader.load('shaders/gltf/gltf'))!;
+    shader.setUniform('u_baseColorTexture', 0);
+    shader.setUniform('u_metallicRoughnessTexture', 1);
+    shader.setUniform('u_normalTexture', 2);
+    return shader;
+  }
+
   static Future<GLTF?> load(String path, {String? sceneName, ResourceLoader? resourceLoader}) async {
     resourceLoader ??= BuiltInResourceLoader.get();
-    _shader ??= (await Shader.load('shaders/gltf/gltf'))!;
+    _shader ??= await _loadShader();
 
     final directory = p.dirname(path);
     final extension = p.extension(path);
@@ -189,14 +205,22 @@ class GLTF {
 
     final rootNodeIndices = scene['nodes'] as List<dynamic>;
 
-    final nodes = json['nodes'] as List<dynamic>;
-    final meshes = json['meshes'] as List<dynamic>;
-    final accessors = json['accessors'] as List<dynamic>;
-    final bufferViews = json['bufferViews'] as List<dynamic>;
-    final buffers = json['buffers'] as List<dynamic>;
+    final nodes = json['nodes'] as List<dynamic>? ?? [];
+    final meshes = json['meshes'] as List<dynamic>? ?? [];
+    final accessors = json['accessors'] as List<dynamic>? ?? [];
+    final bufferViews = json['bufferViews'] as List<dynamic>? ?? [];
+    final buffers = json['buffers'] as List<dynamic>? ?? [];
+    final images = json['images'] as List<dynamic>? ?? [];
+    final samplers = json['samplers'] as List<dynamic>? ?? [];
+    final textures = json['textures'] as List<dynamic>? ?? [];
+    final materials = json['materials'] as List<dynamic>? ?? [];
 
     final bufferIndexToBytes = <int, Uint8List>{};
     final bufferViewIndexToGpuBuffer = <int, Buffer>{};
+
+    final imageIndexToGpuImage = <int, Image>{};
+    final textureIndexToGpuTexture = <int, Texture>{};
+    final materialIndexToGpuMaterial = <int, Material>{};
 
     Future<Uint8List?> getBufferBytes(int index) async {
       var cache = bufferIndexToBytes[index];
@@ -236,7 +260,7 @@ class GLTF {
       if (cache == null) {
         final bufferView = bufferViews[index];
         final byteOffset = bufferView['byteOffset'] as int? ?? 0;
-        final byteLength = bufferView['byteLength'];
+        final byteLength = bufferView['byteLength'] as int;
         final bufferIndex = bufferView['buffer'] as int;
         final bytes = await getBufferBytes(bufferIndex);
         if (bytes == null) return null;
@@ -250,6 +274,147 @@ class GLTF {
         cache.write(bytes.buffer.asUint8List(bytes.offsetInBytes + byteOffset, byteLength).toJS, GL.STATIC_DRAW);
       } else {
         cache.bind();
+      }
+      return cache;
+    }
+
+    Future<Image?> getGpuImage(int index) async {
+      var cache = imageIndexToGpuImage[index];
+      if (cache == null) {
+        final image = images[index] as Map<String, dynamic>;
+
+        final uriString = image['uri'] as String?;
+        if (uriString != null) {
+          final uri = Uri.parse(uriString);
+          if (uri.data != null) {
+            final result = Image.loadFromMemory(uri.data!.contentAsBytes());
+            if (result == null) {
+              Logger.log('Failed to load an image from a data uri while loading a GLTF \'$path\'.', .warning);
+              return null;
+            }
+            cache = imageIndexToGpuImage[index] = result;
+          } else if (uri.isScheme('HTTP') || uri.isScheme('HTTPS')) {
+            final response = await http.get(uri);
+            if (response.statusCode != 200) {
+              Logger.log('Failed to load an image over the network while loading a GLTF \'$path\'. HTTP GET to \'$uri\' returned status code ${response.statusCode}.', .warning);
+              return null;
+            }
+            final result = Image.loadFromMemory(response.bodyBytes);
+            if (result == null) {
+              Logger.log('Failed to load an image over the network while loading a GLTF \'$path\'.', .warning);
+              return null;
+            }
+            cache = imageIndexToGpuImage[index] = result;
+          } else {
+            final resolved = p.join(directory, uri.path);
+            final bytes = await resourceLoader!.loadBytes(resolved);
+            if (bytes == null) return null;
+            final result = Image.loadFromMemory(bytes);
+            if (result == null) {
+              Logger.log('Failed to load an image from relative path while loading a GLTF \'$path\'.', .warning);
+              return null;
+            }
+            cache = imageIndexToGpuImage[index] = result;
+          }
+        } else {
+          final bufferViewIndex = image['bufferView'] as int?;
+          if (bufferViewIndex == null) {
+            Logger.log('Tried to load a GLTF \'$path\' which is malformed (image missing any of uri or bufferView).', .warning);
+            return null;
+          }
+          final bufferView = bufferViews[bufferViewIndex];
+          final byteOffset = bufferView['byteOffset'] as int? ?? 0;
+          final byteLength = bufferView['byteLength'] as int;
+          final bufferIndex = bufferView['buffer'] as int;
+          final bytes = await getBufferBytes(bufferIndex);
+          if (bytes == null) return null;
+
+          final result = Image.loadFromMemory(bytes.buffer.asUint8List(bytes.offsetInBytes + byteOffset, byteLength));
+          if (result == null) {
+            Logger.log('Failed to load an image from bufferView while loading a GLTF \'$path\'.', .warning);
+            return null;
+          }
+          cache = imageIndexToGpuImage[index] = result;
+        }
+      }
+      return cache;
+    }
+
+    Future<Texture?> getGpuTexture(int index) async {
+      var cache = textureIndexToGpuTexture[index];
+      if (cache == null) {
+        final texture = textures[index] as Map<String, dynamic>;
+
+        final samplerIndex = texture['sampler'] as int?;
+        final sampler = samplerIndex == null ? null : samplers[samplerIndex] as Map<String, dynamic>;
+        final magFilter = sampler?['magFilter'] as int? ?? GL.LINEAR_MIPMAP_LINEAR;
+        final minFilter = sampler?['minFilter'] as int? ?? GL.LINEAR_MIPMAP_LINEAR;
+        final wrapS = sampler?['wrapS'] as int? ?? GL.REPEAT;
+        final wrapT = sampler?['wrapT'] as int? ?? GL.REPEAT;
+
+        final imageIndex = texture['source'] as int?;
+        if (imageIndex == null) {
+          Logger.log('Tried to load a GLTF \'$path\' which uses an unsupported alternative image source for texture $index.', .warning);
+          return null;
+        }
+        final image = await getGpuImage(imageIndex);
+        if (image == null) return null;
+
+        cache = textureIndexToGpuTexture[index] = Texture(
+          image: image,
+          magFilter: magFilter,
+          minFilter: minFilter,
+          wrapS: wrapS,
+          wrapT: wrapT,
+        );
+      }
+      return cache;
+    }
+
+    Future<Material?> getGpuMaterial(int index) async {
+      var cache = materialIndexToGpuMaterial[index];
+      if (cache == null) {
+        final material = index == -1 ? <String, dynamic>{} : materials[index] as Map<String, dynamic>;
+
+        final baseColorFactor = _listToVector4(material['pbrMetallicRoughness']?['baseColorFactor'] as List<dynamic>? ?? [1.0, 1.0, 1.0, 1.0]);
+        final metallicFactor = material['pbrMetallicRoughness']?['metallicFactor'] as double? ?? 1.0;
+        final roughnessFactor = material['pbrMetallicRoughness']?['roughnessFactor'] as double? ?? 1.0;
+
+        final Map<int, Texture> textures = {};
+        Future<bool> addTexture(int slot, Map<String, dynamic>? textureInfo) async {
+          if (textureInfo == null) return true;
+
+          final textureIndex = textureInfo['index'] as int;
+          final texCoord = textureInfo['texCoord'] as int?;
+
+          if (texCoord != null && texCoord != 0) {
+            Logger.log('Tried to load a GLTF \'$path\' which uses unsupported additional texture coordinate attributes.', .warning);
+            return false;
+          }
+
+          final result = await getGpuTexture(textureIndex);
+          if (result == null) return false;
+
+          textures[index] = result;
+          return true;
+        }
+
+        if (!await addTexture(0, material['pbrMetallicRoughness']?['baseColorTexture'])) return null;
+        if (!await addTexture(1, material['pbrMetallicRoughness']?['metallicRoughnessTexture'])) return null;
+        if (!await addTexture(2, material['normalTexture'])) return null;
+
+        cache = materialIndexToGpuMaterial[index] = Material(
+          shader: _shader!,
+          uniforms: {
+            'u_baseColorFactor': baseColorFactor,
+            'u_metallicFactor': metallicFactor,
+            'u_roughnessFactor': roughnessFactor,
+            'u_hasBaseColorTexture': textures.containsKey(0),
+            'u_hasMetallicRoughnessTexture': textures.containsKey(1),
+            'u_hasNormalTexture': textures.containsKey(2),
+          },
+          textures: textures,
+        );
       }
       return cache;
     }
@@ -299,6 +464,8 @@ class GLTF {
           int? meshIndexType;
 
           int? minCount;
+          var bounds = Aabb3();
+
           final attributes = primitive['attributes'] as Map<String, dynamic>;
           for (final entry in attributes.entries) {
             final attribute = entry.key;
@@ -306,7 +473,7 @@ class GLTF {
 
             final attributeInfo = _attributeInfo[attribute];
             if (attributeInfo == null) {
-              Logger.log('The GLTF loader is skipping an unsupported vertex attribute type \'$attribute\' in \'$path\'.', .info);
+              Logger.log('Skipping an unsupported vertex attribute type \'$attribute\' in \'$path\'.', .info);
               continue;
             }
 
@@ -321,6 +488,16 @@ class GLTF {
             final count = accessor['count'] as int;
             if (minCount == null || count < minCount) minCount = count;
             // TODO: sparse
+
+            if (attribute == 'POSITION') {
+              final min = accessor['min'] as List<dynamic>?;
+              final max = accessor['max'] as List<dynamic>?;
+              if (min != null && max != null) {
+                bounds = Aabb3.minMax(_listToVector3(min), _listToVector3(max));
+              } else {
+                Logger.log('Tried to load a GLTF \'$path\' which is malformed (min/max missing for POSITION attribute).', .info);
+              }
+            }
 
             final bufferView = bufferViews[bufferViewIndex];
             final byteStride = bufferView['byteStride'] as int? ?? 0;
@@ -346,9 +523,12 @@ class GLTF {
             if (gpuBuffer == null) continue;
           }
 
-          // final material = primitive['material'];
-          // TODO: material
-          final material = Material(shader: _shader!);
+          final materialIndex = primitive['material'] as int?;
+          Material? material;
+          if (materialIndex != null) {
+            material = await getGpuMaterial(index);
+          }
+          material ??= (await getGpuMaterial(-1))!;
 
           meshTopology = primitive['mode'] as int? ?? GL.TRIANGLES;
 
@@ -361,6 +541,7 @@ class GLTF {
                 offset: meshOffset,
                 count: meshCount,
                 indexType: meshIndexType,
+                bounds: bounds,
               ),
             ),
           );
