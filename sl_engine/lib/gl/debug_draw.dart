@@ -2,6 +2,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
@@ -9,13 +10,17 @@ import 'package:web/web.dart' as web;
 class DebugDraw {
   static late final Shader _pointShader;
   static late final Shader _box2DShader;
+  static late final Shader _box3DShader;
 
   static late final web.WebGLVertexArrayObject _vao;
   static late final web.WebGLBuffer _vbo;
 
+  static late final Mesh _cubeMesh;
+
   static Future<void> init() async {
     _pointShader = (await Shader.load('shaders/debug/point'))!;
     _box2DShader = (await Shader.load('shaders/debug/box_2d'))!;
+    _box3DShader = (await Shader.load('shaders/debug/box_3d'))!;
 
     _vao = gl.createVertexArray()!;
     gl.bindVertexArray(_vao);
@@ -25,6 +30,8 @@ class DebugDraw {
 
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 3, GL.FLOAT, false, 0, 0);
+
+    _cubeMesh = CubeMesh();
   }
 
   static void drawPoint(Vector3 position, {Vector4? color, double size = 4.0}) {
@@ -46,5 +53,15 @@ class DebugDraw {
     _box2DShader.setUniform('u_color', color ?? Vector4(1.0, 1.0, 1.0, 1.0));
     gl.bindVertexArray(_vao);
     gl.drawArrays(GL.TRIANGLES, 0, 6);
+  }
+
+  static void drawBox3D({required Vector3 center, required Vector3 size, Quaternion? rotation, Vector4? color}) {
+    final matrix = Matrix4.compose(center, rotation ?? Quaternion.identity(), size);
+
+    _box3DShader.bind();
+    _box3DShader.setUniform('u_modelMat', matrix);
+    _box3DShader.setUniform('u_color', color ?? Vector4(1.0, 1.0, 1.0, 1.0));
+    _cubeMesh.bind();
+    _cubeMesh.draw();
   }
 }

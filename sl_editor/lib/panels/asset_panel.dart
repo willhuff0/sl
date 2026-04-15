@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets_api.dart';
 import 'package:sl_editor/client/client.dart';
@@ -161,24 +161,37 @@ class _AssetEntryWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 500.0,
-      height: 500.0,
-      child: ShadCard(
-        padding: EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _getPreview(asset.type),
-            ),
-            Text(
-              asset.name,
-              style: TextStyle(fontSize: 10.0),
-              maxLines: 2,
-              overflow: TextOverflow.fade,
-            ),
-          ],
+    return ShadContextMenuRegion(
+      items: [
+        ShadContextMenuItem(
+          child: Text('Delete'),
+          onPressed: () {
+            AssetsApi.tryDeleteAssets({asset.uuid});
+          },
+        ),
+      ],
+      child: SizedBox(
+        width: 200.0,
+        height: 214.0,
+        child: ShadCard(
+          padding: EdgeInsets.all(4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _getPreview(asset.type),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                child: Text(
+                  asset.name,
+                  style: TextStyle(fontSize: 11.0),
+                  maxLines: 2,
+                  overflow: TextOverflow.fade,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -216,7 +229,7 @@ class _ImageAssetPreviewWidgetState extends State<_ImageAssetPreviewWidget> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(4.0),
-      child: _data == null ? Center(child: CircularProgressIndicator()) : Image.memory(_data!),
+      child: _data == null ? Center(child: ShadProgress()) : Image.memory(_data!),
     );
   }
 }
@@ -250,7 +263,9 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
   late final StreamSubscription _assetBlobSubscription;
   Uint8List? _data;
 
+  @override
   void initState() {
+    Logger.log('init state for preview of ${widget.asset.name}, ${widget.asset.uuid}');
     _assetBlobSubscription = Client.get().assetSystem.watchAssetBlob(widget.asset.uuid).listen((bytes) async {
       if (bytes == null) {
         if (mounted) {
@@ -265,6 +280,7 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
       if (gltf == null) {
         Logger.log(
           'Failed to parse glb while generating model preview for ${widget.asset.name} (${widget.asset.uuid})',
+          .error,
         );
         return;
       }
@@ -274,7 +290,13 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
       }
       final raw = SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 1024);
       if (raw.isEmpty) return;
-      final image = img.Image.fromBytes(width: 1024, height: 1024, bytes: raw.buffer, numChannels: 4);
+      final image = img.Image.fromBytes(
+        width: 1024,
+        height: 1024,
+        bytes: raw.buffer,
+        bytesOffset: raw.offsetInBytes,
+        numChannels: 4,
+      );
       final data = img.encodePng(image);
 
       if (mounted) {
@@ -296,7 +318,15 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(4.0),
-      child: _data == null ? Center(child: CircularProgressIndicator()) : Image.memory(_data!),
+      child: _data == null
+          ? Center(child: ShadProgress())
+          : Container(
+              decoration: BoxDecoration(
+                color: ShadTheme.of(context).colorScheme.accent,
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              child: Image.memory(_data!),
+            ),
     );
   }
 }

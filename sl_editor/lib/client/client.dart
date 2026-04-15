@@ -8,14 +8,12 @@ import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
-import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const tickInterval = Duration(milliseconds: 1000);
 
 class Client {
   late final WebSocketChannel _socket;
-  final SqliteCrdt _database;
   late final ClientId _clientId;
 
   final _onClientStatesChangedController = StreamController<UnmodifiableMapView<int, ClientState>>.broadcast();
@@ -35,7 +33,6 @@ class Client {
     final socket = WebSocketChannel.connect(serverUri);
     final client = Client._(
       socket: socket,
-      database: database,
     );
     client.assetSystem = await AssetSystem.create(client, database, 'test-room');
     await socket.ready;
@@ -50,9 +47,7 @@ class Client {
 
   Client._({
     required WebSocketChannel socket,
-    required SqliteCrdt database,
-  }) : _socket = socket,
-       _database = database {
+  }) : _socket = socket {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;
 

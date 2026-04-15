@@ -6,6 +6,14 @@ part of 'asset.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+CtsDeleteAssets _$CtsDeleteAssetsFromJson(Map<String, dynamic> json) =>
+    CtsDeleteAssets(
+      uuids: (json['uuids'] as List<dynamic>).map((e) => e as String).toSet(),
+    );
+
+Map<String, dynamic> _$CtsDeleteAssetsToJson(CtsDeleteAssets instance) =>
+    <String, dynamic>{'uuids': instance.uuids.toList()};
+
 CtsRequestAssetBlob _$CtsRequestAssetBlobFromJson(Map<String, dynamic> json) =>
     CtsRequestAssetBlob(
       uuid: json['uuid'] as String,
@@ -31,10 +39,13 @@ Map<String, dynamic> _$PtpAssetBlobStartToJson(PtpAssetBlobStart instance) =>
     };
 
 PtpAssetBlobEnd _$PtpAssetBlobEndFromJson(Map<String, dynamic> json) =>
-    PtpAssetBlobEnd(uuid: json['uuid'] as String);
+    PtpAssetBlobEnd(
+      uuid: json['uuid'] as String,
+      version: (json['version'] as num).toInt(),
+    );
 
 Map<String, dynamic> _$PtpAssetBlobEndToJson(PtpAssetBlobEnd instance) =>
-    <String, dynamic>{'uuid': instance.uuid};
+    <String, dynamic>{'uuid': instance.uuid, 'version': instance.version};
 
 StcAssetBlobProgress _$StcAssetBlobProgressFromJson(
   Map<String, dynamic> json,

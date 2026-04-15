@@ -11,7 +11,6 @@ import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
 
 class AssetSystem {
-  final Client _client;
   final CrdtSync _crdtSync;
   final SqliteCrdt _sharedDatabase;
   final LocalAssetDatabase _localDatabase;
@@ -19,14 +18,12 @@ class AssetSystem {
   final AssetBlobTransferer _blobTransferer;
 
   AssetSystem._({
-    required Client client,
     required CrdtSync crdtSync,
     required SqliteCrdt sharedDatabase,
     required LocalAssetDatabase localDatabase,
     required AssetBlobFilesystem blobFilesystem,
     required AssetBlobTransferer blobTransferer,
-  }) : _client = client,
-       _crdtSync = crdtSync,
+  }) : _crdtSync = crdtSync,
        _sharedDatabase = sharedDatabase,
        _localDatabase = localDatabase,
        _blobFilesystem = blobFilesystem,
@@ -46,7 +43,6 @@ class AssetSystem {
       blobFilesystem: blobFilesystem,
     );
     return AssetSystem._(
-      client: client,
       crdtSync: crdtSync,
       sharedDatabase: sharedDatabase,
       localDatabase: localDatabase,
@@ -68,10 +64,10 @@ class AssetSystem {
       case StcAssetBlobProgress progress:
         await _blobTransferer.handleUploadProgress(progress.uuid, progress.bytesReceived);
       case PtpAssetBlobEnd endOp:
-        await _blobTransferer.handleEndDownload(endOp.uuid);
+        await _blobTransferer.handleEndDownload(endOp.uuid, endOp.version);
         break;
       case PtpAssetBlobError error:
-        Logger.log('[SERVER] Asset blob error: ${error.error}');
+        Logger.log('[SERVER] ${error.error}', .error);
         break;
       default:
         return false;
@@ -92,21 +88,20 @@ class AssetSystem {
   }
 
   Stream<Uint8List?> watchAssetBlob(UUID uuid) {
-    DateTime? lastQuery;
+    int? lastBlobVersion;
     return _sharedDatabase
-        .watch('SELECT uuid, blob_size, blob_updated_at FROM assets WHERE uuid = ?1', () => [uuid])
+        .watch('SELECT uuid, blob_size, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0', () => [uuid])
         .asyncMap((rows) async {
           if (rows.isEmpty) return null;
 
           final blobSize = rows.first['blob_size'] as int?;
           if (blobSize == null) return null;
 
-          final blobUpdatedAtString = rows.first['blob_updated_at'] as String?;
-          if (blobUpdatedAtString == null) return null;
-          final blobUpdatedAt = DateTime.parse(blobUpdatedAtString);
+          final blobVersion = rows.first['blob_version'] as int?;
+          if (blobVersion == null) return null;
 
-          if (lastQuery == null || blobUpdatedAt.isAfter(lastQuery!)) {
-            lastQuery = blobUpdatedAt;
+          if (lastBlobVersion == null || blobVersion > lastBlobVersion!) {
+            lastBlobVersion = blobVersion;
             return await getAssetBlob(uuid);
           }
 
@@ -150,10 +145,10 @@ class AssetSystem {
         // Asset is available locally
 
         // check if remote blob is newer
-        var localUpdatedAt = localEntry.blobUpdatedAt;
-        if (localUpdatedAt == null) {
+        var localBlobVersion = localEntry.blobVersion;
+        if (localBlobVersion == null) {
           Logger.log(
-            'The blob for asset $uuid has no local timestamp. Reacquiring...',
+            'The blob for asset $uuid has no local version number. Reacquiring...',
             .warning,
           );
           final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
@@ -161,7 +156,7 @@ class AssetSystem {
         }
 
         final rows = await _sharedDatabase.query(
-          'SELECT uuid, blob_updated_at FROM assets WHERE uuid = ?1',
+          'SELECT uuid, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0',
           [uuid],
         );
         if (rows.isEmpty) {
@@ -171,16 +166,15 @@ class AssetSystem {
           );
           return null;
         }
-        final remoteUpdatedAtEncoded = rows.first['blob_updated_at'] as String?;
-        if (remoteUpdatedAtEncoded == null) {
+        final remoteBlobVersion = rows.first['blob_version'] as int?;
+        if (remoteBlobVersion == null) {
           Logger.log(
             'Tried to load the blob for asset $uuid which has not been uploaded yet. The asset blob was incorrectly marked as locally available.',
             .error,
           );
           return null;
         }
-        final remoteUpdatedAt = DateTime.parse(remoteUpdatedAtEncoded);
-        if (remoteUpdatedAt.isAfter(localUpdatedAt)) {
+        if (remoteBlobVersion > localBlobVersion) {
           // local file is out of date
 
           final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);

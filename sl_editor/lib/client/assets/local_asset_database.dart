@@ -4,32 +4,28 @@ import 'package:sl_shared/sl_shared.dart';
 class LocalAssetEntry {
   final UUID uuid;
   final int? blobSize;
-  final DateTime? blobUpdatedAt;
+  final int? blobVersion;
 
   final int? downloadProgress;
 
   LocalAssetEntry({
     required this.uuid,
     required this.blobSize,
-    required this.blobUpdatedAt,
+    required this.blobVersion,
     required this.downloadProgress,
   });
 
   factory LocalAssetEntry.fromSembast(Map<String, Object?> s) => LocalAssetEntry(
     uuid: s['uuid'] as String,
     blobSize: s['blobSize'] as int?,
-    blobUpdatedAt: () {
-      final v = s['blobUpdatedAt'] as String?;
-      if (v == null) return null;
-      return DateTime.parse(v);
-    }(),
+    blobVersion: s['blobVersion'] as int?,
     downloadProgress: s['downloadProgress'] as int?,
   );
 
   Map<String, Object?> toSembast() => {
     'uuid': uuid,
     'blobSize': ?blobSize,
-    'blobUpdatedAt': ?blobUpdatedAt?.toIso8601String(),
+    'blobUpdatedAt': ?blobVersion,
     'downloadProgress': ?downloadProgress,
   };
 }
@@ -52,11 +48,11 @@ class LocalAssetDatabase {
     return LocalAssetEntry.fromSembast(record);
   }
 
-  Future<void> setAssetBlobSizeAndClearDownloadProgress(UUID uuid, int? blobSize) async {
+  Future<void> setAssetBlobSizeAndClearDownloadProgress(UUID uuid, int? blobSize, int? blobVersion) async {
     await _store.record(uuid).put(_db, {
       'uuid': uuid,
       'blobSize': blobSize,
-      'blobUpdatedAt': DateTime.now().toIso8601String(),
+      'blobVersion': blobVersion,
       'downloadProgress': null,
     }, merge: true);
   }

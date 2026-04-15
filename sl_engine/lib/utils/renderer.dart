@@ -3,11 +3,13 @@ import 'dart:typed_data';
 
 import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/buffer.dart';
+import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/gl/texture.dart';
 import 'package:sl_engine/node.dart';
+import 'package:sl_engine/utils/bounds.dart';
 import 'package:vector_math/vector_math.dart';
 
 class RendererUniforms {
@@ -170,6 +172,22 @@ class Renderer {
         for (final node in nodes) {
           _setUboForNode(node);
           mesh.draw();
+        }
+      });
+    });
+  }
+
+  static void drawAllBounds(Matrix4 viewMat) {
+    _materials.forEach((material, meshes) {
+      meshes.forEach((mesh, nodes) {
+        for (final node in nodes) {
+          final bounds = Bounds.computeLocalBounds(node);
+          DebugDraw.drawBox3D(
+            center: Vector3.zero(),
+            size: bounds.max - bounds.min,
+            rotation: node.wRot,
+            color: Vector4(1.0, 0.0, 0.0, 0.2),
+          );
         }
       });
     });

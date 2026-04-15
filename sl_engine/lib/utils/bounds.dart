@@ -21,6 +21,43 @@ class Bounds {
     );
   }
 
+  static Aabb3 computeLocalBounds(Node node) {
+    final rootPos = node.wPos.clone();
+    final rootRot = node.wRot.clone();
+    final rootScale = node.wScale.clone();
+
+    node.wPos = Vector3.zero();
+    node.wRot = Quaternion.identity();
+    node.wScale = Vector3.all(1.0);
+
+    final localBounds = computeBounds(node);
+
+    node.wPos = rootPos;
+    node.wRot = rootRot;
+    node.wScale = rootScale;
+
+    return localBounds;
+  }
+
+  static Obb3 computeOrientedBounds(Node node) {
+    final localBounds = computeLocalBounds(node);
+
+    final obb = Obb3();
+    final center = localBounds.center;
+    final extents = (localBounds.max - localBounds.min) * 0.5;
+
+    obb.center.setFrom(node.getMatrix().transformed3(center));
+
+    obb.axis0.setFrom(node.getRightVector());
+    obb.axis1.setFrom(node.getUpVector());
+    obb.axis2.setFrom(node.getForwardVector());
+
+    obb.halfExtents.setFrom(extents);
+    obb.halfExtents.multiply(node.wScale);
+
+    return obb;
+  }
+
   static final _meshBounds = Aabb3();
   static void _computeBounds(Node node, _ComputedBounds bounds) {
     for (final component in node.components) {

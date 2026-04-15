@@ -5,7 +5,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:sl_server/systems/asset_system.dart';
+import 'package:sl_server/assets/asset_system.dart';
 import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';

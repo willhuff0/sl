@@ -18,7 +18,6 @@ class AssetsApi {
 
     final parent = directory;
     final updatedAt = DateTime.now().toIso8601String();
-    final blobUpdatedAt = updatedAt;
 
     final arguments = [];
     final uuidToFile = <UUID, XFile>{};
@@ -26,14 +25,14 @@ class AssetsApi {
       final uuid = Uuid().v4();
       final name = file.name;
       final type = (_extensionToAssetType[p.extension(file.name).toLowerCase()] ?? .unsupported).name;
-      arguments.addAll([uuid, parent, name, type, updatedAt, blobUpdatedAt]);
+      arguments.addAll([uuid, parent, name, type, updatedAt]);
       uuidToFile[uuid] = file;
     }
 
     await database.execute('''
-INSERT INTO assets (uuid, parent, name, type, updated_at, blob_updated_at)
+INSERT INTO assets (uuid, parent, name, type, updated_at)
 VALUES
-  ${List.generate(files.length, (i) => '  (?${i + 1}, ?${i + 2}, ?${i + 3}, ?${i + 4}, ?${i + 5}, ?${i + 6})').join(',\n')};
+  ${List.generate(files.length, (i) => '  (?${i + 1}, ?${i + 2}, ?${i + 3}, ?${i + 4}, ?${i + 5})').join(',\n')};
 ''', arguments);
 
     for (final entry in uuidToFile.entries) {
@@ -41,5 +40,13 @@ VALUES
       final file = entry.value;
       await Client.get().assetSystem.upload(uuid, file);
     }
+  }
+
+  static void tryDeleteAssets(Set<UUID> uuids) {
+    Client.get().send(
+      CtsDeleteAssets(
+        uuids: uuids,
+      ),
+    );
   }
 }

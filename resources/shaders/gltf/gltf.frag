@@ -29,8 +29,9 @@ uniform bool u_hasMetallicRoughnessTexture;
 uniform sampler2D u_normalTexture;
 uniform bool u_hasNormalTexture;
 
-const vec3 lightPos = vec3(3.0, 5.0, 4.0);
-const vec3 lightColor = vec3(15.0); // Light intensity
+const vec3 lightPos = vec3(3.0, 4.0, 2.0);
+const vec3 lightColor = vec3(25.0); // Light intensity
+const vec3 ambientColor = vec3(0.03);
 const float PI = 3.14159265359;
 
 // Fresnel Schlick approximation
@@ -69,6 +70,20 @@ float G_Smith(float NdotV, float NdotL, float roughness) {
     return ggx1 * ggx2;
 }
 
+mat3 getTangentFrame(vec3 normal, vec3 position, vec2 uv) {
+    vec3 dp1 = dFdx(position);
+    vec3 dp2 = dFdy(position);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+
+    vec3 tangent = normalize(dp1 * duv2.t - dp2 * duv1.t);
+    vec3 bitangent = -normalize(cross(normal, tangent));
+    
+    tangent = normalize(tangent - normal * dot(normal, tangent));
+
+    return mat3(tangent, bitangent, normal);
+}
+
 void main() {
     // Fallback constants if uniforms aren't being set yet
     vec4 baseColor = u_baseColorFactor == vec4(0.0) ? vec4(0.8, 1.0, 1.0, 1.0) : u_baseColorFactor;
@@ -91,11 +106,14 @@ void main() {
     
     vec3 N = normalize(v_normal);
     if (u_hasNormalTexture) {
-        vec3 t = normalize(v_tangent);
-        vec3 b = normalize(v_bitangent);
-        vec3 ng = normalize(v_normal);
-        
-        mat3 tbn = mat3(t, b, ng);
+        mat3 tbn;
+        if (length(v_tangent) > 0.001) {
+            vec3 t = normalize(v_tangent);
+            vec3 b = normalize(v_bitangent);
+            tbn = mat3(t, b, N);
+        } else {
+            tbn = getTangentFrame(N, v_position, v_uv);
+        }
         
         vec3 nTex = texture(u_normalTexture, v_uv).rgb * 2.0 - 1.0;
         N = normalize(tbn * nTex);
@@ -138,7 +156,7 @@ void main() {
     vec3 Lo = (diffuse + specular) * radiance * NdotL;
     
     // Basic ambient
-    vec3 ambient = vec3(0.03) * baseColor.rgb;
+    vec3 ambient = ambientColor * baseColor.rgb;
     vec3 color = ambient + Lo;
     
     // glTF 2.0 requires linear output converted to sRGB. We also apply simple tone mapping.

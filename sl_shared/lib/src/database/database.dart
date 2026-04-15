@@ -18,8 +18,7 @@ CREATE TABLE assets (
     properties TEXT,
     updated_at TEXT NOT NULL,
     blob_size INTEGER,
-    blob_updated_at TEXT,
-    blob_upload_progress INTEGER
+    blob_version INTEGER
 );
 ''');
       await db.execute('CREATE INDEX idx_assets_parent ON assets(parent);');
@@ -27,7 +26,7 @@ CREATE TABLE assets (
   );
 }
 
-const _getAssetByUUIDSql = 'SELECT * FROM assets WHERE uuid = ?1;';
+const _getAssetByUUIDSql = 'SELECT * FROM assets WHERE uuid = ?1 AND is_deleted = 0;';
 Future<Asset?> getAssetByUUID(SqliteCrdt db, UUID uuid) async {
   final results = await db.query(_getAssetByUUIDSql, [uuid]);
   if (results.isEmpty) return null;
@@ -45,11 +44,10 @@ WITH RECURSIVE
           a.properties,
           a.updated_at,
           a.blob_size,
-          a.blob_updated_at,
-          a.blob_upload_progress,
+          a.blob_version,
           0 AS depth
       FROM assets a
-      WHERE a.parent = ?1 OR (a.parent IS NULL AND ?1 IS NULL)
+      WHERE (a.parent = ?1 OR (a.parent IS NULL AND ?1 IS NULL)) AND is_deleted = 0
 
       UNION ALL
 
@@ -61,13 +59,12 @@ WITH RECURSIVE
           sa.properties,
           sa.updated_at,
           sa.blob_size,
-          sa.blob_updated_at,
-          sa.blob_upload_progress,
+          sa.blob_version,
           at.depth + 1
       FROM assets sa
       JOIN asset_tree at
           ON sa.parent = at.uuid
-      WHERE at.type <> 0 -- type != directory
+      WHERE (at.type <> 0) AND is_deleted = 0 -- type != directory
   )
   SELECT
       uuid,
@@ -77,8 +74,7 @@ WITH RECURSIVE
       properties,
       updated_at,
       blob_size,
-      blob_updated_at,
-      blob_upload_progress,
+      blob_version,
       depth
   FROM asset_tree
   ORDER BY depth, parent, name;

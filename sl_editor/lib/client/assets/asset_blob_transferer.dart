@@ -30,6 +30,8 @@ class UploadOperation {
   final int offset;
   final int size;
 
+  var _completed = false;
+
   final _completer = Completer<void>();
   final _progressController = StreamController<AssetTransferProgress>.broadcast();
   late final Stream<AssetTransferProgress> progressStream;
@@ -49,6 +51,9 @@ class UploadOperation {
   }
 
   Future<void> finish() async {
+    if (_completed) return;
+    _completed = true;
+
     _progressController.add(
       AssetTransferProgress(
         byteLength: size - offset,
@@ -194,6 +199,23 @@ class AssetBlobTransferer {
         size: size,
       );
 
+      int blobVersion;
+      {
+        final rows = await _sharedDatabase.query(
+          'SELECT blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0;',
+          [uuid],
+        );
+        if (rows.isEmpty) {
+          Logger.log(
+            'Tried to start an upload of the blob for asset $uuid which does not exist.',
+            .error,
+          );
+          return;
+        }
+        final version = rows.first['blob_version'] as int?;
+        blobVersion = version ?? 0;
+      }
+
       _client.send(
         PtpAssetBlobStart(
           uuid: uuid,
@@ -201,57 +223,64 @@ class AssetBlobTransferer {
           size: size,
         ),
       );
+      try {
+        final cacheFile = await _blobFilesystem.getFileOfAssetBlob(uuid, create: true);
+        cacheSink = await cacheFile
+            .createWritable(
+              web.FileSystemCreateWritableOptions(
+                keepExistingData: true,
+              ),
+            )
+            .toDart;
+        await cacheSink.truncate(size).toDart;
+        await cacheSink.seek(offset).toDart;
 
-      final cacheFile = await _blobFilesystem.getFileOfAssetBlob(uuid, create: true);
-      cacheSink = await cacheFile
-          .createWritable(
-            web.FileSystemCreateWritableOptions(
-              keepExistingData: true,
-            ),
-          )
-          .toDart;
-      await cacheSink.truncate(size).toDart;
-      await cacheSink.seek(offset).toDart;
+        await for (final fileChunk in file.openRead(offset)) {
+          await cacheSink.write(fileChunk.toJS).toDart;
 
-      // TODO: check under this
+          for (var i = 0; i < fileChunk.length;) {
+            // recreate every time to avoid websocket queue related problems
+            final networkBuffer = Uint8List(assetBlobChunkSize + 16); // prepended with uuid
+            Uuid.parse(uuid, buffer: networkBuffer);
 
-      final networkBuffer = Uint8List(assetBlobChunkSize + 16); // prepended with uuid
-      Uuid.parse(uuid, buffer: networkBuffer);
+            final networkChunkLength = min(fileChunk.length - i, assetBlobChunkSize);
+            if (networkChunkLength <= 0) break;
 
-      var bytesCompleted = 0;
-      await for (final fileChunk in file.openRead(offset)) {
-        await cacheSink.write(fileChunk.toJS).toDart;
+            final networkChunk = Uint8List.sublistView(fileChunk, i, i + networkChunkLength);
+            networkBuffer.setRange(16, 16 + networkChunk.length, networkChunk);
 
-        for (var i = 0; i < fileChunk.length;) {
-          final networkChunkLength = min(fileChunk.length - i, assetBlobChunkSize);
-          if (networkChunkLength <= 0) break;
+            _client.sendBinary(Uint8List.sublistView(networkBuffer, 0, networkChunkLength + 16));
 
-          final networkChunk = Uint8List.sublistView(fileChunk, i, i + networkChunkLength);
-          networkBuffer.setRange(16, 16 + networkChunk.length, networkChunk);
-
-          _client.sendBinary(networkBuffer.buffer.asUint8List(0, networkChunkLength + 16));
-
-          i += networkChunkLength;
+            i += networkChunkLength;
+          }
         }
 
-        bytesCompleted += fileChunk.length;
-        upload.addProgress(
-          AssetTransferProgress(
-            byteLength: size - offset,
-            bytesCompleted: bytesCompleted,
-            progress: bytesCompleted / (size - offset),
+        await upload.onComplete; // wait for server to trigger via handleUploadProgress
+
+        final rows = await _sharedDatabase.query(
+          'SELECT blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0;',
+          [uuid],
+        );
+        if (rows.isEmpty) {
+          Logger.log(
+            'Asset $uuid was deleted while it was uploading.',
+            .error,
+          );
+          return;
+        }
+        final version = rows.first['blob_version'] as int?;
+        blobVersion = (version ?? -1) + 1;
+
+        await _localDatabase.setAssetBlobSizeAndClearDownloadProgress(uuid, size, blobVersion);
+      } finally {
+        _client.send(
+          PtpAssetBlobEnd(
+            uuid: uuid,
+            version: blobVersion,
           ),
         );
       }
-
-      await _localDatabase.setAssetBlobSizeAndClearDownloadProgress(uuid, size);
     } finally {
-      _client.send(
-        PtpAssetBlobEnd(
-          uuid: uuid,
-        ),
-      );
-
       await cacheSink?.close().toDart;
       await _uploads.remove(uuid)?.finish();
     }
@@ -266,13 +295,17 @@ class AssetBlobTransferer {
       );
       return;
     }
-    upload.addProgress(
-      AssetTransferProgress(
-        byteLength: upload.size - upload.offset,
-        bytesCompleted: bytesReceived,
-        progress: bytesReceived / (upload.size - upload.offset),
-      ),
-    );
+    if (bytesReceived >= upload.size - upload.offset) {
+      await upload.finish();
+    } else {
+      upload.addProgress(
+        AssetTransferProgress(
+          byteLength: upload.size - upload.offset,
+          bytesCompleted: bytesReceived,
+          progress: bytesReceived / (upload.size - upload.offset),
+        ),
+      );
+    }
   }
 
   Future<DownloadOperation?> getActiveDownload(UUID uuid) async {
@@ -318,7 +351,7 @@ class AssetBlobTransferer {
 
     try {
       final rows = await _sharedDatabase.query(
-        'SELECT uuid, blob_size FROM assets WHERE uuid = ?1',
+        'SELECT uuid, blob_size FROM assets WHERE uuid = ?1 AND is_deleted = 0',
         [uuid],
       );
       if (rows.isEmpty) {
@@ -403,7 +436,7 @@ class AssetBlobTransferer {
   }
 
   Future<void> handleBinary(Uint8List bytes) async {
-    final uuid = Uuid.unparse(bytes.buffer.asUint8List(0, 16));
+    final uuid = Uuid.unparse(Uint8List.sublistView(bytes, 0, 16));
 
     final download = _downloads[uuid];
     if (download == null) {
@@ -414,11 +447,11 @@ class AssetBlobTransferer {
       return;
     }
 
-    final bytesCompleted = await download.addChunk(bytes.buffer.asUint8List(16));
+    final bytesCompleted = await download.addChunk(Uint8List.sublistView(bytes, 16));
     await _localDatabase.setAssetDownloadProgress(uuid, download.offset + bytesCompleted);
   }
 
-  Future<void> handleEndDownload(UUID uuid) async {
+  Future<void> handleEndDownload(UUID uuid, int version) async {
     try {
       final download = _downloads[uuid];
       if (download == null) {
@@ -430,7 +463,7 @@ class AssetBlobTransferer {
       }
 
       await download.finish();
-      await _localDatabase.setAssetBlobSizeAndClearDownloadProgress(uuid, download.size);
+      await _localDatabase.setAssetBlobSizeAndClearDownloadProgress(uuid, download.size, version);
     } finally {
       _downloads.remove(uuid);
     }

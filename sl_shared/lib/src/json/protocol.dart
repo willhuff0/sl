@@ -18,6 +18,7 @@ final Map<String, MessageFactory> _factories = {
   StcSetClientSceneStates.messageClassS: StcSetClientSceneStates.fromJson,
 
   // Assets
+  CtsDeleteAssets.messageClassS: CtsDeleteAssets.fromJson,
   CtsRequestAssetBlob.messageClassS: CtsRequestAssetBlob.fromJson,
   PtpAssetBlobStart.messageClassS: PtpAssetBlobStart.fromJson,
   PtpAssetBlobEnd.messageClassS: PtpAssetBlobEnd.fromJson,

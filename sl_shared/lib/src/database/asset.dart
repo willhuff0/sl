@@ -10,8 +10,7 @@ class Asset {
   final dynamic properties;
   final DateTime updatedAt;
   final int? blobSize;
-  final DateTime? blobUpdatedAt;
-  final int? blobUploadProgress;
+  final int? blobVersion;
 
   Asset({
     required this.uuid,
@@ -21,8 +20,7 @@ class Asset {
     required this.properties,
     required this.updatedAt,
     required this.blobSize,
-    required this.blobUpdatedAt,
-    required this.blobUploadProgress,
+    required this.blobVersion,
   });
 
   Map<String, Object?> serialize() => {
@@ -33,8 +31,7 @@ class Asset {
     if (properties != null) 'properties': jsonEncode(properties),
     'updated_at': updatedAt.toIso8601String(),
     'blob_size': ?blobSize,
-    if (blobUpdatedAt != null) 'blob_updated_at': blobUpdatedAt!.toIso8601String(),
-    'blob_upload_progress': ?blobUploadProgress,
+    'blob_version': ?blobVersion,
   };
   factory Asset.deserialize(Map<String, Object?> v) => Asset(
     uuid: v['uuid'] as String,
@@ -48,12 +45,7 @@ class Asset {
     }(),
     updatedAt: DateTime.parse(v['updated_at'] as String),
     blobSize: v['blob_size'] as int?,
-    blobUpdatedAt: () {
-      final encoded = v['blob_updated_at'] as String?;
-      if (encoded == null) return null;
-      return DateTime.parse(encoded);
-    }(),
-    blobUploadProgress: v['blob_upload_progress'] as int?,
+    blobVersion: v['blob_version'] as int?,
   );
 }
 

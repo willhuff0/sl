@@ -18,117 +18,22 @@ enum AssetType {
   nodeTree,
 }
 
-// @JsonSerializable()
-// class AssetCreateInfo {
-//   final UUID uuid;
-//   final UUID? parent;
-//   final String name;
-//   final AssetType type;
+@JsonSerializable()
+class CtsDeleteAssets extends Message {
+  final Set<UUID> uuids;
 
-//   AssetCreateInfo({
-//     required this.uuid,
-//     required this.parent,
-//     required this.name,
-//     required this.type,
-//   });
+  CtsDeleteAssets({
+    required this.uuids,
+  });
 
-//   factory AssetCreateInfo.fromJson(Map<String, dynamic> json) => _$AssetCreateInfoFromJson(json);
+  @override
+  String get messageClass => '$CtsDeleteAssets';
+  static String get messageClassS => '$CtsDeleteAssets';
 
-//   Map<String, dynamic> toJson() => _$AssetCreateInfoToJson(this);
+  factory CtsDeleteAssets.fromJson(Map<String, dynamic> json) => _$CtsDeleteAssetsFromJson(json);
 
-//   bool validate() {
-//     // TODO
-//     return true;
-//   }
-// }
-
-// @JsonSerializable()
-// class AssetEntry {
-//   final UUID uuid;
-//   final String name;
-//   final AssetType type;
-//   final List<AssetEntry> subAssets;
-//   final int? blobSize;
-
-//   AssetEntry({
-//     required this.uuid,
-//     required this.name,
-//     required this.type,
-//     required this.subAssets,
-//     this.blobSize,
-//   });
-
-//   factory AssetEntry.fromJson(Map<String, dynamic> json) => _$AssetEntryFromJson(json);
-
-//   Map<String, dynamic> toJson() => _$AssetEntryToJson(this);
-// }
-
-// @JsonSerializable()
-// class CtsCreateAssets extends Message {
-//   final List<AssetCreateInfo> createInfos;
-
-//   CtsCreateAssets({
-//     required this.createInfos,
-//   });
-
-//   @override
-//   String get messageClass => '$CtsCreateAssets';
-//   static String get messageClassS => '$CtsCreateAssets';
-
-//   factory CtsCreateAssets.fromJson(Map<String, dynamic> json) => _$CtsCreateAssetsFromJson(json);
-
-//   Map<String, dynamic> toJson() => _$CtsCreateAssetsToJson(this);
-// }
-
-// @JsonSerializable()
-// class CtsDeleteAssets extends Message {
-//   final List<UUID> uuids;
-
-//   CtsDeleteAssets({
-//     required this.uuids,
-//   });
-
-//   @override
-//   String get messageClass => '$CtsDeleteAssets';
-//   static String get messageClassS => '$CtsDeleteAssets';
-
-//   factory CtsDeleteAssets.fromJson(Map<String, dynamic> json) => _$CtsDeleteAssetsFromJson(json);
-
-//   Map<String, dynamic> toJson() => _$CtsDeleteAssetsToJson(this);
-// }
-
-// @JsonSerializable()
-// class CtsListenToAssetDirectory extends Message {
-//   final UUID? directory;
-
-//   CtsListenToAssetDirectory({required this.directory});
-
-//   @override
-//   String get messageClass => '$CtsListenToAssetDirectory';
-//   static String get messageClassS => '$CtsListenToAssetDirectory';
-
-//   factory CtsListenToAssetDirectory.fromJson(Map<String, dynamic> json) => _$CtsListenToAssetDirectoryFromJson(json);
-
-//   Map<String, dynamic> toJson() => _$CtsListenToAssetDirectoryToJson(this);
-// }
-
-// @JsonSerializable()
-// class StcAssetDirectoryStreamUpdate extends Message {
-//   final UUID? directory;
-//   final List<AssetEntry> updated;
-//   final List<UUID> removed;
-
-//   StcAssetDirectoryStreamUpdate({required this.directory, required this.updated, required this.removed});
-
-//   @override
-//   String get messageClass => '$StcAssetDirectoryStreamUpdate';
-//   static String get messageClassS => '$StcAssetDirectoryStreamUpdate';
-
-//   factory StcAssetDirectoryStreamUpdate.fromJson(Map<String, dynamic> json) =>
-//       _$StcAssetDirectoryStreamUpdateFromJson(json);
-
-//   Map<String, dynamic> toJson() => _$StcAssetDirectoryStreamUpdateToJson(this);
-// }
+  Map<String, dynamic> toJson() => _$CtsDeleteAssetsToJson(this);
+}
 
 @JsonSerializable()
 class CtsRequestAssetBlob extends Message {
@@ -173,9 +78,11 @@ class PtpAssetBlobStart extends Message {
 @JsonSerializable()
 class PtpAssetBlobEnd extends Message {
   final UUID uuid;
+  final int version;
 
   PtpAssetBlobEnd({
     required this.uuid,
+    required this.version,
   });
 
   @override

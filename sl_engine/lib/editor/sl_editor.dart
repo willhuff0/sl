@@ -39,9 +39,9 @@ class SLEditor {
     await Selector.init(_camera!);
     _modelPreviewGenerator = await ModelPreviewGenerator.create();
 
-    final model = await GLTF.load('models/FlightHelmet.glb');
-    model!.root.lScale = Vector3.all(10.0);
-    model!.root.enterScene();
+    // final model = (await GLTF.load('models/FlightHelmet.glb'))!;
+    // model.root.lScale = Vector3.all(10.0);
+    // model.root.enterScene();
 
     web.window.requestAnimationFrame(_frame.toJS);
   }
@@ -76,6 +76,8 @@ class SLEditor {
     DebugDraw.drawPoint(Vector3(0.0, 0.0, 0.0), size: 4);
 
     Renderer.renderAll();
+    // final (viewPos, viewMat, projMat) = _camera!.getState()!;
+    // Renderer.drawAllBounds(viewMat);
     Selector.draw();
   }
 
