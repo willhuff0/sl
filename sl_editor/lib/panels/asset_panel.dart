@@ -13,7 +13,6 @@ import 'package:sl_engine/gl/gltf_loader.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:sl_shared/sl_shared.dart';
-import 'package:image/image.dart' as img;
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({super.key});
@@ -334,20 +333,11 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
       while (SLEditor.modelPreviewGenerator == null) {
         await Future.delayed(Duration(milliseconds: 100));
       }
-      final raw = SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 1024);
-      if (raw.isEmpty) return;
-      final image = img.Image.fromBytes(
-        width: 1024,
-        height: 1024,
-        bytes: raw.buffer,
-        bytesOffset: raw.offsetInBytes,
-        numChannels: 4,
-      );
-      final data = img.encodePng(image);
+      final imgBytes = await SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 256);
 
       if (mounted) {
         setState(() {
-          _data = data;
+          _data = imgBytes;
         });
       }
     });
@@ -371,7 +361,10 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
                 color: ShadTheme.of(context).colorScheme.accent,
                 borderRadius: BorderRadius.circular(4.0),
               ),
-              child: Image.memory(_data!),
+              child: Image.memory(
+                _data!,
+                fit: BoxFit.contain,
+              ),
             ),
     );
   }

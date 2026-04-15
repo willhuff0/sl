@@ -4,12 +4,14 @@ import 'dart:typed_data';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/render_texture.dart';
-import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/utils/bounds.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:web/web.dart' as web;
+
+const _defaultPreviewSize = 128;
 
 Iterable<Vector3> _getCorners(Aabb3 bounds) sync* {
   yield Vector3(bounds.min.x, bounds.min.y, bounds.min.z);
@@ -26,15 +28,14 @@ class ModelPreviewGenerator {
   static const _fov = 30.0 * degrees2Radians;
   static const _distancePadding = 1.0;
 
-  late final Shader _previewShader;
-
   late final RenderTexture _outputTexture;
+
+  late final web.OffscreenCanvas _offscreenCanvas;
+  late final web.CanvasRenderingContext2D _offscreenContext;
 
   ModelPreviewGenerator._();
   static Future<ModelPreviewGenerator> create() async {
     final previewGenerator = ModelPreviewGenerator._();
-
-    previewGenerator._previewShader = (await Shader.load('shaders/preview/preview'))!;
 
     previewGenerator._outputTexture = RenderTexture(
       internalFormat: GL.RGBA8,
@@ -43,13 +44,23 @@ class ModelPreviewGenerator {
       depthFormat: GL.DEPTH_COMPONENT24,
     );
 
+    previewGenerator._offscreenCanvas = web.OffscreenCanvas(_defaultPreviewSize, _defaultPreviewSize);
+    previewGenerator._offscreenContext =
+        previewGenerator._offscreenCanvas.getContext(
+              '2d',
+              {
+                'alpha': true,
+                'willReadFrequently': true,
+              }.jsify(),
+            )
+            as web.CanvasRenderingContext2D;
+
     return previewGenerator;
   }
 
-  Uint8List generateModelPreview(Node node, {int size = 128}) {
+  Future<Uint8List> generateModelPreview(Node node, {int size = _defaultPreviewSize}) async {
     _outputTexture.resize(size, size);
 
-    _previewShader.bind();
     _outputTexture.bindFramebuffer();
     gl.viewport(0, 0, size, size);
     gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -129,14 +140,19 @@ class ModelPreviewGenerator {
 
     node.enterScene();
 
-    final pixels = JSUint8Array.withLength(size * size * 4);
-    gl.readPixels(0, 0, size, size, GL.RGBA, GL.UNSIGNED_BYTE, pixels);
-    final dartPixels = pixels.toDart;
+    _offscreenCanvas.width = size;
+    _offscreenCanvas.height = size;
+    final imageData = _offscreenContext.createImageData(size.toJS, size);
+    gl.readPixels(0, 0, size, size, GL.RGBA, GL.UNSIGNED_BYTE, imageData.data);
+    _offscreenContext.putImageData(imageData, 0, 0);
+
+    final blob = await _offscreenCanvas.convertToBlob(web.ImageEncodeOptions(type: 'image/webp')).toDart;
+    final bytes = (await blob.arrayBuffer().toDart).toDart.asUint8List();
 
     _outputTexture.unbindFramebuffer();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-    return dartPixels;
+    return bytes;
   }
 }
