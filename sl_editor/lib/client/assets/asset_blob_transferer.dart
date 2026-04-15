@@ -13,6 +13,9 @@ import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
 
+final _tempProgressChangedController = StreamController<(UUID, AssetTransferProgress)>.broadcast();
+final tempProgressChanged = _tempProgressChangedController.stream;
+
 class AssetTransferProgress {
   final int byteLength;
   final int bytesCompleted;
@@ -48,6 +51,7 @@ class UploadOperation {
 
   void addProgress(AssetTransferProgress progress) {
     _progressController.add(progress);
+    _tempProgressChangedController.add((uuid, progress));
   }
 
   Future<void> finish() async {
@@ -61,6 +65,14 @@ class UploadOperation {
         progress: 1.0,
       ),
     );
+    _tempProgressChangedController.add((
+      uuid,
+      AssetTransferProgress(
+        byteLength: size - offset,
+        bytesCompleted: size - offset,
+        progress: 1.0,
+      ),
+    ));
     await _progressController.close();
     _completer.complete();
   }
@@ -143,6 +155,14 @@ class DownloadOperation {
         progress: _bytesReceived / (size - offset),
       ),
     );
+    _tempProgressChangedController.add((
+      uuid,
+      AssetTransferProgress(
+        byteLength: size - offset,
+        bytesCompleted: _bytesReceived,
+        progress: _bytesReceived / (size - offset),
+      ),
+    ));
     return _bytesReceived;
   }
 
@@ -154,6 +174,14 @@ class DownloadOperation {
         progress: 1.0,
       ),
     );
+    _tempProgressChangedController.add((
+      uuid,
+      AssetTransferProgress(
+        byteLength: size - offset,
+        bytesCompleted: size - offset,
+        progress: 1.0,
+      ),
+    ));
     await _progressController.close();
     await _sink.close().toDart;
     _completer.complete(_inMemoryView?.takeBytes());

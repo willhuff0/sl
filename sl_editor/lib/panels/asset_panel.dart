@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
 import 'package:sl_editor/client/assets_api.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
@@ -141,19 +142,46 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
   }
 }
 
-class _AssetEntryWidget extends StatelessWidget {
+class _AssetEntryWidget extends StatefulWidget {
   final Asset asset;
 
   const _AssetEntryWidget({super.key, required this.asset});
+
+  @override
+  State<_AssetEntryWidget> createState() => _AssetEntryWidgetState();
+}
+
+class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
+  late final StreamSubscription _tempProgressChangedSubscription;
+  var progress = 1.0;
+
+  @override
+  void initState() {
+    _tempProgressChangedSubscription = tempProgressChanged.listen((event) {
+      if (!mounted) return;
+      if (event.$1 == widget.asset.uuid) {
+        setState(() {
+          progress = event.$2.progress;
+        });
+      }
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _tempProgressChangedSubscription.cancel();
+    super.dispose();
+  }
 
   Widget _getPreview(AssetType type) {
     return switch (type) {
       .directory => Icon(LucideIcons.folder),
       .unsupported => Icon(LucideIcons.fileQuestionMark),
       .propertiesOnly => Icon(LucideIcons.braces),
-      .texture => _ImageAssetPreviewWidget(asset: asset),
+      .texture => _ImageAssetPreviewWidget(asset: widget.asset),
       .mesh => Icon(LucideIcons.pyramid),
-      .model => _ModelAssetPreviewWidget(asset: asset),
+      .model => _ModelAssetPreviewWidget(asset: widget.asset),
       .shader => Icon(LucideIcons.code),
       .nodeTree => Icon(LucideIcons.listTree),
     };
@@ -161,12 +189,33 @@ class _AssetEntryWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final card = Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _getPreview(widget.asset.type),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+            child: Text(
+              widget.asset.name,
+              style: TextStyle(fontSize: 11.0),
+              maxLines: 2,
+              overflow: TextOverflow.fade,
+            ),
+          ),
+        ],
+      ),
+    );
+
     return ShadContextMenuRegion(
       items: [
         ShadContextMenuItem(
           child: Text('Delete'),
           onPressed: () {
-            AssetsApi.tryDeleteAssets({asset.uuid});
+            AssetsApi.tryDeleteAssets({widget.asset.uuid});
           },
         ),
       ],
@@ -174,24 +223,21 @@ class _AssetEntryWidget extends StatelessWidget {
         width: 200.0,
         height: 214.0,
         child: ShadCard(
-          padding: EdgeInsets.all(4.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _getPreview(asset.type),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                child: Text(
-                  asset.name,
-                  style: TextStyle(fontSize: 11.0),
-                  maxLines: 2,
-                  overflow: TextOverflow.fade,
-                ),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.zero,
+          child: progress < 0.999
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: card),
+                    Positioned.fill(
+                      bottom: 208.0,
+                      child: ShadProgress(
+                        value: progress,
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                  ],
+                )
+              : card,
         ),
       ),
     );
@@ -265,7 +311,7 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
 
   @override
   void initState() {
-    Logger.log('init state for preview of ${widget.asset.name}, ${widget.asset.uuid}');
+    // Logger.log('init state for preview of ${widget.asset.name}, ${widget.asset.uuid}');
     _assetBlobSubscription = Client.get().assetSystem.watchAssetBlob(widget.asset.uuid).listen((bytes) async {
       if (bytes == null) {
         if (mounted) {
@@ -319,7 +365,7 @@ class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
     return Padding(
       padding: EdgeInsets.all(4.0),
       child: _data == null
-          ? Center(child: ShadProgress())
+          ? Container() //Center(child: SizedBox(width: 40.0, height: 4.0, child: ShadProgress()))
           : Container(
               decoration: BoxDecoration(
                 color: ShadTheme.of(context).colorScheme.accent,
