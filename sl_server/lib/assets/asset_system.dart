@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:shelf/shelf.dart' as shelf;
 import 'package:sl_server/assets/asset_blob_transferer.dart';
+import 'package:sl_server/assets/asset_thumbs.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
@@ -10,6 +12,7 @@ class AssetSystem {
   final Server _server;
   final SqliteCrdt _sharedDatabase;
   final AssetBlobTransferer _blobTransferer;
+  final AssetThumbs _thumbs;
 
   final Map<Client, CrdtSync> _clientToCrdtSync = {};
 
@@ -19,6 +22,9 @@ class AssetSystem {
   ) : _blobTransferer = AssetBlobTransferer(
         server: _server,
         sharedDatabase: _sharedDatabase,
+      ),
+      _thumbs = AssetThumbs(
+        server: _server,
       );
 
   Future<void> addClient(Client client) async {
@@ -66,8 +72,17 @@ class AssetSystem {
     await _blobTransferer.handleBinary(client, bytes);
   }
 
+  Future<shelf.Response> handleGetThumb(shelf.Request req) {
+    return _thumbs.handleGetThumb(req);
+  }
+
+  Future<shelf.Response> handlePostThumb(shelf.Request req) {
+    return _thumbs.handlePostThumb(req);
+  }
+
   Future<void> _deleteAssets(Client client, Set<UUID> uuids) async {
     // TODO: in between deleting blobs and deleting rows, client could try to pull asset blob
+    // TODO: does not recurse beyond one level deep of subassets
 
     final toDelete = <UUID>[];
     await Future.wait(
@@ -78,9 +93,10 @@ class AssetSystem {
       }),
     );
     await _sharedDatabase.execute('''
-DELETE FROM assets WHERE uuid IN
-  (${List.generate(toDelete.length, (i) => '?${i + 1}').join(',')})
-  AND is_deleted = 0;
+DELETE FROM assets WHERE (
+  uuid IN (${List.generate(toDelete.length, (i) => '?${i + 1}').join(',')}) OR
+  parent IN (${List.generate(toDelete.length, (i) => '?${i + 1}').join(',')})
+) AND is_deleted = 0;
 ''', toDelete);
   }
 }

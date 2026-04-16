@@ -33,7 +33,11 @@ class _EditorClientLoaderState extends State<EditorClientLoader> {
   }
 
   Future<void> _load() async {
-    _client = await Client.connect(serverUri: Uri.parse('ws://localhost:8080/joinRoom?room=test-room'));
+    const room = 'test-room';
+    _client = await Client.connect(
+      projectId: room,
+      serverUri: Uri.parse('http://localhost:8080'),
+    );
     if (!mounted) return;
     setState(() {});
   }

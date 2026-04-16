@@ -11,6 +11,7 @@ class Asset {
   final DateTime updatedAt;
   final int? blobSize;
   final int? blobVersion;
+  final String? thumbMime;
 
   Asset({
     required this.uuid,
@@ -21,6 +22,7 @@ class Asset {
     required this.updatedAt,
     required this.blobSize,
     required this.blobVersion,
+    required this.thumbMime,
   });
 
   Map<String, Object?> serialize() => {
@@ -32,6 +34,7 @@ class Asset {
     'updated_at': updatedAt.toIso8601String(),
     'blob_size': ?blobSize,
     'blob_version': ?blobVersion,
+    'thumb_mime': ?thumbMime,
   };
   factory Asset.deserialize(Map<String, Object?> v) => Asset(
     uuid: v['uuid'] as String,
@@ -46,6 +49,7 @@ class Asset {
     updatedAt: DateTime.parse(v['updated_at'] as String),
     blobSize: v['blob_size'] as int?,
     blobVersion: v['blob_version'] as int?,
+    thumbMime: v['thumb_mime'] as String?,
   );
 }
 

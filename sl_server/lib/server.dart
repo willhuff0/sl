@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:shelf/shelf.dart' as shelf;
 import 'package:sl_server/assets/asset_system.dart';
 import 'package:sl_server/systems/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
@@ -77,6 +78,14 @@ class Server {
 
   WebSocketHandler getWebSocketHandler() {
     return _webSocketHandler;
+  }
+
+  Future<shelf.Response> handleGetThumb(shelf.Request req) {
+    return _assetSystem.handleGetThumb(req);
+  }
+
+  Future<shelf.Response> handlePostThumb(shelf.Request req) {
+    return _assetSystem.handlePostThumb(req);
   }
 
   UnmodifiableMapView<int, Client> getClients() {

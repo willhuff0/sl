@@ -1,24 +1,19 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
-import 'package:sl_editor/client/assets_api.dart';
+import 'package:sl_editor/assets.dart';
+import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
-import 'package:sl_engine/editor/sl_editor.dart';
-import 'package:sl_engine/gl/gltf_loader.dart';
-import 'package:sl_engine/logger.dart';
-import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({super.key});
 
   void _onDropFiles(DropDoneDetails details) async {
-    await AssetsApi.addAssets(null, details.files);
+    await Assets.import(null, details.files);
   }
 
   @override
@@ -173,19 +168,6 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
     super.dispose();
   }
 
-  Widget _getPreview(AssetType type) {
-    return switch (type) {
-      .directory => Icon(LucideIcons.folder),
-      .unsupported => Icon(LucideIcons.fileQuestionMark),
-      .propertiesOnly => Icon(LucideIcons.braces),
-      .texture => _ImageAssetPreviewWidget(asset: widget.asset),
-      .mesh => Icon(LucideIcons.pyramid),
-      .model => _ModelAssetPreviewWidget(asset: widget.asset),
-      .shader => Icon(LucideIcons.code),
-      .nodeTree => Icon(LucideIcons.listTree),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final card = Padding(
@@ -194,7 +176,7 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _getPreview(widget.asset.type),
+            child: _AssetThumbWidget(asset: widget.asset),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
@@ -214,7 +196,7 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
         ShadContextMenuItem(
           child: Text('Delete'),
           onPressed: () {
-            AssetsApi.tryDeleteAssets({widget.asset.uuid});
+            Assets.tryDeleteAssets({widget.asset.uuid});
           },
         ),
       ],
@@ -243,127 +225,64 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
   }
 }
 
-class _ImageAssetPreviewWidget extends StatefulWidget {
+class _AssetThumbWidget extends StatefulWidget {
   final Asset asset;
 
-  const _ImageAssetPreviewWidget({super.key, required this.asset});
+  const _AssetThumbWidget({super.key, required this.asset});
 
   @override
-  State<_ImageAssetPreviewWidget> createState() => _ImageAssetPreviewWidgetState();
+  State<_AssetThumbWidget> createState() => _AssetThumbWidgetState();
 }
 
-class _ImageAssetPreviewWidgetState extends State<_ImageAssetPreviewWidget> {
-  Uint8List? _data;
+class _AssetThumbWidgetState extends State<_AssetThumbWidget> {
+  late final String uri;
+  String? _mime;
 
   @override
   void initState() {
+    uri = AssetThumbs.getUri(widget.asset.uuid);
     _load();
     super.initState();
   }
 
-  void _load() async {
-    final data = await Client.get().assetSystem.getAssetBlob(widget.asset.uuid);
-    if (mounted) {
-      setState(() {
-        _data = data;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.all(4.0),
-      child: _data == null ? Center(child: ShadProgress()) : Image.memory(_data!),
-    );
-  }
-}
-
-class StubResourceLoader implements ResourceLoader {
-  final Uint8List bytes;
-
-  StubResourceLoader(this.bytes);
-
-  @override
-  Future<Uint8List?> loadBytes(String path) async {
-    return bytes;
-  }
-
-  @override
-  Future<String?> loadString(String path) async {
-    return utf8.decode(bytes);
-  }
-}
-
-class _ModelAssetPreviewWidget extends StatefulWidget {
-  final Asset asset;
-
-  const _ModelAssetPreviewWidget({super.key, required this.asset});
-
-  @override
-  State<_ModelAssetPreviewWidget> createState() => __ModelAssetPreviewWidgetState();
-}
-
-class __ModelAssetPreviewWidgetState extends State<_ModelAssetPreviewWidget> {
-  late final StreamSubscription _assetBlobSubscription;
-  Uint8List? _data;
-
-  @override
-  void initState() {
-    // Logger.log('init state for preview of ${widget.asset.name}, ${widget.asset.uuid}');
-    _assetBlobSubscription = Client.get().assetSystem.watchAssetBlob(widget.asset.uuid).listen((bytes) async {
-      if (bytes == null) {
-        if (mounted) {
-          setState(() {
-            _data = null;
-          });
-        }
-        return;
-      }
-
-      final gltf = await GLTF.load('stub.glb', resourceLoader: StubResourceLoader(bytes));
-      if (gltf == null) {
-        Logger.log(
-          'Failed to parse glb while generating model preview for ${widget.asset.name} (${widget.asset.uuid})',
-          .error,
-        );
-        return;
-      }
-
-      while (SLEditor.modelPreviewGenerator == null) {
-        await Future.delayed(Duration(milliseconds: 100));
-      }
-      final imgBytes = await SLEditor.modelPreviewGenerator!.generateModelPreview(gltf.root, size: 256);
-
-      if (mounted) {
-        setState(() {
-          _data = imgBytes;
-        });
-      }
+  Future<void> _load() async {
+    if (widget.asset.type == .unsupported || widget.asset.type == .directory) return;
+    final mime = await AssetThumbs.getMime(widget.asset.uuid);
+    if (!mounted) return;
+    setState(() {
+      _mime = mime;
     });
-    super.initState();
   }
 
-  @override
-  void dispose() {
-    _assetBlobSubscription.cancel();
-    super.dispose();
+  Widget _getPlaceholder(BuildContext context, AssetType type) {
+    const size = 48.0;
+    final color = ShadTheme.of(context).colorScheme.mutedForeground;
+    return switch (type) {
+      .directory => Icon(LucideIcons.folder, size: size, color: color),
+      .unsupported => Icon(LucideIcons.fileQuestionMark, size: size, color: color),
+      .propertiesOnly => Icon(LucideIcons.braces, size: size, color: color),
+      .texture => Icon(LucideIcons.image, size: size, color: color),
+      .mesh => Icon(LucideIcons.pyramid, size: size, color: color),
+      .model => Icon(LucideIcons.box, size: size, color: color),
+      .shader => Icon(LucideIcons.code, size: size, color: color),
+      .nodeTree => Icon(LucideIcons.listTree, size: size, color: color),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(4.0),
-      child: _data == null
-          ? Container() //Center(child: SizedBox(width: 40.0, height: 4.0, child: ShadProgress()))
+      child: _mime == null
+          ? Center(child: _getPlaceholder(context, widget.asset.type))
           : Container(
               decoration: BoxDecoration(
                 color: ShadTheme.of(context).colorScheme.accent,
                 borderRadius: BorderRadius.circular(4.0),
-              ),
-              child: Image.memory(
-                _data!,
-                fit: BoxFit.contain,
+                image: DecorationImage(
+                  image: NetworkImage(uri),
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
     );

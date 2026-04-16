@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
 import 'package:sl_editor/client/assets/asset_system.dart';
 import 'package:sl_editor/client/systems/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
@@ -13,6 +14,9 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 const tickInterval = Duration(milliseconds: 1000);
 
 class Client {
+  final String projectId;
+  final Uri serverUri;
+
   late final WebSocketChannel _socket;
   late final ClientId _clientId;
 
@@ -27,14 +31,25 @@ class Client {
   late final Timer _tickTimer;
 
   static Future<Client> connect({
+    required String projectId,
     required Uri serverUri,
   }) async {
-    final database = await openDatabase('test-room/db.sqlite3');
-    final socket = WebSocketChannel.connect(serverUri);
+    final database = await openDatabase(p.join(projectId, 'db.sqlite3'));
+    final socket = WebSocketChannel.connect(
+      serverUri.replace(
+        scheme: 'ws',
+        path: 'joinRoom',
+        queryParameters: {
+          'room': projectId,
+        },
+      ),
+    );
     final client = Client._(
+      projectId: projectId,
+      serverUri: serverUri,
       socket: socket,
     );
-    client.assetSystem = await AssetSystem.create(client, database, 'test-room');
+    client.assetSystem = await AssetSystem.create(client, database, projectId);
     await socket.ready;
     client._listen();
     return client;
@@ -46,6 +61,8 @@ class Client {
   }
 
   Client._({
+    required this.projectId,
+    required this.serverUri,
     required WebSocketChannel socket,
   }) : _socket = socket {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());

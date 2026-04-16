@@ -9,7 +9,9 @@ final Map<String, Server> _rooms = {};
 
 final _router = Router()
   ..get('/', _rootHandler)
-  ..get('/joinRoom', _joinRoomHandler);
+  ..get('/joinRoom', _joinRoomHandler)
+  ..get('/thumb', _getThumbHandler)
+  ..post('/thumb', _postThumbHandler);
 
 Response _rootHandler(Request req) {
   return Response.ok('Hello, World!\n');
@@ -21,6 +23,22 @@ Response _joinRoomHandler(Request req) {
   final room = _rooms[roomId];
   if (room == null) return Response.notFound('Room not found!');
   return room.getWebSocketHandler().handle(req);
+}
+
+Future<Response> _getThumbHandler(Request req) async {
+  final roomId = req.url.queryParameters['room'];
+  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
+  final room = _rooms[roomId];
+  if (room == null) return Response.notFound('Room not found!');
+  return await room.handleGetThumb(req);
+}
+
+Future<Response> _postThumbHandler(Request req) async {
+  final roomId = req.url.queryParameters['room'];
+  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
+  final room = _rooms[roomId];
+  if (room == null) return Response.notFound('Room not found!');
+  return await room.handlePostThumb(req);
 }
 
 void main(List<String> args) async {

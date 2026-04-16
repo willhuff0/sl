@@ -58,7 +58,7 @@ class ModelPreviewGenerator {
     return previewGenerator;
   }
 
-  Future<Uint8List> generateModelPreview(Node node, {int size = _defaultPreviewSize}) async {
+  Future<(Uint8List, String)> generateModelPreview(Node node, {int size = _defaultPreviewSize}) async {
     _outputTexture.resize(size, size);
 
     _outputTexture.bindFramebuffer();
@@ -134,9 +134,7 @@ class ModelPreviewGenerator {
         viewPos: viewPos,
       ),
     );
-    Renderer.renderUnregisteredNode(
-      node,
-    );
+    Renderer.renderUnregisteredNode(node);
 
     node.enterScene();
 
@@ -153,6 +151,6 @@ class ModelPreviewGenerator {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-    return bytes;
+    return (bytes, blob.type);
   }
 }
