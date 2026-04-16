@@ -6,7 +6,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/assets.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
-import 'package:sl_engine/gl/gltf_loader.dart';
+import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:uuid/uuid.dart';

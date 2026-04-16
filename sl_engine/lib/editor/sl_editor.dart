@@ -5,7 +5,7 @@ import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/gltf_loader.dart';
+import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/utils/renderer.dart';

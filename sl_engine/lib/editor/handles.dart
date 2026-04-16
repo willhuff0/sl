@@ -1,5 +1,5 @@
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/gltf_loader.dart';
+import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/node.dart';

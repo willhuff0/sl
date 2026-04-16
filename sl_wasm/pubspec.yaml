@@ -1,0 +1,15 @@
+name: sl_wasm
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+repository: https://github.com/willhuff0/sl
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  ffi: ^2.2.0
+  wasm_ffi: ^2.3.0
+
+dev_dependencies:
+  ffigen: ^20.1.1
+  lints: ^6.0.0

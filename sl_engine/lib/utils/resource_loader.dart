@@ -30,13 +30,17 @@ class BuiltInResourceLoader implements ResourceLoader {
     if (response.statusCode == 404) {
       Logger.log('Tried to load a resource \'$path\' which does not exist. HTTP GET to \'$uri\' returned status code ${response.statusCode}.', .warning);
       return null;
-    } else if (response.statusCode != 200) {
+    }
+    if (response.statusCode != 200) {
       Logger.log('Failed to to load a resource \'$path\'. HTTP GET to \'$uri\' returned status code ${response.statusCode}.', .warning);
       return null;
-    } else if (_isHtmlFile(response.body)) {
-      Logger.log('Tried to load a resource \'$path\' which does not exist.', .warning);
-      return null;
     }
+    try {
+      if (_isHtmlFile(response.body)) {
+        Logger.log('Tried to load a resource \'$path\' which does not exist.', .warning);
+        return null;
+      }
+    } catch (_) {}
     return response;
   }
 
