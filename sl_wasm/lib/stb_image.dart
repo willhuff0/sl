@@ -25,7 +25,7 @@ class StbImage {
       final height = yOut.cast<Uint32>().value;
       final actualChannels = channelsOut.cast<Uint32>().value;
 
-      final dartPixels = Uint8List.fromList(pixels.asTypedList(width * height * 4));
+      final dartPixels = Uint8List.fromList(pixels.asTypedList(width * height * (channels ?? actualChannels)));
       _bindings.stbi_image_free(pixels.cast());
 
       return (dartPixels, width, height, channels ?? actualChannels);
@@ -49,7 +49,7 @@ class StbImage {
       final height = yOut.cast<Uint32>().value;
       final actualChannels = channelsOut.cast<Uint32>().value;
 
-      final dartPixels = Float32List.fromList(pixels.asTypedList(width * height * 4));
+      final dartPixels = Float32List.fromList(pixels.asTypedList(width * height * (channels ?? actualChannels)));
       _bindings.stbi_image_free(pixels.cast());
 
       return (dartPixels, width, height, channels ?? actualChannels);

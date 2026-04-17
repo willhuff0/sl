@@ -5,7 +5,7 @@ import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/gltf.dart';
+import 'package:sl_engine/gl/skybox.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/utils/renderer.dart';
@@ -15,9 +15,11 @@ import 'package:web/web.dart' as web;
 class SLEditor {
   static FlyCamera? _camera;
   static ModelPreviewGenerator? _modelPreviewGenerator;
+  static Skybox? _skybox;
 
   static FlyCamera? get camera => _camera;
   static ModelPreviewGenerator? get modelPreviewGenerator => _modelPreviewGenerator;
+  static Skybox? get skybox => _skybox;
 
   static Future<void> initSlEditorMode(web.HTMLCanvasElement canvas_) async {
     canvas_.onContextMenu.listen((event) {
@@ -38,6 +40,9 @@ class SLEditor {
     await DebugDraw.init();
     await Selector.init(_camera!);
     _modelPreviewGenerator = await ModelPreviewGenerator.create();
+
+    final hdri = (await HDRI.loadFromHdr('skybox_02.hdr'))!;
+    _skybox = await Skybox.fromHdri(hdri);
 
     // final model = (await GLTF.load('models/FlightHelmet.glb'))!;
     // model.root.lScale = Vector3.all(10.0);
@@ -73,6 +78,8 @@ class SLEditor {
     _setEngineUbo();
     _bindAndClearCanvas();
 
+    _skybox!.draw();
+
     DebugDraw.drawPoint(Vector3(0.0, 0.0, 0.0), size: 4);
 
     Renderer.renderAll();
@@ -88,15 +95,17 @@ class SLEditor {
     SL.setUniforms(
       SLUniforms(
         viewProjMat: viewProjMat,
+        projMat: projMat,
         viewMat: viewMat,
         viewPos: viewPos,
+        radianceMipLevelCount: _skybox!.radianceMap.mipLevelCount,
       ),
     );
   }
 
   static void _bindAndClearCanvas() {
     gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    gl.clearColor(1.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
   }
 }

@@ -7,21 +7,28 @@ import 'package:vector_math/vector_math.dart';
 
 class SLUniforms {
   final Matrix4 viewProjMat;
+  final Matrix4 projMat;
   final Matrix4 viewMat;
   final Vector3 viewPos;
+  final int radianceMipLevelCount;
 
   SLUniforms({
     required this.viewProjMat,
+    required this.projMat,
     required this.viewMat,
     required this.viewPos,
+    required this.radianceMipLevelCount,
   });
 
   JSAny toJS() {
     final builder = BytesBuilder();
 
     builder.add(viewProjMat.storage.buffer.asUint8List());
+    builder.add(projMat.storage.buffer.asUint8List());
     builder.add(viewMat.storage.buffer.asUint8List());
     builder.add(viewPos.storage.buffer.asUint8List());
+    builder.add(List.filled(4, 0));
+    builder.add(Uint32List.fromList([radianceMipLevelCount]).buffer.asUint8List());
 
     return builder.toBytes().toJS;
   }

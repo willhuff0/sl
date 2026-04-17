@@ -2,6 +2,7 @@ import 'dart:js_interop';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/sl.dart';
@@ -127,11 +128,16 @@ class ModelPreviewGenerator {
     );
     final projMat = makePerspectiveMatrix(_fov, 1.0, nearPlane, farPlane);
     projMat[5] *= -1;
+    while (SLEditor.skybox == null) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
     SL.setUniforms(
       SLUniforms(
         viewProjMat: projMat * viewMat,
+        projMat: projMat,
         viewMat: viewMat,
         viewPos: viewPos,
+        radianceMipLevelCount: SLEditor.skybox!.radianceMap.mipLevelCount,
       ),
     );
     Renderer.renderUnregisteredNode(node);

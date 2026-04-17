@@ -8,7 +8,6 @@ add_executable(sl_wasm src/stb_image_impl.c)
 
 target_link_options(sl_wasm PRIVATE
     "--no-entry"
-#    "-sWASM=1"
     "-sMODULARIZE=1"
     "-sEXPORT_NAME='SLWasm'"
     "-sALLOW_MEMORY_GROWTH=1"

@@ -2,6 +2,10 @@
 
 layout(std140) uniform SL {
     mat4 viewProjMat;
+    mat4 projMat;
+    mat4 viewMat;
+    vec3 viewPos;
+    highp uint radianceMipLevelCount;
 } sl;
 
 uniform mat4 u_modelMat;

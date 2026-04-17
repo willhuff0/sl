@@ -17,7 +17,7 @@ class RenderTexture {
   RenderTexture({
     this.internalFormat = GL.RGBA16F,
     this.format = GL.RGBA,
-    this.type = GL.HALF_FLOAT,
+    this.type = GL.FLOAT,
     this.depthFormat,
   });
 
