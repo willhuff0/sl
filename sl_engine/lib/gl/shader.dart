@@ -133,6 +133,10 @@ class Shader {
 
     tryBindUniformBlock('SL', 0);
     tryBindUniformBlock('Renderer', 1);
+
+    bind();
+    trySetUniform('u_irradianceMap', 14);
+    trySetUniform('u_prefilterMap', 15);
   }
 
   static Future<Shader?> load(String pathWithoutExtension) {
@@ -195,6 +199,12 @@ class Shader {
     }
 
     typeInfo.setter(uniform.location, value);
+  }
+
+  bool trySetUniform(String name, dynamic value) {
+    if (!_uniforms.containsKey(name)) return false;
+    setUniform(name, value);
+    return true;
   }
 
   void bindUniformBlock(String name, int binding) {

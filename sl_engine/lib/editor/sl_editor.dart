@@ -5,6 +5,7 @@ import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/skybox.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/input.dart';
@@ -44,9 +45,18 @@ class SLEditor {
     final hdri = (await HDRI.loadFromHdr('skybox_02.hdr'))!;
     _skybox = await Skybox.fromHdri(hdri);
 
-    // final model = (await GLTF.load('models/FlightHelmet.glb'))!;
-    // model.root.lScale = Vector3.all(10.0);
-    // model.root.enterScene();
+    final model = (await GLTF.load('models/FlightHelmet.glb'))!;
+    model.root.lScale = Vector3.all(4.0);
+    model.root.enterScene();
+
+    final model2 = (await GLTF.load('models/DamagedHelmet.glb'))!;
+    model2.root.lPos = Vector3(3.0, 1.0, 0.0);
+    model2.root.enterScene();
+
+    final model3 = (await GLTF.load('models/ABeautifulGame.glb'))!;
+    model3.root.lPos = Vector3(-3.0, 1.0, 0.0);
+    model3.root.lScale = Vector3.all(4.0);
+    model3.root.enterScene();
 
     web.window.requestAnimationFrame(_frame.toJS);
   }
@@ -77,6 +87,8 @@ class SLEditor {
     resizeCanvas();
     _setEngineUbo();
     _bindAndClearCanvas();
+
+    _skybox!.bindIblMaps();
 
     _skybox!.draw();
 

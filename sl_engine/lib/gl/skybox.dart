@@ -87,6 +87,7 @@ class CubeMap {
 
       for (var j = 0; j < 6; j++) {
         gl.framebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT0, GL.TEXTURE_CUBE_MAP_POSITIVE_X + j, cubeMap, i);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(GL.COLOR_BUFFER_BIT);
 
         shader.setUniform('u_viewProjMat', _captureViewProjMats[j]);
@@ -219,6 +220,11 @@ class Skybox {
       irradianceMap: irradianceMap,
       radianceMap: radianceMap,
     );
+  }
+
+  void bindIblMaps() {
+    irradianceMap.bind(14);
+    radianceMap.bind(15);
   }
 
   void draw() {

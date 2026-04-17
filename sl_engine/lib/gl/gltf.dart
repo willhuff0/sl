@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:sl_engine/components/mesh_component.dart';
+import 'package:sl_engine/gl/brdf_lut.dart';
 import 'package:sl_engine/gl/buffer.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/mesh.dart';
@@ -86,6 +87,7 @@ const _attributeInfo = {
 
 class GLTF {
   static Shader? _shader;
+  static BrdfLut? _brdfLut;
 
   final Node root;
   final String? copyright;
@@ -105,12 +107,20 @@ class GLTF {
     shader.setUniform('u_baseColorTexture', 0);
     shader.setUniform('u_metallicRoughnessTexture', 1);
     shader.setUniform('u_normalTexture', 2);
+    shader.setUniform('u_occlusionTexture', 3);
+
+    shader.setUniform('u_ambientIntensity', 1.0);
+    shader.setUniform('u_sunDir', Vector3(-0.5, 1.0, -0.5).normalized());
+    // shader.setUniform('u_sunColor', Vector3(1.0, 1.0, 0.98));
+    shader.setUniform('u_sunColor', Vector3.zero());
+
     return shader;
   }
 
   static Future<GLTF?> load(String path, {String? sceneName, ResourceLoader? resourceLoader}) async {
     resourceLoader ??= BuiltInResourceLoader.get();
     _shader ??= await _loadShader();
+    _brdfLut ??= await BrdfLut.generate();
 
     final directory = p.dirname(path);
     final extension = p.extension(path);
@@ -380,6 +390,8 @@ class GLTF {
         final baseColorFactor = _listToVector4(material['pbrMetallicRoughness']?['baseColorFactor'] as List<dynamic>? ?? [1.0, 1.0, 1.0, 1.0]);
         final metallicFactor = material['pbrMetallicRoughness']?['metallicFactor'] as double? ?? 1.0;
         final roughnessFactor = material['pbrMetallicRoughness']?['roughnessFactor'] as double? ?? 1.0;
+        final normalScale = material['normalTexture']?['scale'] as double? ?? 1.0;
+        final occlusionStrength = material['occlusionTexture']?['strength'] as double? ?? 1.0;
 
         final Map<int, Texture> textures = {};
         Future<bool> addTexture(int slot, Map<String, dynamic>? textureInfo) async {
@@ -403,6 +415,7 @@ class GLTF {
         if (!await addTexture(0, material['pbrMetallicRoughness']?['baseColorTexture'])) return null;
         if (!await addTexture(1, material['pbrMetallicRoughness']?['metallicRoughnessTexture'])) return null;
         if (!await addTexture(2, material['normalTexture'])) return null;
+        if (!await addTexture(3, material['occlusionTexture'])) return null;
 
         cache = materialIndexToGpuMaterial[index] = Material(
           shader: _shader!,
@@ -410,9 +423,12 @@ class GLTF {
             'u_baseColorFactor': baseColorFactor,
             'u_metallicFactor': metallicFactor,
             'u_roughnessFactor': roughnessFactor,
+            'u_normalScale': normalScale,
+            'u_occlusionStrength': occlusionStrength,
             'u_hasBaseColorTexture': textures.containsKey(0),
             'u_hasMetallicRoughnessTexture': textures.containsKey(1),
             'u_hasNormalTexture': textures.containsKey(2),
+            'u_hasOcclusionTexture': textures.containsKey(3),
           },
           textures: textures,
         );

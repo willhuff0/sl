@@ -17,6 +17,16 @@ in vec2 v_uv;
 
 out vec4 o_color;
 
+// Environment
+uniform float u_ambientIntensity;
+uniform samplerCube u_irradianceMap;
+uniform samplerCube u_prefilterMap;
+uniform sampler2D u_brdfLut;
+
+// Sun
+uniform vec3 u_sunDir;
+uniform vec3 u_sunColor;
+
 // PBR Material Uniforms
 uniform vec4 u_baseColorFactor;
 uniform float u_metallicFactor;
@@ -30,10 +40,12 @@ uniform bool u_hasMetallicRoughnessTexture;
 
 uniform sampler2D u_normalTexture;
 uniform bool u_hasNormalTexture;
+uniform float u_normalScale;
 
-const vec3 lightPos = vec3(3.0, 4.0, 2.0);
-const vec3 lightColor = vec3(25.0); // Light intensity
-const vec3 ambientColor = vec3(0.03);
+uniform sampler2D u_occlusionTexture;
+uniform bool u_hasOcclusionTexture;
+uniform float u_occlusionStrength;
+
 const float PI = 3.14159265359;
 
 // Fresnel Schlick approximation
@@ -63,6 +75,10 @@ float G_SchlickGGX(float NdotV, float roughness) {
     float denom = NdotV * (1.0 - k) + k;
 	
     return num / denom;
+}
+
+vec3 F_SchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 // Smith Geometry Function
@@ -118,17 +134,16 @@ void main() {
         }
         
         vec3 nTex = texture(u_normalTexture, v_uv).rgb * 2.0 - 1.0;
+        nTex = normalize(vec3(nTex.xy * u_normalScale, nTex.z));
         N = normalize(tbn * nTex);
     }
 
     vec3 V = normalize(sl.viewPos - v_position);
     
-    vec3 L = normalize(lightPos - v_position);
+    vec3 L = normalize(u_sunDir);
     vec3 H = normalize(V + L);
     
-    float distance = length(lightPos - v_position);
-    float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = lightColor * attenuation;
+    vec3 radiance = u_sunColor;
     
     float NdotV = max(dot(N, V), 0.000001); // Prevent divide by zero
     float NdotL = max(dot(N, L), 0.0);
@@ -157,9 +172,29 @@ void main() {
     // Add both light outputs (Lo)
     vec3 Lo = (diffuse + specular) * radiance * NdotL;
     
-    // Basic ambient
-    vec3 ambient = ambientColor * baseColor.rgb;
-    vec3 color = ambient + Lo;
+    // Ambient / Image Based Lighting
+    vec3 F_IBL = F_SchlickRoughness(NdotV, F0, roughness);
+    vec3 kS_IBL = F_IBL;
+    vec3 kD_IBL = 1.0 - kS_IBL;
+    kD_IBL *= 1.0 - metallic;
+    
+    vec3 irradiance = texture(u_irradianceMap, N).rgb;
+    vec3 diffuseIBL = irradiance * baseColor.rgb;
+    
+    float MAX_REFLECTION_LOD = float(sl.radianceMipLevelCount) - 1.0;
+    vec3 R = reflect(-V, N);
+    vec3 prefilteredColor = textureLod(u_prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec2 envBRDF = texture(u_brdfLut, vec2(NdotV, roughness)).rg;
+    vec3 specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
+    
+    vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * u_ambientIntensity;
+    
+    float ao = 1.0;
+    if (u_hasOcclusionTexture) {
+        ao = texture(u_occlusionTexture, v_uv).r;
+        ao = 1.0 + u_occlusionStrength * (ao - 1.0);
+    }
+    vec3 color = ambient * ao + Lo;
     
     // glTF 2.0 requires linear output converted to sRGB. We also apply simple tone mapping.
     color = color / (color + vec3(1.0));

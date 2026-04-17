@@ -28,7 +28,7 @@ class FlyCamera {
     this.scrollSensitivity = 0.1,
     this.speed = 5.0,
     this.fov = 70.0,
-    this.near = 0.1,
+    this.near = 0.01,
     this.far = 1000.0,
     Vector3? position,
     double? pitch,
