@@ -3,7 +3,7 @@ precision highp float;
 precision highp sampler2DArrayShadow;
 precision highp sampler2DArray;
 
-const float SHADOW_NORMAL_BIAS = 0.01;
+const float SHADOW_NORMAL_BIAS = 0.002;
 const float SHADOW_MIN_BIAS = 0.0005;
 const float SHADOW_MAX_BIAS = 0.005;
 
