@@ -117,6 +117,8 @@ final _uniformTypeInfos = {
   // sampler
   GL.SAMPLER_2D: _UniformTypeInfo('Sampler 2D (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
   GL.SAMPLER_CUBE: _UniformTypeInfo('Sampler Cube (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
+  GL.SAMPLER_2D_ARRAY: _UniformTypeInfo('Sampler 2D Array (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
+  GL.SAMPLER_2D_ARRAY_SHADOW: _UniformTypeInfo('Sampler 2D Array Shadow (Texture Binding Index)', {int}, (location, int value) => gl.uniform1i(location, value)),
   // unsigned int
   GL.UNSIGNED_INT: _UniformTypeInfo('uint', {int}, (location, int value) => gl.uniform1ui(location, value)),
   GL.UNSIGNED_INT_VEC2: _UniformTypeInfo('uvec2', {Vector2Int}, (location, Vector2Int value) => gl.uniform2ui(location, value.$1, value.$2)),
@@ -133,8 +135,10 @@ class Shader {
 
     tryBindUniformBlock('SL', 0);
     tryBindUniformBlock('Renderer', 1);
+    tryBindUniformBlock('DirectionalLight', 2);
 
     bind();
+    trySetUniform('u_cascadeShadowMap', 13);
     trySetUniform('u_irradianceMap', 14);
     trySetUniform('u_prefilterMap', 15);
   }

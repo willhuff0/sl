@@ -4,6 +4,7 @@ import 'package:sl_engine/editor/fly_camera.dart';
 import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
+import 'package:sl_engine/gl/directional_light.dart';
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/skybox.dart';
@@ -17,6 +18,7 @@ class SLEditor {
   static FlyCamera? _camera;
   static ModelPreviewGenerator? _modelPreviewGenerator;
   static Skybox? _skybox;
+  static DirectionalLight? _directionalLight;
 
   static FlyCamera? get camera => _camera;
   static ModelPreviewGenerator? get modelPreviewGenerator => _modelPreviewGenerator;
@@ -35,6 +37,8 @@ class SLEditor {
       position: Vector3(0.0, 4.0, 5.0),
       yaw: -90.0,
       pitch: -45.0,
+      near: 0.1,
+      far: 500.0,
     );
 
     Renderer.init();
@@ -44,6 +48,9 @@ class SLEditor {
 
     final hdri = (await HDRI.loadFromHdr('skybox_02.hdr'))!;
     _skybox = await Skybox.fromHdri(hdri);
+
+    _directionalLight = await DirectionalLight.create();
+    _directionalLight!.bindUbo();
 
     final model = (await GLTF.load('models/FlightHelmet.glb'))!;
     model.root.lScale = Vector3.all(4.0);
@@ -88,8 +95,10 @@ class SLEditor {
     _setEngineUbo();
     _bindAndClearCanvas();
 
-    _skybox!.bindIblMaps();
+    _directionalLight!.drawShadowMap();
+    _directionalLight!.bindShadowMap();
 
+    _skybox!.bindIblMaps();
     _skybox!.draw();
 
     DebugDraw.drawPoint(Vector3(0.0, 0.0, 0.0), size: 4);
@@ -98,11 +107,21 @@ class SLEditor {
     // final (viewPos, viewMat, projMat) = _camera!.getState()!;
     // Renderer.drawAllBounds(viewMat);
     Selector.draw();
+
+    // _directionalLight!.shadowMap.drawDebugView(size: 256);
   }
 
   static void _setEngineUbo() {
     final (viewPos, viewMat, projMat) = _camera!.getState()!;
     final viewProjMat = projMat * viewMat;
+
+    _directionalLight!.regenerateLightSpaceMatrices(
+      cameraViewMat: viewMat,
+      cameraNear: _camera!.near,
+      cameraFar: _camera!.far,
+      fovRad: radians(_camera!.fov),
+      aspect: canvas.width / canvas.height,
+    );
 
     SL.setUniforms(
       SLUniforms(
@@ -117,7 +136,7 @@ class SLEditor {
 
   static void _bindAndClearCanvas() {
     gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
-    gl.clearColor(1.0, 0.0, 0.0, 1.0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
   }
 }

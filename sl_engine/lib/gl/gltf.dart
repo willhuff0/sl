@@ -112,9 +112,6 @@ class GLTF {
     shader.setUniform('u_brdfLut', 5);
 
     shader.setUniform('u_ambientIntensity', 1.0);
-    shader.setUniform('u_sunDir', Vector3(-0.5, 1.0, -0.5).normalized());
-    // shader.setUniform('u_sunColor', Vector3(1.0, 1.0, 0.98));
-    shader.setUniform('u_sunColor', Vector3.zero());
 
     return shader;
   }

@@ -1,5 +1,7 @@
 #version 300 es
 precision highp float;
+precision highp sampler2DArrayShadow;
+precision highp sampler2DArray;
 
 layout(std140) uniform SL {
     mat4 viewProjMat;
@@ -9,6 +11,15 @@ layout(std140) uniform SL {
     highp uint radianceMipLevelCount;
 } sl;
 
+layout(std140) uniform DirectionalLight {
+    mat4 lightSpaceViewProjMat[4];
+    vec4 cascadeDistances;
+    vec3 direction;
+    vec3 color;
+    float cameraZFar;
+    highp uint cascadeCount;
+} directionalLight;
+
 in vec3 v_position;
 in vec3 v_normal;
 in vec3 v_tangent;
@@ -17,15 +28,15 @@ in vec2 v_uv;
 
 out vec4 o_color;
 
+// Directional Light
+uniform sampler2DArrayShadow u_cascadeShadowMap;
+// uniform sampler2DArray u_cascadeShadowMap;
+
 // Environment
 uniform float u_ambientIntensity;
 uniform samplerCube u_irradianceMap;
 uniform samplerCube u_prefilterMap;
 uniform sampler2D u_brdfLut;
-
-// Sun
-uniform vec3 u_sunDir;
-uniform vec3 u_sunColor;
 
 // PBR Material Uniforms
 uniform vec4 u_baseColorFactor;
@@ -144,10 +155,10 @@ void main() {
 
     vec3 V = normalize(sl.viewPos - v_position);
     
-    vec3 L = normalize(u_sunDir);
+    vec3 L = normalize(directionalLight.direction);
     vec3 H = normalize(V + L);
     
-    vec3 radiance = u_sunColor;
+    vec3 radiance = directionalLight.color;
     
     float NdotV = max(dot(N, V), 0.000001); // Prevent divide by zero
     float NdotL = max(dot(N, L), 0.0);
@@ -206,11 +217,50 @@ void main() {
         emissive *= eTex;
     }
     
-    vec3 color = ambient * ao + Lo + emissive;
+    // Shadow Calculation
+    vec4 viewSpacePos = sl.viewMat * vec4(v_position, 1.0);
+    float viewZ = abs(viewSpacePos.z);
+    
+    int cascadeIndex = -1;
+    for (int i = 0; i < int(min(directionalLight.cascadeCount, 4u)); i++) {
+        if (viewZ < directionalLight.cascadeDistances[i]) {
+            cascadeIndex = i;
+            break;
+        }
+    }
+    float shadow = 0.0;
+    if (cascadeIndex != -1) {
+        vec4 fragPosLightSpace = directionalLight.lightSpaceViewProjMat[cascadeIndex] * vec4(v_position, 1.0);
+        vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        projCoords = projCoords * 0.5 + 0.5;
+        
+        if (projCoords.z <= 1.0) {
+            float bias = max(0.05 * (1.0 - dot(N, L)), 0.005);
+            // Scale appropriately (using the cascade far plane)
+            bias *= 1.0 / directionalLight.cascadeDistances[cascadeIndex];
+
+            vec2 texelSize = 1.0 / vec2(textureSize(u_cascadeShadowMap, 0));
+            for(int x = -1; x <= 1; x++) {
+                for(int y = -1; y <= 1; y++) {
+                    shadow += 1.0 - texture(u_cascadeShadowMap, vec4(projCoords.xy, cascadeIndex, projCoords.z - bias));
+
+                    // vec2 sampleUv = projCoords.xy + vec2(x, y) * texelSize;
+                    // float pcfDepth = 1.0;
+                    // if (sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0) {
+                    //     pcfDepth = texture(u_cascadeShadowMap, vec3(sampleUv, cascadeIndex)).r;
+                    // }
+                    // shadow += projCoords.z - bias > pcfDepth ? 1.0 : 0.0;
+                }
+            }
+            shadow /= 9.0;
+        }
+    }
+    
+    vec3 color = ambient * ao + Lo * (1.0 - shadow) + emissive;
     
     // glTF 2.0 requires linear output converted to sRGB. We also apply simple tone mapping.
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2));
-    
+
     o_color = vec4(color, baseColor.a);
 }

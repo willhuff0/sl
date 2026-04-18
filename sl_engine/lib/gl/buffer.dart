@@ -24,7 +24,13 @@ class Buffer {
     gl.bindBuffer(type, null);
   }
 
-  void write(JSAny data, int usage, [int srcOffset = 0, int length = 0]) {
-    gl.bufferData(type, data, usage, srcOffset, length);
+  void write(JSAny data, int usage, [int? srcOffset, int? length]) {
+    if (length != null) {
+      gl.bufferData(type, data, usage, srcOffset ?? 0, length);
+    } else if (srcOffset != null) {
+      gl.bufferData(type, data, usage, srcOffset);
+    } else {
+      gl.bufferData(type, data, usage);
+    }
   }
 }
