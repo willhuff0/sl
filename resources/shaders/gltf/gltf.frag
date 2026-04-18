@@ -3,6 +3,10 @@ precision highp float;
 precision highp sampler2DArrayShadow;
 precision highp sampler2DArray;
 
+const float SHADOW_NORMAL_BIAS = 0.01;
+const float SHADOW_MIN_BIAS = 0.0005;
+const float SHADOW_MAX_BIAS = 0.005;
+
 layout(std140) uniform SL {
     mat4 viewProjMat;
     mat4 projMat;
@@ -117,6 +121,44 @@ mat3 getTangentFrame(vec3 normal, vec3 position, vec2 uv) {
     return mat3(tangent, bitangent, normal);
 }
 
+float calculateShadow(vec3 position, vec3 normal, vec3 lightDir) {
+    vec4 viewSpacePos = sl.viewMat * vec4(position, 1.0);
+    float viewZ = abs(viewSpacePos.z);
+    
+    int cascadeIndex = -1;
+    for (int i = 0; i < int(min(directionalLight.cascadeCount, 4u)); i++) {
+        if (viewZ < directionalLight.cascadeDistances[i]) {
+            cascadeIndex = i;
+            break;
+        }
+    }
+    
+    float shadow = 0.0;
+    if (cascadeIndex != -1) {
+        float normalOffsetScale = SHADOW_NORMAL_BIAS * directionalLight.cascadeDistances[cascadeIndex]; 
+        vec3 offsetPos = position + normal * normalOffsetScale;
+
+        vec4 fragPosLightSpace = directionalLight.lightSpaceViewProjMat[cascadeIndex] * vec4(offsetPos, 1.0);
+        vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        projCoords = projCoords * 0.5 + 0.5;
+        
+        if (projCoords.z <= 1.0) {
+            float slopeBias = SHADOW_MAX_BIAS * (1.0 - dot(normal, lightDir));
+            float bias = clamp(slopeBias, SHADOW_MIN_BIAS, SHADOW_MAX_BIAS);
+            bias *= 1.0 / directionalLight.cascadeDistances[cascadeIndex];
+
+            vec2 texelSize = 1.0 / vec2(textureSize(u_cascadeShadowMap, 0));
+            for(int x = -1; x <= 1; x++) {
+                for(int y = -1; y <= 1; y++) {
+                    shadow += 1.0 - texture(u_cascadeShadowMap, vec4(projCoords.xy + vec2(float(x), float(y)) * texelSize, cascadeIndex, projCoords.z - bias));
+                }
+            }
+            shadow /= 9.0;
+        }
+    }
+    return shadow;
+}
+
 void main() {
     // Fallback constants if uniforms aren't being set yet
     vec4 baseColor = u_baseColorFactor == vec4(0.0) ? vec4(0.8, 1.0, 1.0, 1.0) : u_baseColorFactor;
@@ -217,44 +259,7 @@ void main() {
         emissive *= eTex;
     }
     
-    // Shadow Calculation
-    vec4 viewSpacePos = sl.viewMat * vec4(v_position, 1.0);
-    float viewZ = abs(viewSpacePos.z);
-    
-    int cascadeIndex = -1;
-    for (int i = 0; i < int(min(directionalLight.cascadeCount, 4u)); i++) {
-        if (viewZ < directionalLight.cascadeDistances[i]) {
-            cascadeIndex = i;
-            break;
-        }
-    }
-    float shadow = 0.0;
-    if (cascadeIndex != -1) {
-        vec4 fragPosLightSpace = directionalLight.lightSpaceViewProjMat[cascadeIndex] * vec4(v_position, 1.0);
-        vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-        projCoords = projCoords * 0.5 + 0.5;
-        
-        if (projCoords.z <= 1.0) {
-            float bias = max(0.05 * (1.0 - dot(N, L)), 0.005);
-            // Scale appropriately (using the cascade far plane)
-            bias *= 1.0 / directionalLight.cascadeDistances[cascadeIndex];
-
-            vec2 texelSize = 1.0 / vec2(textureSize(u_cascadeShadowMap, 0));
-            for(int x = -1; x <= 1; x++) {
-                for(int y = -1; y <= 1; y++) {
-                    shadow += 1.0 - texture(u_cascadeShadowMap, vec4(projCoords.xy, cascadeIndex, projCoords.z - bias));
-
-                    // vec2 sampleUv = projCoords.xy + vec2(x, y) * texelSize;
-                    // float pcfDepth = 1.0;
-                    // if (sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0) {
-                    //     pcfDepth = texture(u_cascadeShadowMap, vec3(sampleUv, cascadeIndex)).r;
-                    // }
-                    // shadow += projCoords.z - bias > pcfDepth ? 1.0 : 0.0;
-                }
-            }
-            shadow /= 9.0;
-        }
-    }
+    float shadow = calculateShadow(v_position, N, L);
     
     vec3 color = ambient * ao + Lo * (1.0 - shadow) + emissive;
     

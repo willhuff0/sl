@@ -65,6 +65,11 @@ class SLEditor {
     model3.root.lScale = Vector3.all(4.0);
     model3.root.enterScene();
 
+    final floor = (await GLTF.load('models/Floor.glb'))!;
+    floor.root.lPos = Vector3(0.0, -1.0, 0.0);
+    floor.root.lScale = Vector3.all(1.0);
+    floor.root.enterScene();
+
     web.window.requestAnimationFrame(_frame.toJS);
   }
 

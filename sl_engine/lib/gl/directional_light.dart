@@ -180,8 +180,8 @@ class DirectionalLight {
     _csmDepthShader ??= (await Shader.load('shaders/shadows/csm_depth'))!;
 
     return DirectionalLight._(
-      direction: direction ?? Vector3(20.0, 50, 20.0).normalized(),
-      color: color ?? Vector3(1.0, 1.0, 0.98).scaled(10.0),
+      direction: direction ?? Vector3(20.0, 15.0, 20.0).normalized(),
+      color: color ?? Vector3(1.0, 1.0, 0.98).scaled(8.0),
       shadowMap: await CascadeShadowMap.create(shadowMapSize, shadowCascades),
       cascadePortions: cascadePortions,
       uniformBuffer: Buffer(GL.UNIFORM_BUFFER),
@@ -258,7 +258,7 @@ class DirectionalLight {
       maxZ = max(maxZ, cornerLightViewSpace.z);
     }
 
-    final zMult = 10.0;
+    final zMult = 5.0;
     if (minZ < 0) {
       minZ *= zMult;
     } else {
