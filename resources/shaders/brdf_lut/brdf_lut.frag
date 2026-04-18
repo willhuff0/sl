@@ -3,7 +3,7 @@ precision highp float;
 
 in vec2 v_texCoords;
 
-out vec2 o_color;
+out vec4 o_color;
 
 const float PI = 3.14159265359;
 
@@ -92,5 +92,5 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
 }
 
 void main() {
-    o_color = IntegrateBRDF(v_texCoords.x, v_texCoords.y);
+    o_color = vec4(IntegrateBRDF(v_texCoords.x, v_texCoords.y), 0.0, 1.0);
 }

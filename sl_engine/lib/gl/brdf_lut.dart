@@ -1,8 +1,9 @@
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/shader.dart';
+import 'package:sl_engine/gl/texture.dart';
 import 'package:web/web.dart' as web;
 
-class BrdfLut {
+class BrdfLut implements Texture {
   final web.WebGLTexture texture;
 
   BrdfLut._({required this.texture});
@@ -33,5 +34,11 @@ class BrdfLut {
 
     gl.bindFramebuffer(GL.FRAMEBUFFER, null);
     return BrdfLut._(texture: brdfLut);
+  }
+
+  @override
+  void bind(int slot) {
+    gl.activeTexture(GL.TEXTURE0 + slot);
+    gl.bindTexture(GL.TEXTURE_2D, texture);
   }
 }

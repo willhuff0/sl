@@ -5,6 +5,36 @@ import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:web/web.dart' as web;
 
+abstract interface class Texture {
+  void bind(int slot);
+}
+
+class ImageTexture implements Texture {
+  final Image image;
+
+  final int magFilter;
+  final int minFilter;
+  final int wrapS;
+  final int wrapT;
+
+  ImageTexture({
+    required this.image,
+    this.magFilter = GL.LINEAR,
+    this.minFilter = GL.LINEAR_MIPMAP_LINEAR,
+    this.wrapS = GL.REPEAT,
+    this.wrapT = GL.REPEAT,
+  });
+
+  @override
+  void bind(int slot) {
+    image.bind(slot);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, magFilter);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, minFilter);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, wrapS);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, wrapT);
+  }
+}
+
 class Image {
   late final web.WebGLTexture _texture;
 
@@ -45,30 +75,5 @@ class Image {
     gl.bindTexture(GL.TEXTURE_2D, _texture);
     gl.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, GL.RGBA.toJS, GL.UNSIGNED_BYTE.toJS, bitmap);
     gl.generateMipmap(GL.TEXTURE_2D);
-  }
-}
-
-class Texture {
-  final Image image;
-
-  final int magFilter;
-  final int minFilter;
-  final int wrapS;
-  final int wrapT;
-
-  Texture({
-    required this.image,
-    this.magFilter = GL.LINEAR,
-    this.minFilter = GL.LINEAR_MIPMAP_LINEAR,
-    this.wrapS = GL.REPEAT,
-    this.wrapT = GL.REPEAT,
-  });
-
-  void bind(int slot) {
-    image.bind(slot);
-    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, magFilter);
-    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, minFilter);
-    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, wrapS);
-    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, wrapT);
   }
 }

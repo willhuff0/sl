@@ -108,6 +108,7 @@ class GLTF {
     shader.setUniform('u_metallicRoughnessTexture', 1);
     shader.setUniform('u_normalTexture', 2);
     shader.setUniform('u_occlusionTexture', 3);
+    shader.setUniform('u_brdfLut', 4);
 
     shader.setUniform('u_ambientIntensity', 1.0);
     shader.setUniform('u_sunDir', Vector3(-0.5, 1.0, -0.5).normalized());
@@ -371,7 +372,7 @@ class GLTF {
         final image = await getGpuImage(imageIndex);
         if (image == null) return null;
 
-        cache = textureIndexToGpuTexture[index] = Texture(
+        cache = textureIndexToGpuTexture[index] = ImageTexture(
           image: image,
           magFilter: magFilter,
           minFilter: minFilter,
@@ -416,6 +417,7 @@ class GLTF {
         if (!await addTexture(1, material['pbrMetallicRoughness']?['metallicRoughnessTexture'])) return null;
         if (!await addTexture(2, material['normalTexture'])) return null;
         if (!await addTexture(3, material['occlusionTexture'])) return null;
+        textures[4] = _brdfLut!;
 
         cache = materialIndexToGpuMaterial[index] = Material(
           shader: _shader!,
