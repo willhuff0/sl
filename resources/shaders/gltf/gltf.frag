@@ -46,6 +46,10 @@ uniform sampler2D u_occlusionTexture;
 uniform bool u_hasOcclusionTexture;
 uniform float u_occlusionStrength;
 
+uniform sampler2D u_emissiveTexture;
+uniform bool u_hasEmissiveTexture;
+uniform vec3 u_emissiveFactor;
+
 const float PI = 3.14159265359;
 
 // Fresnel Schlick approximation
@@ -194,7 +198,15 @@ void main() {
         ao = texture(u_occlusionTexture, v_uv).r;
         ao = 1.0 + u_occlusionStrength * (ao - 1.0);
     }
-    vec3 color = ambient * ao + Lo;
+    
+    vec3 emissive = u_emissiveFactor;
+    if (u_hasEmissiveTexture) {
+        vec3 eTex = texture(u_emissiveTexture, v_uv).rgb;
+        eTex = pow(eTex, vec3(2.2));
+        emissive *= eTex;
+    }
+    
+    vec3 color = ambient * ao + Lo + emissive;
     
     // glTF 2.0 requires linear output converted to sRGB. We also apply simple tone mapping.
     color = color / (color + vec3(1.0));

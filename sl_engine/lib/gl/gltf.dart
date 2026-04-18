@@ -108,7 +108,8 @@ class GLTF {
     shader.setUniform('u_metallicRoughnessTexture', 1);
     shader.setUniform('u_normalTexture', 2);
     shader.setUniform('u_occlusionTexture', 3);
-    shader.setUniform('u_brdfLut', 4);
+    shader.setUniform('u_emissiveTexture', 4);
+    shader.setUniform('u_brdfLut', 5);
 
     shader.setUniform('u_ambientIntensity', 1.0);
     shader.setUniform('u_sunDir', Vector3(-0.5, 1.0, -0.5).normalized());
@@ -393,6 +394,7 @@ class GLTF {
         final roughnessFactor = material['pbrMetallicRoughness']?['roughnessFactor'] as double? ?? 1.0;
         final normalScale = material['normalTexture']?['scale'] as double? ?? 1.0;
         final occlusionStrength = material['occlusionTexture']?['strength'] as double? ?? 1.0;
+        final emissiveFactor = _listToVector3(material['emissiveFactor'] as List<dynamic>? ?? [0.0, 0.0, 0.0]);
 
         final Map<int, Texture> textures = {};
         Future<bool> addTexture(int slot, Map<String, dynamic>? textureInfo) async {
@@ -417,7 +419,8 @@ class GLTF {
         if (!await addTexture(1, material['pbrMetallicRoughness']?['metallicRoughnessTexture'])) return null;
         if (!await addTexture(2, material['normalTexture'])) return null;
         if (!await addTexture(3, material['occlusionTexture'])) return null;
-        textures[4] = _brdfLut!;
+        if (!await addTexture(4, material['emissiveTexture'])) return null;
+        textures[5] = _brdfLut!;
 
         cache = materialIndexToGpuMaterial[index] = Material(
           shader: _shader!,
@@ -427,10 +430,12 @@ class GLTF {
             'u_roughnessFactor': roughnessFactor,
             'u_normalScale': normalScale,
             'u_occlusionStrength': occlusionStrength,
+            'u_emissiveFactor': emissiveFactor,
             'u_hasBaseColorTexture': textures.containsKey(0),
             'u_hasMetallicRoughnessTexture': textures.containsKey(1),
             'u_hasNormalTexture': textures.containsKey(2),
             'u_hasOcclusionTexture': textures.containsKey(3),
+            'u_hasEmissiveTexture': textures.containsKey(4),
           },
           textures: textures,
         );

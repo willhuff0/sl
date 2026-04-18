@@ -54,7 +54,7 @@ class SLEditor {
     model2.root.enterScene();
 
     final model3 = (await GLTF.load('models/ABeautifulGame.glb'))!;
-    model3.root.lPos = Vector3(-3.0, 1.0, 0.0);
+    model3.root.lPos = Vector3(-3.0, 0.5, 0.0);
     model3.root.lScale = Vector3.all(4.0);
     model3.root.enterScene();
 
