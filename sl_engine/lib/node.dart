@@ -101,7 +101,7 @@ class Node {
   Vector3 get wPos {
     if (_parent == null) return _lPos;
     if (_wDirty) {
-      _updateWorldFromParent();
+      updateWorldFromParent();
       _wDirty = false;
     }
     return _wPos;
@@ -110,7 +110,7 @@ class Node {
   Quaternion get wRot {
     if (_parent == null) return _lRot;
     if (_wDirty) {
-      _updateWorldFromParent();
+      updateWorldFromParent();
       _wDirty = false;
     }
     return _wRot;
@@ -119,7 +119,7 @@ class Node {
   Vector3 get wScale {
     if (_parent == null) return _lScale;
     if (_wDirty) {
-      _updateWorldFromParent();
+      updateWorldFromParent();
       _wDirty = false;
     }
     return _wScale;
@@ -160,7 +160,7 @@ class Node {
     _wDirty = false;
   }
 
-  void _updateWorldFromParent() {
+  void updateWorldFromParent() {
     final scaledLPos = Vector3.copy(_lPos)..multiply(_parent!.wScale);
     final rotatedLPos = _parent!.wRot.inverted().rotate(scaledLPos);
 
@@ -217,6 +217,13 @@ class Node {
 
   void removeChild(Node child) {
     if (_children.remove(child)) child._parent = null;
+  }
+
+  void removeAllChildren() {
+    for (final child in _children) {
+      child._parent = null;
+    }
+    _children.clear();
   }
 
   void addComponent(Component component) {

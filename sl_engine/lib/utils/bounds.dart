@@ -24,17 +24,17 @@ class Bounds {
   static Aabb3 computeLocalBounds(Node node) {
     final rootPos = node.wPos.clone();
     final rootRot = node.wRot.clone();
-    final rootScale = node.wScale.clone();
+    // final rootScale = node.wScale.clone();
 
     node.wPos = Vector3.zero();
     node.wRot = Quaternion.identity();
-    node.wScale = Vector3.all(1.0);
+    // node.wScale = Vector3.all(1.0);
 
     final localBounds = computeBounds(node);
 
     node.wPos = rootPos;
     node.wRot = rootRot;
-    node.wScale = rootScale;
+    // node.wScale = rootScale;
 
     return localBounds;
   }

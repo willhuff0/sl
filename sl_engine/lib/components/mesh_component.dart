@@ -17,12 +17,6 @@ class MeshComponent extends Component {
   }
 
   @override
-  void enterScene() {
-    Renderer.addNode(node, material, mesh);
-    super.enterScene();
-  }
-
-  @override
   void onDisable() {
     Renderer.removeNode(node, material, mesh);
   }
