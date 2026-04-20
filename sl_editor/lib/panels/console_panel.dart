@@ -201,7 +201,9 @@ class _LogWidget extends StatelessWidget {
                     : null,
                 child: expanded
                     ? SelectableText(
-                        '${log.message}\n\n==== Stack Trace ====\n${log.stackChain}'.trim(),
+                        log.stackChain == null
+                            ? log.message.trim()
+                            : '${log.message}\n\n==== Stack Trace ====\n${log.stackChain}'.trim(),
                         scrollPhysics: NeverScrollableScrollPhysics(),
                         style: GoogleFonts.robotoMono(),
                       )

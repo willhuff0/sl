@@ -63,5 +63,6 @@ class DebugDraw {
     _box3DShader.setUniform('u_color', color ?? Vector4(1.0, 1.0, 1.0, 1.0));
     _cubeMesh.bind();
     _cubeMesh.draw();
+    _cubeMesh.unbind();
   }
 }

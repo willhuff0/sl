@@ -419,7 +419,7 @@ class AssetBlobTransferer {
           offset: offset,
         ),
       );
-      return await pendingDownload.completer.future;
+      return pendingDownload.completer.future;
     } catch (_) {
       _pendingDownloads.remove(uuid);
       rethrow;

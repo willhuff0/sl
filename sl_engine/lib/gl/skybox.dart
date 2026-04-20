@@ -96,6 +96,8 @@ class CubeMap {
       }
     }
 
+    _cubeMesh.unbind();
+
     gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     return CubeMap._(
       texture: cubeMap,
@@ -234,6 +236,7 @@ class Skybox {
     environmentMap.bind(0);
     _cubeMesh.bind();
     _cubeMesh.draw();
+    _cubeMesh.unbind();
     gl.depthMask(true);
     gl.depthFunc(GL.LESS);
   }

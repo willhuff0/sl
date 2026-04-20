@@ -125,11 +125,18 @@ class Renderer {
       mesh.bind();
       mesh.draw();
     }
+
+    gl.bindVertexArray(null);
   }
 
   static void renderNodeCustomShader(Node node, {required void Function(Node node) bindUniformsCallback}) {
+    _renderNodeCustomShader(node, bindUniformsCallback: bindUniformsCallback);
+    gl.bindVertexArray(null);
+  }
+
+  static void _renderNodeCustomShader(Node node, {required void Function(Node node) bindUniformsCallback}) {
     for (final child in node.children) {
-      renderNodeCustomShader(child, bindUniformsCallback: bindUniformsCallback);
+      _renderNodeCustomShader(child, bindUniformsCallback: bindUniformsCallback);
     }
 
     bindUniformsCallback(node);
@@ -153,11 +160,17 @@ class Renderer {
       mesh.bind();
       mesh.draw();
     });
+    gl.bindVertexArray(null);
   }
 
   static void renderUnregisteredNode(Node node) {
+    _renderUnregisteredNode(node);
+    gl.bindVertexArray(null);
+  }
+
+  static void _renderUnregisteredNode(Node node) {
     for (final child in node.children) {
-      renderUnregisteredNode(child);
+      _renderUnregisteredNode(child);
     }
 
     final meshComponents = node.components.whereType<MeshComponent>();
@@ -180,6 +193,7 @@ class Renderer {
         }
       });
     });
+    gl.bindVertexArray(null);
   }
 
   static void drawAllBounds(Matrix4 viewMat) {

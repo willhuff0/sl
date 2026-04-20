@@ -112,28 +112,29 @@ class AssetSystem {
 
   Completer? _getAssetBlobLock;
   Future<Uint8List?> getAssetBlob(UUID uuid, {bool keepCopyInMemory = true}) async {
+    // Logger.log('Trying to get blob: $uuid');
     while (_getAssetBlobLock != null) {
       await _getAssetBlobLock?.future;
     }
     _getAssetBlobLock = Completer();
+    // Logger.log('Getting blob: $uuid');
+
+    // Store the future representing the ongoing request/download
+    Future<Uint8List?>? resultFuture;
+
     try {
       final localEntry = await _localDatabase.getAsset(uuid);
 
       final activeDownload = await _blobTransferer.getActiveDownload(uuid);
       if (activeDownload != null) {
         // Asset download is alive and active
-
-        // active download keepCopyInMemory may not be true
         if (keepCopyInMemory && !activeDownload.isKeepingCopyInMemory) {
-          return activeDownload.onComplete.then((_) => _blobFilesystem.getAssetBlobFromFile(uuid));
+          resultFuture = activeDownload.onComplete.then((_) => _blobFilesystem.getAssetBlobFromFile(uuid));
         } else {
-          return activeDownload.onComplete;
+          resultFuture = activeDownload.onComplete;
         }
-      }
-
-      if (localEntry != null) {
+      } else if (localEntry != null) {
         // Asset is tracked locally
-
         if (localEntry.downloadProgress != null) {
           // Asset download is in progress needs to be resumed
           final download = await _blobTransferer.requestDownload(
@@ -141,13 +142,9 @@ class AssetSystem {
             offset: localEntry.downloadProgress!,
             keepCopyInMemory: keepCopyInMemory,
           );
-          return download?.onComplete;
-        }
-
-        if (localEntry.blobSize != null) {
+          resultFuture = download?.onComplete;
+        } else if (localEntry.blobSize != null) {
           // Asset is available locally
-
-          // check if remote blob is newer
           var localBlobVersion = localEntry.blobVersion;
           if (localBlobVersion == null) {
             Logger.log(
@@ -155,56 +152,59 @@ class AssetSystem {
               .warning,
             );
             final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
-            return download?.onComplete;
-          }
-
-          final rows = await _sharedDatabase.query(
-            'SELECT uuid, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0',
-            [uuid],
-          );
-          if (rows.isEmpty) {
-            Logger.log(
-              'Tried to load the blob for asset $uuid, which does not exist. The asset blob was incorrectly marked as locally available.',
-              .error,
+            resultFuture = download?.onComplete;
+          } else {
+            final rows = await _sharedDatabase.query(
+              'SELECT uuid, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0',
+              [uuid],
             );
-            return null;
-          }
-          final remoteBlobVersion = rows.first['blob_version'] as int?;
-          if (remoteBlobVersion == null) {
-            Logger.log(
-              'Tried to load the blob for asset $uuid which has not been uploaded yet. The asset blob was incorrectly marked as locally available.',
-              .error,
-            );
-            return null;
-          }
-          if (remoteBlobVersion > localBlobVersion) {
-            // local file is out of date
 
-            final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
-            return download?.onComplete;
+            if (rows.isEmpty) {
+              Logger.log(
+                'Tried to load the blob for asset $uuid, which does not exist. The asset blob was incorrectly marked as locally available.',
+                .error,
+              );
+              resultFuture = Future.value(null);
+            } else {
+              final remoteBlobVersion = rows.first['blob_version'] as int?;
+              if (remoteBlobVersion == null) {
+                Logger.log(
+                  'Tried to load the blob for asset $uuid which has not been uploaded yet. The asset blob was incorrectly marked as locally available.',
+                  .error,
+                );
+                resultFuture = Future.value(null);
+              } else if (remoteBlobVersion > localBlobVersion) {
+                // local file is out of date
+                final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
+                resultFuture = download?.onComplete;
+              } else {
+                // local file is up to date
+                resultFuture = _blobFilesystem.getAssetBlobFromFile(uuid).then((bytes) async {
+                  if (bytes != null) return bytes;
+
+                  // file doesn't exist (this is a bug, redownload)
+                  Logger.log(
+                    'Tried to load the blob for asset $uuid from its OPFS file, which does not exist. The asset blob was incorrectly marked as locally available. Reacquiring...',
+                    .warning,
+                  );
+                  final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
+                  return download?.onComplete;
+                });
+              }
+            }
           }
-
-          // local file is up to date
-          final bytes = await _blobFilesystem.getAssetBlobFromFile(uuid);
-          if (bytes != null) return bytes;
-
-          // file doesn't exist (this is a bug, redownload)
-          Logger.log(
-            'Tried to load the blob for asset $uuid from its OPFS file, which does not exist. The asset blob was incorrectly marked as locally available. Reacquiring...',
-            .warning,
-          );
-          final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
-          return download?.onComplete;
         }
+      } else {
+        // Asset is not tracked locally
+        final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
+        resultFuture = download?.onComplete;
       }
-
-      // Asset is not tracked locally
-
-      final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
-      return download?.onComplete;
     } finally {
+      // Logger.log('Unlocking: $uuid');
       _getAssetBlobLock?.complete();
       _getAssetBlobLock = null;
     }
+
+    return resultFuture;
   }
 }

@@ -142,9 +142,10 @@ class SceneSystem {
         final redirects = (asset.properties?['redirects'] as Map?)?.cast<String, UUID>() ?? {};
         redirects[gltfPath] = asset.uuid;
         final resourceLoader = GLTFAssetResourceLoader(redirects: redirects);
-        return await GLTF.load(gltfPath, resourceLoader: resourceLoader);
+        return _gltfCache[asset.uuid] = await GLTF.load(gltfPath, resourceLoader: resourceLoader);
       }();
     }
+    // Logger.log('adding gltf \'${asset.uuid}\' to ${realNode.name.get()}');
     final gltf = await _gltfCache[asset.uuid];
     if (gltf == null) return;
 

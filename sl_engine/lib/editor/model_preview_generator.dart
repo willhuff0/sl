@@ -60,6 +60,10 @@ class ModelPreviewGenerator {
   }
 
   Future<(Uint8List, String)> generateModelPreview(Node node, {int size = _defaultPreviewSize}) async {
+    while (SLEditor.skybox == null) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+
     _outputTexture.resize(size, size);
 
     _outputTexture.bindFramebuffer();
@@ -128,9 +132,6 @@ class ModelPreviewGenerator {
     );
     final projMat = makePerspectiveMatrix(_fov, 1.0, nearPlane, farPlane);
     projMat[5] *= -1;
-    while (SLEditor.skybox == null) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
     SL.setUniforms(
       SLUniforms(
         viewProjMat: projMat * viewMat,
@@ -148,12 +149,12 @@ class ModelPreviewGenerator {
     gl.readPixels(0, 0, size, size, GL.RGBA, GL.UNSIGNED_BYTE, imageData.data);
     _offscreenContext.putImageData(imageData, 0, 0);
 
-    final blob = await _offscreenCanvas.convertToBlob(web.ImageEncodeOptions(type: 'image/webp')).toDart;
-    final bytes = (await blob.arrayBuffer().toDart).toDart.asUint8List();
-
     _outputTexture.unbindFramebuffer();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+    final blob = await _offscreenCanvas.convertToBlob(web.ImageEncodeOptions(type: 'image/webp')).toDart;
+    final bytes = (await blob.arrayBuffer().toDart).toDart.asUint8List();
 
     return (bytes, blob.type);
   }
