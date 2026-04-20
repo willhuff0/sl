@@ -62,8 +62,8 @@ class StcSetSelf extends Message {
   StcSetSelf({required this.clientId});
 
   @override
-  String get messageClass => '$StcSetSelf';
-  static String get messageClassS => '$StcSetSelf';
+  String get messageClass => 'StcSetSelf';
+  static String get messageClassS => 'StcSetSelf';
 
   factory StcSetSelf.fromJson(Map<String, dynamic> json) => _$StcSetSelfFromJson(json);
   Map<String, dynamic> toJson() => _$StcSetSelfToJson(this);

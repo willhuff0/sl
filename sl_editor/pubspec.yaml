@@ -24,7 +24,8 @@ dependencies:
   google_fonts: ^8.0.2
   desktop_drop: ^0.7.0
   cross_file: ^0.3.5+2
-  sqlite_crdt: ^3.0.4
+  sqlite_crdt:
+    git: https://github.com/willhuff0/sqlite_crdt
   sembast_web: ^2.4.4+1
   archive: ^4.0.9
   http: ^1.6.0

@@ -133,7 +133,12 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
               children: _foldedAssets!.map(
                 (foldedAsset) {
                   final asset = _assets![foldedAsset.uuid]!;
-                  return _AssetEntryWidget(key: ValueKey(asset), asset: asset);
+                  return _AssetEntryWidget(
+                    key: ValueKey(asset.updatedAt),
+                    asset: asset,
+                    assets: _assets!,
+                    folded: foldedAsset,
+                  );
                 },
               ).toList(),
             ),
@@ -144,23 +149,67 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
 class _AssetEntryWidget extends StatefulWidget {
   final Asset asset;
 
-  const _AssetEntryWidget({super.key, required this.asset});
+  final Map<UUID, Asset> assets;
+  final FoldedAsset folded;
+
+  const _AssetEntryWidget({
+    super.key,
+    required this.asset,
+    required this.assets,
+    required this.folded,
+  });
 
   @override
   State<_AssetEntryWidget> createState() => _AssetEntryWidgetState();
 }
 
 class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
+  final GlobalKey _cardKey = GlobalKey();
+  final GlobalKey _floatingCardKey = GlobalKey();
+
   late final StreamSubscription _tempProgressChangedSubscription;
+  final Map<UUID, AssetTransferProgress> _progresses = {};
   var progress = 1.0;
+
+  Set<UUID> _getAllUuids(FoldedAsset folded) {
+    final uuids = {folded.uuid};
+    for (final sub in folded.subAssets) {
+      uuids.addAll(_getAllUuids(sub));
+    }
+    return uuids;
+  }
 
   @override
   void initState() {
     _tempProgressChangedSubscription = tempProgressChanged.listen((event) {
       if (!mounted) return;
-      if (event.$1 == widget.asset.uuid) {
+
+      final allUuids = _getAllUuids(widget.folded);
+      if (allUuids.contains(event.$1)) {
+        _progresses[event.$1] = event.$2;
+
+        int totalSize = 0;
+        int completedSize = 0;
+
+        for (final uuid in allUuids) {
+          final asset = widget.assets[uuid];
+          final p = _progresses[uuid];
+          final size = p?.byteLength ?? asset?.blobSize;
+
+          if (size != null) {
+            totalSize += size;
+            if (p != null) {
+              completedSize += p.bytesCompleted;
+            }
+          }
+        }
+
         setState(() {
-          progress = event.$2.progress;
+          if (totalSize > 0) {
+            progress = completedSize / totalSize;
+          } else {
+            progress = event.$2.progress;
+          }
         });
       }
     });
@@ -185,28 +234,7 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final card = Padding(
-      padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _AssetThumbWidget(key: ValueKey(widget.asset), asset: widget.asset),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 2.0, bottom: 2.0),
-            child: Text(
-              widget.asset.name,
-              style: TextStyle(fontSize: 11.0),
-              maxLines: 2,
-              overflow: TextOverflow.fade,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    final entryVisual = SizedBox(
+    Widget getEntryVisual(Key cardKey) => SizedBox(
       width: 200.0 / 1.5,
       height: 214.0 / 1.5,
       child: ShadCard(
@@ -214,7 +242,9 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
         child: progress < 0.999
             ? Stack(
                 children: [
-                  Positioned.fill(child: card),
+                  Positioned.fill(
+                    child: _AssetCardWidget(key: cardKey, asset: widget.asset),
+                  ),
                   Positioned.fill(
                     bottom: 214.0 / 1.5 - 6,
                     child: ShadProgress(
@@ -224,16 +254,16 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
                   ),
                 ],
               )
-            : card,
+            : _AssetCardWidget(key: cardKey, asset: widget.asset),
       ),
     );
 
     return Draggable<Asset>(
       data: widget.asset,
-      feedback: entryVisual,
+      feedback: getEntryVisual(_floatingCardKey),
       childWhenDragging: Opacity(
         opacity: 0.6,
-        child: entryVisual,
+        child: getEntryVisual(_cardKey),
       ),
       child: GestureDetector(
         onDoubleTap: _openAsset,
@@ -267,8 +297,46 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
               },
             ),
           ],
-          child: entryVisual,
+          child: getEntryVisual(_cardKey),
         ),
+      ),
+    );
+  }
+}
+
+class _AssetCardWidget extends StatefulWidget {
+  final Asset asset;
+
+  const _AssetCardWidget({super.key, required this.asset});
+
+  @override
+  State<_AssetCardWidget> createState() => __AssetCardWidgetState();
+}
+
+class __AssetCardWidgetState extends State<_AssetCardWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 4.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _AssetThumbWidget(
+              key: ValueKey(widget.asset.uuid),
+              asset: widget.asset,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 2.0, bottom: 2.0),
+            child: Text(
+              widget.asset.name,
+              style: TextStyle(fontSize: 11.0),
+              maxLines: 2,
+              overflow: TextOverflow.fade,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -290,12 +358,16 @@ class _AssetThumbWidgetState extends State<_AssetThumbWidget> {
   @override
   void initState() {
     uri = AssetThumbs.getUri(widget.asset.uuid);
-    _load();
+
+    if (widget.asset.type != .unsupported && widget.asset.type != .directory) {
+      _mime = AssetThumbs.getCachedMime(widget.asset.uuid);
+      if (_mime == null) _load();
+    }
+
     super.initState();
   }
 
   Future<void> _load() async {
-    if (widget.asset.type == .unsupported || widget.asset.type == .directory) return;
     final mime = await AssetThumbs.getMime(widget.asset.uuid);
     if (!mounted) return;
     setState(() {

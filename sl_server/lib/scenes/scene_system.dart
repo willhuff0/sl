@@ -115,6 +115,12 @@ class SceneSystem {
     return newScene;
   }
 
+  Future<void> dispose() async {
+    for (final scene in _scenes.values) {
+      await scene.dispose();
+    }
+  }
+
   Future<void> removeClient(Client client) async {
     await _removeClientFromScene(client);
   }

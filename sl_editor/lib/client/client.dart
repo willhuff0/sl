@@ -11,7 +11,7 @@ import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const tickInterval = Duration(milliseconds: 1000);
+const tickInterval = Duration(milliseconds: 400);
 
 class Client {
   final String projectId;
@@ -33,11 +33,13 @@ class Client {
   static Future<Client> connect({
     required String projectId,
     required Uri serverUri,
+    void Function()? onDisconnected,
+    void Function()? onFailedToConnect,
   }) async {
     final database = await openDatabase(p.join(projectId, 'db.sqlite3'));
     final socket = WebSocketChannel.connect(
       serverUri.replace(
-        scheme: 'ws',
+        scheme: 'wss',
         path: 'joinRoom',
         queryParameters: {
           'room': projectId,
@@ -51,7 +53,7 @@ class Client {
     );
     client.assetSystem = await AssetSystem.create(client, database, projectId);
     await socket.ready;
-    client._listen();
+    unawaited(client._listen().then((_) => onDisconnected?.call()));
     return client;
   }
 
@@ -81,18 +83,18 @@ class Client {
     _tickTimer.cancel();
   }
 
-  void _listen() async {
+  Future<void> _listen() async {
     await for (final data in _socket.stream) {
       await _onData(data);
     }
   }
 
   Future<void> _onData(dynamic data) async {
-    if (data is Uint8List) {
-      print('Client received ${data.length} bytes');
-    } else {
-      print('Client received: $data');
-    }
+    // if (data is Uint8List) {
+    //   print('Client received ${data.length} bytes');
+    // } else {
+    //   print('Client received: $data');
+    // }
 
     if (_socket.closeCode != null) return;
 

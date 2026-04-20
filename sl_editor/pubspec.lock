@@ -101,18 +101,18 @@ packages:
     dependency: "direct main"
     description:
       name: desktop_drop
-      sha256: e70b46b2d61f1af7a81a40d1f79b43c28a879e30a4ef31e87e9c27bea4d784e8
+      sha256: aa1e797255bfbc76f9eb5aa4f61e5b68dbf69962ab1be6495816d2f251bc0d1f
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   dev_build:
     dependency: transitive
     description:
       name: dev_build
-      sha256: b8f6c8c6e4179bf749652efa2f4fd44f1f07cdab2c4f078b777d9bf2320765cf
+      sha256: fab11ef55932f5805c405a7597ae5c7e0908e33c0120bd7a9dfda44bdf86c35f
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.5+2"
+    version: "1.1.5+3"
   es2023:
     dependency: transitive
     description:
@@ -324,10 +324,10 @@ packages:
     dependency: transitive
     description:
       name: lucide_icons_flutter
-      sha256: df29c1cf4f19f9309f5204d40e0ba95338d9946a8ffdb4d75cf9aaccf449ce41
+      sha256: "2d30a7bdd308b853f04e4eefc755e00df34d645c6c08b5591271cf38127e75f1"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.12"
+    version: "3.1.13"
   material_color_utilities:
     dependency: transitive
     description:
@@ -596,10 +596,11 @@ packages:
   sqlite_crdt:
     dependency: "direct main"
     description:
-      name: sqlite_crdt
-      sha256: "11ce9f5b583a7c3c09f806223e2a6b1733daab45214a2b8f7ab250887382987e"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "7a15d571ffe23459eefa0ed5fe8d03b1fe077197"
+      url: "https://github.com/willhuff0/sqlite_crdt"
+    source: git
     version: "3.0.4"
   sqlparser:
     dependency: transitive
@@ -677,10 +678,10 @@ packages:
     dependency: transitive
     description:
       name: universal_image
-      sha256: ef47a4a002158cf0b36ed3b7605af132d2476cc42703e41b8067d3603705c40d
+      sha256: "2eae13df84a47960cc4148fec88f09031ea64cbf667b4131ff2c907dd7b7c6d1"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.11"
+    version: "1.0.12"
   universal_platform:
     dependency: transitive
     description:

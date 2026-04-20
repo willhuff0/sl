@@ -32,7 +32,7 @@ class AssetSystem {
     final crdtSync = CrdtSync.client(
       sharedDatabase,
       send: (message) => client.send(PtpCrdtSync(message: message)),
-      verbose: true,
+      verbose: false,
     );
     final localDatabase = await LocalAssetDatabase.open(projectId);
     final blobFilesystem = await AssetBlobFilesystem.open(projectId);

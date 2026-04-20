@@ -14,7 +14,7 @@ import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:path/path.dart' as p;
 
-const tickInterval = Duration(milliseconds: 1000);
+const tickInterval = Duration(milliseconds: 400);
 
 final _random = Random();
 final List<int> _colors = [
@@ -73,6 +73,7 @@ class Server {
 
   Future<void> dispose() async {
     _tickTimer.cancel();
+    await _sceneSystem.dispose();
     await _database.close();
   }
 
@@ -120,23 +121,23 @@ class Server {
 
     await _assetSystem.addClient(client);
 
-    // try {
-    await for (final data in socket.stream) {
-      await _onData(client, data);
+    try {
+      await for (final data in socket.stream) {
+        await _onData(client, data);
+      }
+    } catch (e) {
+      print('Error occurred while handling message for client ${client.clientId}: $e');
+      await removeClient(client);
     }
-    // } catch (e) {
-    //   print('Error occurred while handling message for client ${client.clientId}: $e');
-    //   await removeClient(client);
-    // }
     await removeClient(client);
   }
 
   Future<void> _onData(Client client, dynamic data) async {
-    if (data is Uint8List) {
-      print('From ${client.clientId} server received ${data.length} bytes');
-    } else {
-      print('From ${client.clientId} server received: $data');
-    }
+    // if (data is Uint8List) {
+    //   print('From ${client.clientId} server received ${data.length} bytes');
+    // } else {
+    //   print('From ${client.clientId} server received: $data');
+    // }
 
     switch (data) {
       case String string:

@@ -27,8 +27,8 @@ class CtsDeleteAssets extends Message {
   });
 
   @override
-  String get messageClass => '$CtsDeleteAssets';
-  static String get messageClassS => '$CtsDeleteAssets';
+  String get messageClass => 'CtsDeleteAssets';
+  static String get messageClassS => 'CtsDeleteAssets';
 
   factory CtsDeleteAssets.fromJson(Map<String, dynamic> json) => _$CtsDeleteAssetsFromJson(json);
 
@@ -46,8 +46,8 @@ class CtsRequestAssetBlob extends Message {
   });
 
   @override
-  String get messageClass => '$CtsRequestAssetBlob';
-  static String get messageClassS => '$CtsRequestAssetBlob';
+  String get messageClass => 'CtsRequestAssetBlob';
+  static String get messageClassS => 'CtsRequestAssetBlob';
 
   factory CtsRequestAssetBlob.fromJson(Map<String, dynamic> json) => _$CtsRequestAssetBlobFromJson(json);
 
@@ -67,8 +67,8 @@ class PtpAssetBlobStart extends Message {
   });
 
   @override
-  String get messageClass => '$PtpAssetBlobStart';
-  static String get messageClassS => '$PtpAssetBlobStart';
+  String get messageClass => 'PtpAssetBlobStart';
+  static String get messageClassS => 'PtpAssetBlobStart';
 
   factory PtpAssetBlobStart.fromJson(Map<String, dynamic> json) => _$PtpAssetBlobStartFromJson(json);
 
@@ -86,8 +86,8 @@ class PtpAssetBlobEnd extends Message {
   });
 
   @override
-  String get messageClass => '$PtpAssetBlobEnd';
-  static String get messageClassS => '$PtpAssetBlobEnd';
+  String get messageClass => 'PtpAssetBlobEnd';
+  static String get messageClassS => 'PtpAssetBlobEnd';
 
   factory PtpAssetBlobEnd.fromJson(Map<String, dynamic> json) => _$PtpAssetBlobEndFromJson(json);
 
@@ -105,8 +105,8 @@ class StcAssetBlobProgress extends Message {
   });
 
   @override
-  String get messageClass => '$StcAssetBlobProgress';
-  static String get messageClassS => '$StcAssetBlobProgress';
+  String get messageClass => 'StcAssetBlobProgress';
+  static String get messageClassS => 'StcAssetBlobProgress';
 
   factory StcAssetBlobProgress.fromJson(Map<String, dynamic> json) => _$StcAssetBlobProgressFromJson(json);
 
@@ -124,8 +124,8 @@ class PtpAssetBlobError extends Message {
   });
 
   @override
-  String get messageClass => '$PtpAssetBlobError';
-  static String get messageClassS => '$PtpAssetBlobError';
+  String get messageClass => 'PtpAssetBlobError';
+  static String get messageClassS => 'PtpAssetBlobError';
 
   factory PtpAssetBlobError.fromJson(Map<String, dynamic> json) => _$PtpAssetBlobErrorFromJson(json);
 

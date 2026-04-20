@@ -35,8 +35,8 @@ class CtsStateChanges extends Message {
   });
 
   @override
-  String get messageClass => '$CtsStateChanges';
-  static String get messageClassS => '$CtsStateChanges';
+  String get messageClass => 'CtsStateChanges';
+  static String get messageClassS => 'CtsStateChanges';
 
   factory CtsStateChanges.fromJson(Map<String, dynamic> json) => _$CtsStateChangesFromJson(json);
   Map<String, dynamic> toJson() => _$CtsStateChangesToJson(this);
@@ -53,8 +53,8 @@ class StcLocalChangeDecisions extends Message {
   });
 
   @override
-  String get messageClass => '$StcLocalChangeDecisions';
-  static String get messageClassS => '$StcLocalChangeDecisions';
+  String get messageClass => 'StcLocalChangeDecisions';
+  static String get messageClassS => 'StcLocalChangeDecisions';
 
   factory StcLocalChangeDecisions.fromJson(Map<String, dynamic> json) => _$StcLocalChangeDecisionsFromJson(json);
   Map<String, dynamic> toJson() => _$StcLocalChangeDecisionsToJson(this);
@@ -73,8 +73,8 @@ class StcRemoteChanges extends Message {
   });
 
   @override
-  String get messageClass => '$StcRemoteChanges';
-  static String get messageClassS => '$StcRemoteChanges';
+  String get messageClass => 'StcRemoteChanges';
+  static String get messageClassS => 'StcRemoteChanges';
 
   factory StcRemoteChanges.fromJson(Map<String, dynamic> json) => _$StcRemoteChangesFromJson(json);
   Map<String, dynamic> toJson() => _$StcRemoteChangesToJson(this);

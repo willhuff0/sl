@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
@@ -57,15 +58,15 @@ class _GLTFMeshPrimitive implements Mesh {
 }
 
 Vector3 _listToVector3(List<dynamic> list) {
-  return Vector3(list[0], list[1], list[2]);
+  return Vector3(list[0].toDouble(), list[1].toDouble(), list[2].toDouble());
 }
 
 Vector4 _listToVector4(List<dynamic> list) {
-  return Vector4(list[0], list[1], list[2], list[3]);
+  return Vector4(list[0].toDouble(), list[1].toDouble(), list[2].toDouble(), list[3].toDouble());
 }
 
 Quaternion _listToQuaternion(List<dynamic> list) {
-  return Quaternion(list[0], list[1], list[2], list[3]);
+  return Quaternion(list[0].toDouble(), list[1].toDouble(), list[2].toDouble(), list[3].toDouble());
 }
 
 const _componentSizes = {
@@ -442,15 +443,19 @@ class GLTF {
       -1: rootNode,
     };
 
-    final nodeStack = [...rootNodeIndices.map((i) => (i, -1))];
-    for (final (index, parent) in nodeStack) {
+    final nodeQueue = Queue<(int, int)>.from(rootNodeIndices.map((i) => (i, -1)));
+    while (nodeQueue.isNotEmpty) {
+      final next = nodeQueue.removeFirst();
+      final index = next.$1;
+      final parent = next.$2;
+
       final node = nodes[index];
 
       final name = node['name'] as String? ?? '_$index';
 
       final childrenIndices = node['children'] as List<dynamic>?;
       if (childrenIndices != null && childrenIndices.isNotEmpty) {
-        nodeStack.addAll(childrenIndices.map((i) => (i, index)));
+        nodeQueue.addAll(childrenIndices.map((i) => (i, index)));
       }
 
       var translation = _listToVector3(node['translation'] as List<dynamic>? ?? [0.0, 0.0, 0.0]);

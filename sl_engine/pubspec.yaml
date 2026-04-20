@@ -21,7 +21,6 @@ dependencies:
     path: ../sl_wasm
   oimo_physics:
     path: ../../oimo_physics
-  synchronized: ^3.4.0+1
 
 dev_dependencies:
   build_runner: ^2.11.1

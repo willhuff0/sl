@@ -9,6 +9,7 @@ import 'package:sl_editor/panels/properties_panel.dart';
 import 'package:sl_editor/widgets/avatars.dart';
 import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
+import 'package:web/web.dart' as web;
 
 class EditorClientLoader extends StatefulWidget {
   const EditorClientLoader({super.key});
@@ -36,7 +37,20 @@ class _EditorClientLoaderState extends State<EditorClientLoader> {
     const room = 'test-room';
     _client = await Client.connect(
       projectId: room,
-      serverUri: Uri.parse('http://localhost:8080'),
+      serverUri: Uri.parse('https://sl.willhuffman.com/'),
+      onDisconnected: () {
+        if (!mounted) return;
+        ShadToaster.of(context).show(
+          ShadToast(
+            title: Text('Disconnected'),
+            description: Text('The connection was lost or forcibly terminated by the server'),
+            action: ShadButton.outline(
+              child: const Text('Refresh Page'),
+              onPressed: () => web.window.location.reload(),
+            ),
+          ),
+        );
+      },
     );
     if (!mounted) return;
     setState(() {});

@@ -36,12 +36,12 @@ class AssetSystem {
           message: message,
         ),
       ),
-      verbose: true,
+      verbose: false,
     );
   }
 
   Future<void> removeClient(Client client) async {
-    _clientToCrdtSync.remove(client);
+    _clientToCrdtSync.remove(client)?.syncSocket.close();
     await _blobTransferer.cancelClientUploads(client);
   }
 

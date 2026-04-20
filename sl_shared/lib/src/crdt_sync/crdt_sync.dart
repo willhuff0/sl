@@ -224,7 +224,6 @@ class CrdtSync {
   }
 
   void _sendChangeset(CrdtChangeset changeset) {
-    print('send $changeset');
     if (changeset.recordCount == 0) return;
     syncSocket.sendChangeset(changeset);
     onChangesetSent?.call(_peerId!, changeset.map((key, value) => MapEntry(key, value.length)));

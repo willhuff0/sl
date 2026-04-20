@@ -12,8 +12,8 @@ class PtpCrdtSync extends Message {
   });
 
   @override
-  String get messageClass => '$PtpCrdtSync';
-  static String get messageClassS => '$PtpCrdtSync';
+  String get messageClass => 'PtpCrdtSync';
+  static String get messageClassS => 'PtpCrdtSync';
 
   factory PtpCrdtSync.fromJson(Map<String, dynamic> json) => _$PtpCrdtSyncFromJson(json);
 

@@ -32,8 +32,8 @@ class StcSetClientGlobalStates extends Message {
   StcSetClientGlobalStates({required this.states});
 
   @override
-  String get messageClass => '$StcSetClientGlobalStates';
-  static String get messageClassS => '$StcSetClientGlobalStates';
+  String get messageClass => 'StcSetClientGlobalStates';
+  static String get messageClassS => 'StcSetClientGlobalStates';
 
   factory StcSetClientGlobalStates.fromJson(Map<String, dynamic> json) => _$StcSetClientGlobalStatesFromJson(json);
   Map<String, dynamic> toJson() => _$StcSetClientGlobalStatesToJson(this);
@@ -47,8 +47,8 @@ class CtsSetSceneState extends Message {
   CtsSetSceneState({required this.sceneId, required this.state});
 
   @override
-  String get messageClass => '$CtsSetSceneState';
-  static String get messageClassS => '$CtsSetSceneState';
+  String get messageClass => 'CtsSetSceneState';
+  static String get messageClassS => 'CtsSetSceneState';
 
   factory CtsSetSceneState.fromJson(Map<String, dynamic> json) => _$CtsSetSceneStateFromJson(json);
   Map<String, dynamic> toJson() => _$CtsSetSceneStateToJson(this);
@@ -62,8 +62,8 @@ class StcSetClientSceneStates extends Message {
   StcSetClientSceneStates({required this.sceneId, required this.states});
 
   @override
-  String get messageClass => '$StcSetClientSceneStates';
-  static String get messageClassS => '$StcSetClientSceneStates';
+  String get messageClass => 'StcSetClientSceneStates';
+  static String get messageClassS => 'StcSetClientSceneStates';
 
   factory StcSetClientSceneStates.fromJson(Map<String, dynamic> json) => _$StcSetClientSceneStatesFromJson(json);
   Map<String, dynamic> toJson() => _$StcSetClientSceneStatesToJson(this);

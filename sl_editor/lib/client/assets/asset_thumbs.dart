@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -5,11 +6,19 @@ import 'package:sl_editor/client/client.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 class AssetThumbs {
-  static Future<String?> getMime(UUID uuid) async {
+  static final _mimeCache = <UUID, String?>{};
+  static String? getCachedMime(UUID uuid) {
+    return _mimeCache[uuid];
+  }
+
+  static FutureOr<String?> getMime(UUID uuid) async {
+    var cache = _mimeCache[uuid];
+    if (cache != null) return cache;
+
     final database = Client.get().assetSystem.sharedDatabase;
     final rows = await database.query('SELECT thumb_mime FROM assets WHERE uuid = ?1 AND is_deleted = 0;', [uuid]);
     if (rows.isEmpty) return null;
-    return rows.first['thumb_mime'] as String?;
+    return _mimeCache[uuid] = rows.first['thumb_mime'] as String?;
   }
 
   static String getUri(UUID uuid) {

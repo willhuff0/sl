@@ -1,9 +1,14 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart' hide Server;
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_static/shelf_static.dart';
 import 'package:sl_server/server.dart';
+
+const _serverRoot = 'root';
+final _publicDir = p.join(_serverRoot, 'public');
 
 final Map<String, Server> _rooms = {};
 
@@ -11,7 +16,8 @@ final _router = Router()
   ..get('/', _rootHandler)
   ..get('/joinRoom', _joinRoomHandler)
   ..get('/thumb', _getThumbHandler)
-  ..post('/thumb', _postThumbHandler);
+  ..post('/thumb', _postThumbHandler)
+  ..mount('/live', createStaticHandler(_publicDir, defaultDocument: 'index.html'));
 
 Response _rootHandler(Request req) {
   return Response.ok('Hello, World!\n');
@@ -43,7 +49,7 @@ Future<Response> _postThumbHandler(Request req) async {
 
 void main(List<String> args) async {
   try {
-    _rooms['test-room'] = await Server.create('test-room');
+    _rooms['test-room'] = await Server.create(p.join(_serverRoot, 'test-room'));
 
     final ip = InternetAddress.anyIPv4;
 
@@ -53,6 +59,7 @@ void main(List<String> args) async {
     final server = await serve(handler, ip, port);
 
     print('Server listening on port ${server.port}');
+    print('Hosting client app at ${server.address.address}/live');
 
     await for (final _ in stdin) {}
   } finally {
