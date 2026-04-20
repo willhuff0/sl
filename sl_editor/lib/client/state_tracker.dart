@@ -60,12 +60,12 @@ abstract class StateTracked {
 }
 
 class StateTracker<T extends StateTracked> {
+  final String sceneId;
+
   final Map<ObjectClass, T Function(StateTracker, UUID)> constructors;
 
   final void Function(T object)? onObjectAdded;
   final void Function(T object)? onObjectRemoved;
-
-  final StateTrackerSystem system;
 
   final Map<UUID, T> _trackedObjects = {};
   final Map<ClientChangeId, StateChange> _changesSubmissionBuilder = {};
@@ -73,10 +73,8 @@ class StateTracker<T extends StateTracked> {
   final SplayTreeMap<ClientChangeId, List<StateChange>> _remoteChanges = SplayTreeMap();
   var _nextClientChangeId = 0;
 
-  UUID? _scope;
-
-  StateTracker(
-    this.system, {
+  StateTracker({
+    required this.sceneId,
     required this.constructors,
     this.onObjectAdded,
     this.onObjectRemoved,
@@ -90,26 +88,13 @@ class StateTracker<T extends StateTracked> {
     return UnmodifiableMapView(_trackedObjects);
   }
 
-  void changeScope(UUID? newScope) {
-    if (hasLocalChanges()) {
-      submitLocalChanges();
-    }
-
-    _trackedObjects.clear();
-    _changesSubmissionBuilder.clear();
-    _localChangesPendingDecision.clear();
-    _remoteChanges.clear();
-
-    _scope = newScope;
-  }
-
   void registerObject(T object) {
     _trackedObjects[object.uuid] = object;
     onObjectAdded?.call(object);
   }
 
   void addLocalChange(BiStateChange biStateChange) {
-    _changesSubmissionBuilder[_nextClientChangeId] = biStateChange.getForwardStateChange(_scope);
+    _changesSubmissionBuilder[_nextClientChangeId] = biStateChange.getForwardStateChange();
     _localChangesPendingDecision[_nextClientChangeId++] = biStateChange;
   }
 
@@ -120,7 +105,7 @@ class StateTracker<T extends StateTracked> {
   void submitLocalChanges() {
     Client.get().send(
       CtsStateChanges(
-        system: system,
+        sceneId: sceneId,
         stateChanges: _changesSubmissionBuilder,
       ),
     );
@@ -129,27 +114,23 @@ class StateTracker<T extends StateTracked> {
 
   void handleChangeDecisions(StcLocalChangeDecisions changeDecisions) {
     changeDecisions.localChangeDecisions.forEach((localChangeId, decision) {
-      final localBiStateChange = _localChangesPendingDecision[localChangeId];
-      if (localBiStateChange == null) {
-        // state tracker has been cleared between sending and response
-        return;
-      }
+      final localBiStateChange = _localChangesPendingDecision.remove(localChangeId)!;
 
       if (_remoteChanges.containsKey(localChangeId)) {
         assert(_remoteChanges.firstKey() == localChangeId);
         final remoteChangesToApply = _remoteChanges.values.first;
 
-        _applyStateChange(localBiStateChange.getInverseStateChange(_scope));
+        _applyStateChange(localBiStateChange.getInverseStateChange());
         for (final remoteChange in remoteChangesToApply) {
           _applyStateChange(remoteChange);
         }
         if (decision) {
-          _applyStateChange(localBiStateChange.getForwardStateChange(_scope));
+          _applyStateChange(localBiStateChange.getForwardStateChange());
         }
 
         _remoteChanges.remove(localChangeId);
       } else if (!decision) {
-        _applyStateChange(localBiStateChange.getInverseStateChange(_scope));
+        _applyStateChange(localBiStateChange.getInverseStateChange());
       }
     });
   }
@@ -168,7 +149,7 @@ class StateTracker<T extends StateTracked> {
     }
   }
 
-  void tick() {
+  void submitLocalChangesIfPresent() {
     if (hasLocalChanges()) {
       submitLocalChanges();
     }
@@ -177,6 +158,7 @@ class StateTracker<T extends StateTracked> {
   void _applyStateChange(StateChange stateChange) {
     var trackedObject = _trackedObjects[stateChange.objectId];
 
+    var wasObjectedAdded = false;
     if (trackedObject == null) {
       if (stateChange.objectClass == null) {
         throw Exception('Object ${stateChange.objectId} is not registered on the client!');
@@ -185,12 +167,14 @@ class StateTracker<T extends StateTracked> {
         stateChange.objectClass!,
         stateChange.objectId,
       );
-      registerObject(trackedObject);
+      wasObjectedAdded = true;
     }
 
     trackedObject.applyDelta(stateChange.delta);
     if (onObjectRemoved != null && !trackedObject.doesExist.get()) {
       onObjectRemoved!(trackedObject);
+    } else if (wasObjectedAdded) {
+      registerObject(trackedObject);
     }
   }
 

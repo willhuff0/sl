@@ -103,6 +103,8 @@ class DownloadOperation {
 
   BytesBuilder? _inMemoryView;
 
+  bool get isKeepingCopyInMemory => _inMemoryView != null;
+
   DownloadOperation({
     required this.uuid,
     required this.offset,

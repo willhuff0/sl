@@ -142,8 +142,6 @@ class ModelPreviewGenerator {
     );
     Renderer.renderUnregisteredNode(node);
 
-    node.enterScene();
-
     _offscreenCanvas.width = size;
     _offscreenCanvas.height = size;
     final imageData = _offscreenContext.createImageData(size.toJS, size);

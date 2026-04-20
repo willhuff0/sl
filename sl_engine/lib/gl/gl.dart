@@ -17,7 +17,7 @@ late final int canvasDepthBits;
 late final int canvasSampleCount;
 
 final _canvasSizeChangedController = StreamController<(int, int)>.broadcast();
-final canvasSizeChanged = _canvasSizeChangedController.stream;
+final slCanvasSizeChanged = _canvasSizeChangedController.stream;
 
 void initGl(Canvas canvas_, {bool vr = false}) {
   canvas = canvas_;

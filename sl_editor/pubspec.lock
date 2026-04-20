@@ -360,6 +360,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.3.0"
+  oimo_physics:
+    dependency: transitive
+    description:
+      path: "../../oimo_physics"
+      relative: true
+    source: path
+    version: "0.0.5"
   package_config:
     dependency: transitive
     description:

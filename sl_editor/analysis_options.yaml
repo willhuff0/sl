@@ -7,3 +7,7 @@ formatter:
 analyzer:
   errors:
     unused_element_parameter: ignore
+
+linter:
+  rules:
+    - unawaited_futures

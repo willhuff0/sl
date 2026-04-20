@@ -5,7 +5,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/client/assets/asset_system.dart';
-import 'package:sl_editor/client/systems/scene_system.dart';
+import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
 import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
@@ -117,30 +117,10 @@ class Client {
         _clientStates = setClientGlobalStates.states;
         if (!_clientStates.containsKey(_clientId)) {
           Logger.log('Leaving because StcSetClientGlobalStates did not contain an entry for this client.', .info);
-          _leave();
+          await _leave();
           return;
         }
         _onClientStatesChangedController.add(UnmodifiableMapView(_clientStates));
-        break;
-      case StcLocalChangeDecisions localChangeDecisions:
-        switch (localChangeDecisions.system) {
-          case StateTrackerSystem.scene:
-            sceneSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
-            break;
-          case StateTrackerSystem.asset:
-            // _assetSystem.stateTracker.handleChangeDecisions(localChangeDecisions);
-            break;
-        }
-        break;
-      case StcRemoteChanges remoteChanges:
-        switch (remoteChanges.system) {
-          case StateTrackerSystem.scene:
-            sceneSystem.stateTracker.handleRemoteChanges(remoteChanges);
-            break;
-          case StateTrackerSystem.asset:
-            // _assetSystem.stateTracker.handleRemoteChanges(remoteChanges);
-            break;
-        }
         break;
       default:
         if (await sceneSystem.handleMessage(message)) break;

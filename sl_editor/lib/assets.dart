@@ -8,6 +8,7 @@ import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/importers/unsupported.dart';
 import 'package:sl_shared/sl_shared.dart';
+import 'package:uuid/uuid.dart';
 
 class AssetImportContext {
   final UUID? directory;
@@ -93,6 +94,20 @@ class Assets {
 
   static int _getImportPriority(String name) {
     return _extensionToImporter[p.extension(name).toLowerCase()]?.priority ?? 0;
+  }
+
+  static Future<void> createScene(UUID? directory) async {
+    final uuid = Uuid().v4();
+    final parent = directory;
+    final name = 'New Scene';
+    final type = AssetType.nodeTree.name;
+    final updatedAt = DateTime.now().toIso8601String();
+
+    final database = Client.get().assetSystem.sharedDatabase;
+    await database.execute(
+      'INSERT INTO assets (uuid, parent, name, type, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [uuid, parent, name, type, updatedAt],
+    );
   }
 
   static Future<void> import(UUID? directory, List<XFile> files) async {

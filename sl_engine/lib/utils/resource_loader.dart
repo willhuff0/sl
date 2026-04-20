@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -10,8 +11,13 @@ bool _isHtmlFile(String body) {
 }
 
 abstract interface class ResourceLoader {
-  Future<String?> loadString(String path);
   Future<Uint8List?> loadBytes(String path);
+
+  Future<String?> loadString(String path) async {
+    final bytes = await loadBytes(path);
+    if (bytes == null) return null;
+    return utf8.decode(bytes);
+  }
 }
 
 class BuiltInResourceLoader implements ResourceLoader {
@@ -45,12 +51,12 @@ class BuiltInResourceLoader implements ResourceLoader {
   }
 
   @override
-  Future<String?> loadString(String path) async {
-    return (await load(path))?.body;
+  Future<Uint8List?> loadBytes(String path) async {
+    return (await load(path))?.bodyBytes;
   }
 
   @override
-  Future<Uint8List?> loadBytes(String path) async {
-    return (await load(path))?.bodyBytes;
+  Future<String?> loadString(String path) async {
+    return (await load(path))?.body;
   }
 }

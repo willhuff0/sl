@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/render_texture.dart';
 import 'package:sl_engine/gl/shader.dart';
@@ -45,10 +47,12 @@ class Outliner {
       type: GL.UNSIGNED_BYTE,
     );
 
+    slCanvasSizeChanged.listen((size) => outliner._canvasSizeChanged(size.$1, size.$2));
+    outliner._canvasSizeChanged(canvas.width, canvas.height);
     return outliner;
   }
 
-  void canvasSizeChanged(int width, int height) {
+  void _canvasSizeChanged(int width, int height) {
     _unblurredRenderTexture.resize(width, height);
     _blurredRenderTexture0.resize(width, height);
     _blurredRenderTexture1.resize(width, height);

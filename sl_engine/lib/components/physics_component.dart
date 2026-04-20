@@ -14,6 +14,12 @@ class PhysicsComponent extends Component {
     this.move = true,
   });
 
+  @override
+  Component clone() => PhysicsComponent(
+    config: config,
+    move: move,
+  );
+
   factory PhysicsComponent.fromSphere({required double radius, Vector3? pivot, bool move = true}) => PhysicsComponent(
     config: oimo.ObjectConfigure(
       shapes: [

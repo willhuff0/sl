@@ -12,12 +12,14 @@ class PropertiesFieldWithLabel extends StatelessWidget {
   final String label;
   final StateTracked tracked;
   final TrackedProperty property;
+  final void Function()? onChanged;
 
   const PropertiesFieldWithLabel({
     super.key,
     required this.label,
     required this.tracked,
     required this.property,
+    this.onChanged,
   });
 
   @override
@@ -33,6 +35,7 @@ class PropertiesFieldWithLabel extends StatelessWidget {
               property: property,
               boxValue: (c, unboxed) => Vector3(box(double, unboxed) ?? c.x, c.y, c.z),
               unboxValue: (boxed) => unbox(boxed.x),
+              onChanged: onChanged,
             ),
           ),
           SizedBox(width: 4.0),
@@ -43,6 +46,7 @@ class PropertiesFieldWithLabel extends StatelessWidget {
               property: property,
               boxValue: (c, unboxed) => Vector3(c.x, box(double, unboxed) ?? c.y, c.z),
               unboxValue: (boxed) => unbox(boxed.y),
+              onChanged: onChanged,
             ),
           ),
           SizedBox(width: 4.0),
@@ -51,17 +55,23 @@ class PropertiesFieldWithLabel extends StatelessWidget {
               type: double,
               tracked: tracked,
               property: property,
-              boxValue: (c, unboxed) => (c.x, c.y, box(double, unboxed) ?? c.z),
+              boxValue: (c, unboxed) => Vector3(c.x, c.y, box(double, unboxed) ?? c.z),
               unboxValue: (boxed) => unbox(boxed.z),
+              onChanged: onChanged,
             ),
           ),
         ],
       ),
-      Quaternion _ => QuaternionPropertyField(tracked: tracked, property: property),
+      Quaternion _ => QuaternionPropertyField(
+        tracked: tracked,
+        property: property,
+        onChanged: onChanged,
+      ),
       dynamic v => CustomPropertiesField(
         type: v.runtimeType,
         tracked: tracked,
         property: property,
+        onChanged: onChanged,
       ),
     };
 
@@ -82,6 +92,7 @@ class CustomPropertiesField extends StatefulWidget {
   final TrackedProperty property;
   final dynamic Function(dynamic current, String unboxed)? boxValue;
   final String Function(dynamic boxed)? unboxValue;
+  final void Function()? onChanged;
 
   const CustomPropertiesField({
     super.key,
@@ -90,6 +101,7 @@ class CustomPropertiesField extends StatefulWidget {
     required this.property,
     this.boxValue,
     this.unboxValue,
+    this.onChanged,
   });
 
   @override
@@ -117,6 +129,7 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
     widget.tracked.modifyLocal((builder) {
       widget.property.set(widget.tracked, builder, boxedValue);
     });
+    widget.onChanged?.call();
   }
 
   @override
@@ -162,8 +175,14 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
 class QuaternionPropertyField extends StatefulWidget {
   final StateTracked tracked;
   final TrackedProperty property;
+  final void Function()? onChanged;
 
-  const QuaternionPropertyField({super.key, required this.tracked, required this.property});
+  const QuaternionPropertyField({
+    super.key,
+    required this.tracked,
+    required this.property,
+    this.onChanged,
+  });
 
   @override
   State<QuaternionPropertyField> createState() => _QuaternionPropertyFieldState();
@@ -232,6 +251,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     widget.tracked.modifyLocal((builder) {
       widget.property.set(widget.tracked, builder, value);
     });
+    widget.onChanged?.call();
   }
 
   @override

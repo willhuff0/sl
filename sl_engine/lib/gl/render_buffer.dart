@@ -65,7 +65,7 @@ class RenderBuffer {
         break;
     }
 
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
 

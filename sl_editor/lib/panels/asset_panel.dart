@@ -16,6 +16,8 @@ class AssetPanel extends StatelessWidget {
     await Assets.import(null, details.files);
   }
 
+  // void _onPickFiles() async {}
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -37,12 +39,12 @@ class AssetPanel extends StatelessWidget {
               Expanded(child: Container()),
               ShadBreadcrumbDropdown(
                 items: [
-                  // ShadBreadcrumbDropMenuItem(
-                  //   child: Text('Test Asset'),
-                  //   onPressed: () async {
-                  //     await AssetsApi.createAsset(null, 'Test Asset', AssetType.mesh);
-                  //   },
-                  // ),
+                  ShadBreadcrumbDropMenuItem(
+                    child: Text('Scene'),
+                    onPressed: () async {
+                      await Assets.createScene(null);
+                    },
+                  ),
                 ],
                 showDropdownArrow: true,
                 arrowGap: 0.0,
@@ -56,18 +58,20 @@ class AssetPanel extends StatelessWidget {
                   size: 22.0,
                 ),
               ),
-              SizedBox(width: 8.0),
-              ShadIconButton.ghost(
-                backgroundColor: Color(0x00000000),
-                hoverBackgroundColor: Color(0x00000000),
-                pressedBackgroundColor: Color(0x00000000),
-                padding: EdgeInsets.zero,
-                width: 22.0,
-                height: 22.0,
-                onPressed: () {},
-                iconSize: 18.0,
-                icon: Icon(LucideIcons.download),
-              ),
+              // SizedBox(width: 8.0),
+              // ShadIconButton.ghost(
+              //   backgroundColor: Color(0x00000000),
+              //   hoverBackgroundColor: Color(0x00000000),
+              //   pressedBackgroundColor: Color(0x00000000),
+              //   padding: EdgeInsets.zero,
+              //   width: 22.0,
+              //   height: 22.0,
+              //   onPressed: () {
+              //     _onPickFiles();
+              //   },
+              //   iconSize: 18.0,
+              //   icon: Icon(LucideIcons.download),
+              // ),
               SizedBox(width: 8.0),
             ],
           ),
@@ -126,11 +130,12 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
             child: Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
-              children: _foldedAssets!
-                  .map(
-                    (foldedAsset) => _AssetEntryWidget(asset: _assets![foldedAsset.uuid]!),
-                  )
-                  .toList(),
+              children: _foldedAssets!.map(
+                (foldedAsset) {
+                  final asset = _assets![foldedAsset.uuid]!;
+                  return _AssetEntryWidget(key: ValueKey(asset), asset: asset);
+                },
+              ).toList(),
             ),
           );
   }
@@ -168,18 +173,28 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
     super.dispose();
   }
 
+  void _openAsset() {
+    switch (widget.asset.type) {
+      case .nodeTree:
+        Client.get().sceneSystem.loadScene(widget.asset.uuid, widget.asset.name);
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = Padding(
-      padding: const EdgeInsets.all(4.0),
+      padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 4.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _AssetThumbWidget(asset: widget.asset),
+            child: _AssetThumbWidget(key: ValueKey(widget.asset), asset: widget.asset),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+            padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 2.0, bottom: 2.0),
             child: Text(
               widget.asset.name,
               style: TextStyle(fontSize: 11.0),
@@ -191,34 +206,68 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
       ),
     );
 
-    return ShadContextMenuRegion(
-      items: [
-        ShadContextMenuItem(
-          child: Text('Delete'),
-          onPressed: () {
-            Assets.tryDeleteAssets({widget.asset.uuid});
-          },
-        ),
-      ],
-      child: SizedBox(
-        width: 200.0,
-        height: 214.0,
-        child: ShadCard(
-          padding: EdgeInsets.zero,
-          child: progress < 0.999
-              ? Stack(
-                  children: [
-                    Positioned.fill(child: card),
-                    Positioned.fill(
-                      bottom: 208.0,
-                      child: ShadProgress(
-                        value: progress,
-                        borderRadius: BorderRadius.zero,
-                      ),
+    final entryVisual = SizedBox(
+      width: 200.0 / 1.5,
+      height: 214.0 / 1.5,
+      child: ShadCard(
+        padding: EdgeInsets.zero,
+        child: progress < 0.999
+            ? Stack(
+                children: [
+                  Positioned.fill(child: card),
+                  Positioned.fill(
+                    bottom: 214.0 / 1.5 - 6,
+                    child: ShadProgress(
+                      value: progress,
+                      borderRadius: BorderRadius.zero,
                     ),
-                  ],
-                )
-              : card,
+                  ),
+                ],
+              )
+            : card,
+      ),
+    );
+
+    return Draggable<Asset>(
+      data: widget.asset,
+      feedback: entryVisual,
+      childWhenDragging: Opacity(
+        opacity: 0.6,
+        child: entryVisual,
+      ),
+      child: GestureDetector(
+        onDoubleTap: _openAsset,
+        child: ShadContextMenuRegion(
+          items: [
+            ShadTooltip(
+              waitDuration: Duration(milliseconds: 1000),
+              builder: (context) {
+                return Text(widget.asset.uuid);
+              },
+              child: ShadContextMenuItem(
+                enabled: true,
+                child: Text(widget.asset.name),
+              ),
+            ),
+            ShadContextMenuItem(
+              onPressed: _openAsset,
+              child: Text('Open'),
+            ),
+            ShadContextMenuItem(
+              child: Text('Rename'),
+            ),
+            ShadSeparator.horizontal(
+              margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+            ),
+            ShadContextMenuItem(
+              buttonVariant: ShadButtonVariant.destructive,
+              child: Text('Delete'),
+              onPressed: () {
+                Assets.tryDeleteAssets({widget.asset.uuid});
+              },
+            ),
+          ],
+          child: entryVisual,
         ),
       ),
     );
@@ -265,14 +314,14 @@ class _AssetThumbWidgetState extends State<_AssetThumbWidget> {
       .mesh => Icon(LucideIcons.pyramid, size: size, color: color),
       .model => Icon(LucideIcons.box, size: size, color: color),
       .shader => Icon(LucideIcons.code, size: size, color: color),
-      .nodeTree => Icon(LucideIcons.listTree, size: size, color: color),
+      .nodeTree => Icon(LucideIcons.globe, size: size, color: color),
     };
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.all(4.0),
+      padding: EdgeInsets.all(0.0),
       child: _mime == null
           ? Center(child: _getPlaceholder(context, widget.asset.type))
           : Container(

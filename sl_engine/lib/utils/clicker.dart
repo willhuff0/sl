@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:sl_engine/gl/gl.dart';
@@ -32,10 +33,12 @@ class Clicker {
       depthFormat: GL.DEPTH_COMPONENT24,
     );
 
+    slCanvasSizeChanged.listen((size) => clicker._canvasSizeChanged(size.$1, size.$2));
+    clicker._canvasSizeChanged(canvas.width, canvas.height);
     return clicker;
   }
 
-  void canvasSizeChanged(int width, int height) {
+  void _canvasSizeChanged(int width, int height) {
     _renderTexture.resize(width, height);
   }
 
@@ -152,5 +155,19 @@ class Clicker {
     gl.enable(GL.BLEND);
 
     return colorToNode[color];
+  }
+
+  void debugDraw(Iterable<Node> roots) {
+    _uniqueShader.bind();
+
+    for (final root in roots) {
+      Renderer.renderUnregisteredNodeCustomShader(
+        root,
+        bindUniformsCallback: (node) {
+          _uniqueShader.setUniform('u_modelMat', node.getMatrix());
+          _uniqueShader.setUniform('u_color', (1.0, 1.0, 1.0));
+        },
+      );
+    }
   }
 }

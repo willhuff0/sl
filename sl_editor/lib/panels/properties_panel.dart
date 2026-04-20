@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:sl_editor/client/objects/node.dart' as editor;
+import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/smooth_scroll_controller.dart';
 import 'package:sl_editor/widgets/properties_field.dart';
 import 'package:sl_engine/editor/selector.dart';
@@ -29,25 +29,25 @@ class PropertiesPanel extends StatelessWidget {
               SizedBox(width: 8.0),
               Text('Properties'),
               Expanded(child: Container()),
-              ShadBreadcrumbDropdown(
-                items: [
-                  ShadBreadcrumbDropMenuItem(
-                    child: Text('Cube'),
-                    onPressed: () {},
-                  ),
-                ],
-                showDropdownArrow: true,
-                arrowGap: 0.0,
-                anchor: ShadAnchor(
-                  childAlignment: Alignment.topRight,
-                  overlayAlignment: Alignment.bottomRight,
-                ),
-                child: Icon(
-                  LucideIcons.plus,
-                  color: ShadTheme.of(context).colorScheme.foreground,
-                  size: 22.0,
-                ),
-              ),
+              // ShadBreadcrumbDropdown(
+              //   items: [
+              //     ShadBreadcrumbDropMenuItem(
+              //       child: Text('Cube'),
+              //       onPressed: () {},
+              //     ),
+              //   ],
+              //   showDropdownArrow: true,
+              //   arrowGap: 0.0,
+              //   anchor: ShadAnchor(
+              //     childAlignment: Alignment.topRight,
+              //     overlayAlignment: Alignment.bottomRight,
+              //   ),
+              //   child: Icon(
+              //     LucideIcons.plus,
+              //     color: ShadTheme.of(context).colorScheme.foreground,
+              //     size: 22.0,
+              //   ),
+              // ),
               SizedBox(width: 8.0),
             ],
           ),
@@ -110,7 +110,7 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
     }
 
     final selected = Selector.getSelected().first;
-    final tracked = null; // TODO: editor.Node.getTrackerForEngineNode(selected);
+    final tracked = Client.get().sceneSystem.getTrackedFromEngineNode(selected);
 
     return ListView(
       controller: _scrollController,
@@ -121,6 +121,9 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
           label: 'Name',
           tracked: tracked,
           property: tracked.name,
+          onChanged: () {
+            Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+          },
         ),
         SizedBox(height: 14.0),
 

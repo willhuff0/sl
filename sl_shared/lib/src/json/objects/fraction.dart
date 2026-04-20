@@ -12,7 +12,7 @@ BigInt _gcd(BigInt a, BigInt b) {
 }
 
 @JsonSerializable()
-class Fraction {
+class Fraction implements Comparable<Fraction> {
   final BigInt numerator;
   final BigInt denominator;
 
@@ -85,4 +85,11 @@ class Fraction {
   bool operator <=(Fraction other) => numerator * other.denominator <= denominator * other.numerator;
   bool operator >(Fraction other) => numerator * other.denominator > denominator * other.numerator;
   bool operator >=(Fraction other) => numerator * other.denominator >= denominator * other.numerator;
+
+  @override
+  int compareTo(Fraction other) {
+    if (this < other) return -1;
+    if (this > other) return 1;
+    return 0;
+  }
 }

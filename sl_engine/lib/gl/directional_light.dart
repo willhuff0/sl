@@ -111,7 +111,7 @@ class CascadeShadowMap {
     gl.bindFramebuffer(GL.FRAMEBUFFER, framebuffer);
     gl.drawBuffers([GL.NONE.toJS].toJS);
     gl.readBuffer(GL.NONE);
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
 
     gl.bindTexture(GL.TEXTURE_2D_ARRAY, null);
 
@@ -369,7 +369,7 @@ class DirectionalLight {
     }
 
     gl.bindTexture(GL.TEXTURE_2D_ARRAY, null);
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.cullFace(GL.BACK);
   }

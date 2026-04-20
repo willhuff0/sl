@@ -1,4 +1,6 @@
-import 'package:sl_editor/client/objects/node.dart';
+import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/client/scenes/node.dart';
+import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
@@ -31,11 +33,16 @@ class ViewManager {
       orientation: (_lastViewPosition!.$2.x, _lastViewPosition!.$2.y, _lastViewPosition!.$2.z, _lastViewPosition!.$2.w),
       fov: _lastViewPosition!.$3,
       cursor: (0.0, 0.0),
-      selection: {}, // TODO: Selector.getSelected().map((node) => Node.getTrackerForEngineNode(node).uuid).toSet(),
+      selection: Selector.getSelected()
+          .map((node) => Client.get().sceneSystem.getTrackedFromEngineNode(node).uuid)
+          .toSet(),
     );
   }
 
-  static void setRemoteViewPositions(StateTracker tracker, Map<int, (Vector4, ViewPosition)> viewPositions) {
+  static void setRemoteViewPositions(
+    StateTracker<SceneStateTracked> tracker,
+    Map<int, (Vector4, ViewPosition)> viewPositions,
+  ) {
     Selector.setRemoteSelected(
       viewPositions.map(
         (clientId, value) => MapEntry(clientId, (

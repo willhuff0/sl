@@ -12,6 +12,12 @@ class MeshComponent extends Component {
   });
 
   @override
+  Component clone() => MeshComponent(
+    material: material,
+    mesh: mesh,
+  );
+
+  @override
   void onEnable() {
     Renderer.addNode(node, material, mesh);
   }

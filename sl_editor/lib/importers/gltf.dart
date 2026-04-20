@@ -5,11 +5,35 @@ import 'dart:typed_data';
 import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/assets.dart';
+import 'package:sl_editor/client/client.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/utils/resource_loader.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:uuid/uuid.dart';
+
+class GLTFAssetResourceLoader implements ResourceLoader {
+  final Map<String, UUID> redirects;
+
+  GLTFAssetResourceLoader({
+    required this.redirects,
+  });
+
+  @override
+  Future<Uint8List?> loadBytes(String path) async {
+    final normalizedPath = p.normalize(path);
+    final uuid = redirects[normalizedPath]!;
+    final bytes = await Client.get().assetSystem.getAssetBlob(uuid);
+    return bytes!;
+  }
+
+  @override
+  Future<String?> loadString(String path) async {
+    final bytes = await loadBytes(path);
+    if (bytes == null) return null;
+    return utf8.decode(bytes);
+  }
+}
 
 class _GLTFImporterResourceLoader implements ResourceLoader {
   final AssetImportContext ctx;
@@ -51,6 +75,7 @@ class GLTFImporter {
 
   static Future<AssetImportResult> import(XFile file, AssetImportContext ctx) async {
     final gltfNormalizedPath = p.normalize(file.name);
+    final extension = p.extension(file.name);
     final resourceLoader = _GLTFImporterResourceLoader(ctx: ctx);
 
     final gltf = await GLTF.load(gltfNormalizedPath, resourceLoader: resourceLoader);
@@ -92,11 +117,10 @@ class GLTFImporter {
         parent: ctx.directory,
         name: p.basenameWithoutExtension(file.name),
         type: .model,
-        properties: redirects.isEmpty
-            ? null
-            : {
-                'redirects': redirects,
-              },
+        properties: {
+          'extension': extension,
+          if (redirects.isNotEmpty) 'redirects': redirects,
+        },
         uploadFile: file,
         uploadThumb: AssetThumbCreateInfo(
           bytes: thumbBytes,

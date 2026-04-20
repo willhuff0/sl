@@ -1,5 +1,5 @@
 import 'package:meta/meta.dart';
-import 'package:sl_server/objects/node.dart';
+import 'package:sl_server/scenes/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_server/validated_property.dart';
 import 'package:sl_shared/sl_shared.dart';
@@ -46,24 +46,37 @@ abstract class StateTracked {
 
   @mustCallSuper
   @mustBeOverridden
-  void getDeltaFromNull(Delta builder) {
-    if (!doesExist.value) doesExist.getDeltaFromNull(builder);
+  void getJson(Map<String, dynamic> builder) {
+    if (!doesExist.value) doesExist.getJson(builder);
+  }
+
+  @mustCallSuper
+  @mustBeOverridden
+  void setJson(Map<String, dynamic> json) {}
+
+  @nonVirtual
+  Map<String, dynamic> toJson() {
+    final builder = Delta();
+    getJson(builder);
+    builder['class'] = objectClass;
+    builder['uuid'] = uuid;
+    return builder;
   }
 }
 
 class StateTracker {
   final Server _server;
-  final StateTrackerSystem _system;
+  final UUID _sceneId;
   final Map<UUID, StateTracked> _trackedObjects = {};
   final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
 
-  final Set<Client> Function(UUID? scope, UUID uuid)? _getInterestedClients;
+  final Set<Client> Function()? _getInterestedClients;
   final Future<StateTracked?> Function(UUID uuid)? _loadObjectFromDisk;
 
   StateTracker(
     this._server,
-    this._system, {
-    Set<Client> Function(UUID? scope, UUID uuid)? getInterestedClients,
+    this._sceneId, {
+    Set<Client> Function()? getInterestedClients,
     Future<StateTracked?> Function(UUID uuid)? loadObjectFromDisk,
   }) : _getInterestedClients = getInterestedClients,
        _loadObjectFromDisk = loadObjectFromDisk;
@@ -81,6 +94,10 @@ class StateTracker {
       }
     }
     return object;
+  }
+
+  void addObject(StateTracked object) async {
+    _trackedObjects[object.uuid] = object;
   }
 
   Future<void> handleClientChanges(
@@ -121,7 +138,6 @@ class StateTracker {
         changeDecisions[clientChangeId] = true;
         approvedChanges.add(
           StateChange(
-            scope: stateChange.scope,
             objectClass: stateChange.objectClass,
             objectId: stateChange.objectId,
             delta: stateChange.delta,
@@ -143,36 +159,27 @@ class StateTracker {
     _server.send(
       client,
       StcLocalChangeDecisions(
-        system: _system,
+        sceneId: _sceneId,
         localChangeDecisions: changeDecisions,
       ),
     );
     if (approvedChanges.isNotEmpty) {
       if (_getInterestedClients != null) {
-        final interestedClientsToChanges = <Client, List<StateChange>>{};
-        for (final change in approvedChanges) {
-          final interestedClients = _getInterestedClients(change.scope, change.objectId);
-          for (final interestedClient in interestedClients) {
-            if (interestedClient == client) continue;
-            var interestingChanges = interestedClientsToChanges[client] ??= [];
-            interestingChanges.add(change);
-          }
-        }
-        interestedClientsToChanges.forEach((client, changes) {
-          _server.send(
-            client,
-            StcRemoteChanges(
-              system: _system,
-              remoteChanges: changes,
-              latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[client.clientId] ?? 0,
-            ),
+        final interestedClients = _getInterestedClients();
+        _server.sendToEach((otherClient) {
+          if (otherClient == client) return null;
+          if (!interestedClients.contains(otherClient)) return null;
+          return StcRemoteChanges(
+            sceneId: _sceneId,
+            remoteChanges: approvedChanges,
+            latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
           );
         });
       } else {
         _server.sendToEach((otherClient) {
           if (otherClient == client) return null;
           return StcRemoteChanges(
-            system: _system,
+            sceneId: _sceneId,
             remoteChanges: approvedChanges,
             latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
           );
@@ -185,26 +192,35 @@ class StateTracker {
     return _constructors[objectClass]!(this, uuid);
   }
 
-  void preloadObjectsForClient(Client client, UUID? scope, Iterable<StateTracked> objects) {
+  void sendAllToClient(Client client, String rootUuid) {
     final changes = <StateChange>[];
-    for (final object in objects) {
+    void addObject(Node object) {
       _trackedObjects[object.uuid] = object;
 
       final builder = <String, dynamic>{};
-      object.getDeltaFromNull(builder);
+      object.getJson(
+        builder,
+      ); // TODO: should use a different method (potentially different representation for saving on server vs client)
       changes.add(
         StateChange(
-          scope: scope,
           objectClass: object.objectClass,
           objectId: object.uuid,
           delta: builder,
         ),
       );
+
+      for (final child in object.children.values) {
+        addObject(getObjectInMemory(child) as Node);
+      }
     }
+
+    // add in-order for loading
+    addObject(getObjectInMemory(rootUuid) as Node);
+
     _server.send(
       client,
       StcRemoteChanges(
-        system: _system,
+        sceneId: _sceneId,
         remoteChanges: changes,
         latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[client.clientId] ?? 0,
       ),
@@ -213,5 +229,38 @@ class StateTracker {
 
   bool isObjectLoaded(UUID uuid) {
     return _trackedObjects.containsKey(uuid);
+  }
+
+  Map<String, dynamic> toJson() => {
+    'objects': Map.fromEntries(
+      _trackedObjects.entries
+          .where((entry) => entry.value.doesExist.value)
+          .map((entry) => MapEntry(entry.key, entry.value.toJson())),
+    ),
+  };
+
+  void fromJson(Map<String, dynamic> json) {
+    final objects = json['objects'] as Map<String, dynamic>? ?? {};
+    for (final entry in objects.entries) {
+      final uuid = entry.key;
+      final objectJson = entry.value;
+
+      final object = _createObject(objectJson['class']!, uuid);
+      object.setJson(objectJson);
+      _trackedObjects[object.uuid] = object;
+    }
+
+    // link children
+    for (final entry in _trackedObjects.entries) {
+      final uuid = entry.key;
+      final object = entry.value;
+
+      if (object is! Node) continue;
+
+      if (object.parent.value != null) {
+        final parent = getObjectInMemory(object.parent.value!.uuid) as Node;
+        parent.children[object.parent.value!.order] = uuid;
+      }
+    }
   }
 }

@@ -20,13 +20,14 @@ class Node extends StateTracked {
     null,
     key: 'parent',
     validator: (receiver, v) {
-      if (v == null) return true;
+      // client cannot create root node
+      if (v == null) return false;
 
       final parentAndOrder = ParentAndOrder.fromJson(v);
       if (!parentAndOrder.isValid()) return false;
 
       // Check if parent node exists
-      final parentNode = receiver.tracker.getObject(parentAndOrder.uuid) as Node?;
+      final parentNode = receiver.tracker.getObjectInMemory(parentAndOrder.uuid) as Node?;
       if (parentNode == null) return false;
 
       // Check if same order as any siblings
@@ -36,7 +37,7 @@ class Node extends StateTracked {
     },
     setter: (receiver, property, newValue) {
       if (property.value != null) {
-        final parent = receiver.tracker.getObject(property.value!.uuid) as Node?;
+        final parent = receiver.tracker.getObjectInMemory(property.value!.uuid) as Node?;
         if (parent != null) {
           parent.children.remove(property.value!.order);
         }
@@ -45,12 +46,13 @@ class Node extends StateTracked {
         final parentAndOrder = ParentAndOrder.fromJson(newValue);
         property.value = parentAndOrder;
 
-        final parent = receiver.tracker.getObject(newValue) as Node;
+        final parent = receiver.tracker.getObjectInMemory(parentAndOrder.uuid) as Node;
         parent.children[parentAndOrder.order] = receiver.uuid;
       } else {
         property.value = null;
       }
     },
+    fromJson: (v) => v == null ? null : ParentAndOrder.fromJson(v),
   );
   final SplayTreeMap<Fraction, UUID> children = SplayTreeMap();
 
@@ -59,18 +61,29 @@ class Node extends StateTracked {
     key: 'lPos',
     validator: vector3Validator,
     setter: vector3Setter,
+    toJson: vec3ToJson,
+    fromJson: vec3FromJson,
   );
   final ValidatedProperty<Quaternion> lRot = ValidatedProperty(
     Quaternion.identity(),
     key: 'lRot',
     validator: quaternionValidator,
     setter: quaternionSetter,
+    toJson: quatToJson,
+    fromJson: quatFromJson,
   );
   final ValidatedProperty<Vector3> lScale = ValidatedProperty(
     Vector3(1.0, 1.0, 1.0),
     key: 'lScale',
     validator: vector3Validator,
     setter: vector3Setter,
+    toJson: vec3ToJson,
+    fromJson: vec3FromJson,
+  );
+  final ValidatedProperty<UUID?> asset = ValidatedProperty(
+    null,
+    key: 'asset',
+    validator: (_, _) => true,
   );
 
   Node(super.tracker, super.uuid);
@@ -101,17 +114,29 @@ class Node extends StateTracked {
     lPos.set(this, delta);
     lRot.set(this, delta);
     lScale.set(this, delta);
+    asset.set(this, delta);
     super.applyDelta(delta);
   }
 
   @override
-  void getDeltaFromNull(Delta builder) {
-    // TODO: json serializer
-    name.getDeltaFromNull(builder);
-    parent.getDeltaFromNull(builder);
-    lPos.getDeltaFromNull(builder);
-    lRot.getDeltaFromNull(builder);
-    lScale.getDeltaFromNull(builder);
-    super.getDeltaFromNull(builder);
+  void getJson(Map<String, dynamic> builder) {
+    name.getJson(builder);
+    parent.getJson(builder);
+    lPos.getJson(builder);
+    lRot.getJson(builder);
+    lScale.getJson(builder);
+    asset.getJson(builder);
+    super.getJson(builder);
+  }
+
+  @override
+  void setJson(Map<String, dynamic> json) {
+    name.setJson(json);
+    parent.setJson(json);
+    lPos.setJson(json);
+    lRot.setJson(json);
+    lScale.setJson(json);
+    asset.setJson(json);
+    super.setJson(json);
   }
 }

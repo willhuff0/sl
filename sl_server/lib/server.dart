@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:sl_server/assets/asset_system.dart';
-import 'package:sl_server/systems/scene_system.dart';
+import 'package:sl_server/scenes/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
@@ -153,16 +153,6 @@ class Server {
 
   Future<void> _handleMessage(Client client, Message message) async {
     switch (message) {
-      case CtsStateChanges stateChanges:
-        switch (stateChanges.system) {
-          case StateTrackerSystem.scene:
-            await _sceneSystem.stateTracker.handleClientChanges(client, stateChanges);
-            break;
-          case StateTrackerSystem.asset:
-            // await _assetSystem.handleClientChanges(client, stateChanges);
-            break;
-        }
-        break;
       default:
         if (await _sceneSystem.handleMessage(client, message)) break;
         if (await _assetSystem.handleMessage(client, message)) break;

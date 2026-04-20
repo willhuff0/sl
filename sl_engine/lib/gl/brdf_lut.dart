@@ -32,7 +32,7 @@ class BrdfLut implements Texture {
     gl.clear(GL.COLOR_BUFFER_BIT);
     gl.drawArrays(GL.TRIANGLES, 0, 6);
 
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     return BrdfLut._(texture: brdfLut);
   }
 

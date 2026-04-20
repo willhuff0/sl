@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/render_texture.dart';
@@ -7,7 +9,7 @@ import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 
 final _handleScale = Vector3(0.025, 0.025, 0.025);
-final _handleScreenProportion = 0.1;
+// final _handleScreenProportion = 0.2;
 
 final _forwardHandleColor = Vector4(0.0, 0.0, 1.0, 1.0);
 final _rightHandleColor = Vector4(1.0, 0.0, 0.0, 1.0);
@@ -53,31 +55,44 @@ class Handles {
     handles._forwardHandle = handles._root.children[0];
     handles._rightHandle = handles._root.children[1];
     handles._upHandle = handles._root.children[2];
+    handles._xyPlane = handles._root.children[4];
+    handles._yzPlane = handles._root.children[5];
+    handles._xzPlane = handles._root.children[3];
 
     handles._blitShader.bind();
     handles._blitShader.setUniform('u_texture', 0);
 
     handles._root.lScale = _handleScale;
 
+    slCanvasSizeChanged.listen((size) => handles._canvasSizeChanged(size.$1, size.$2));
+    handles._canvasSizeChanged(canvas.width, canvas.height);
     return handles;
   }
 
-  void canvasSizeChanged(int width, int height) {
+  void _canvasSizeChanged(int width, int height) {
     _renderTexture.resize(width, height);
   }
 
-  (Node forward, Node right, Node up) getHandles(Vector3 position, Quaternion rotation) {
+  List<Node> getHandles(Vector3 position, Quaternion rotation) {
     _root.lPos = position;
     _root.lRot = rotation;
-    return (_forwardHandle, _rightHandle, _upHandle);
+    return _root.children;
+  }
+
+  bool isAxisHandle(Node handle) {
+    return handle == _forwardHandle || handle == _rightHandle || handle == _upHandle;
+  }
+
+  bool isPlaneHandle(Node handle) {
+    return handle == _xyPlane || handle == _yzPlane || handle == _xzPlane;
   }
 
   Vector3 getHandleDirection(Node node, Node handle) {
-    if (handle == _forwardHandle) {
+    if (handle == _forwardHandle || handle == _xyPlane) {
       return node.getForwardVector();
-    } else if (handle == _rightHandle) {
+    } else if (handle == _rightHandle || handle == _yzPlane) {
       return node.getRightVector();
-    } else if (handle == _upHandle) {
+    } else if (handle == _upHandle || handle == _xzPlane) {
       return node.getUpVector();
     }
     return Vector3.zero();
@@ -93,7 +108,7 @@ class Handles {
     gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
     _flatShader.bind();
-    _flatShader.setUniform('u_screenScale', _handleScreenProportion);
+    // _flatShader.setUniform('u_screenScale', _handleScreenProportion);
 
     Renderer.renderUnregisteredNodeCustomShader(
       _forwardHandle,
@@ -116,6 +131,27 @@ class Handles {
         _flatShader.setUniform('u_modelMat', node.getMatrix());
       },
     );
+    Renderer.renderUnregisteredNodeCustomShader(
+      _xyPlane,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _getHandleColor(_forwardHandleColor, _xyPlane, draggedHandle));
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
+    Renderer.renderUnregisteredNodeCustomShader(
+      _yzPlane,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _getHandleColor(_rightHandleColor, _yzPlane, draggedHandle));
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
+    Renderer.renderUnregisteredNodeCustomShader(
+      _xzPlane,
+      bindUniformsCallback: (node) {
+        _flatShader.setUniform('u_color', _getHandleColor(_upHandleColor, _xzPlane, draggedHandle));
+        _flatShader.setUniform('u_modelMat', node.getMatrix());
+      },
+    );
 
     _blitShader.bind();
 
@@ -126,7 +162,7 @@ class Handles {
     gl.depthMask(false);
     gl.depthFunc(GL.ALWAYS);
     gl.drawArrays(GL.TRIANGLES, 0, 6);
-    gl.depthFunc(GL.LESS);
+    gl.depthFunc(GL.LEQUAL);
     gl.depthMask(true);
   }
 }

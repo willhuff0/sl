@@ -96,7 +96,7 @@ class CubeMap {
       }
     }
 
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     return CubeMap._(
       texture: cubeMap,
       faceSize: size,

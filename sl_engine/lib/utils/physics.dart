@@ -6,10 +6,15 @@ import 'package:oimo_physics/oimo_physics.dart' as oimo;
 class Physics {
   static final _entities = <PhysicsComponent, oimo.RigidBody>{};
 
-  static late final oimo.World _world;
+  static late oimo.World _world;
 
   static void init() {
     _world = oimo.World();
+  }
+
+  static void clear() {
+    init();
+    _entities.clear();
   }
 
   static double? _accumulator;

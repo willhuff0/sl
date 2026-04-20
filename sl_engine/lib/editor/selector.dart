@@ -54,36 +54,27 @@ class Selector {
   static final _onSelectionChangedController = StreamController<Set<Node>>.broadcast();
   static final onSelectionChanged = _onSelectionChangedController.stream;
 
+  static final _onSelectionTransformedController = StreamController<Set<Node>>.broadcast();
+  static final onSelectionTransformed = _onSelectionTransformedController.stream;
+
   static Vector2Int? _boxSelectStart;
   static Vector2Int? _boxSelectCurrent;
 
   static Node? _draggedHandle;
   static Vector2Int? _dragStart;
+  static Vector3? _dragOffset;
 
   static void _clearDragState() {
     _boxSelectStart = null;
     _boxSelectCurrent = null;
     _draggedHandle = null;
     _dragStart = null;
+    _dragOffset = null;
   }
-
-  // static Vector3 _getHandlePlanePoint(FlyCamera camera, Node node, Vector2Int mousePosition) {
-  //   final (linePoint, viewMat, projMat) = camera.getState();
-  //   final lineDirection = _getCameraRayDirection((mousePosition.$1, mousePosition.$2), (canvas.width, canvas.height), projMat, viewMat);
-
-  //   final planePoint = _latestSelected!.wPos;
-  //   final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
-
-  //   final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-  // }
 
   static Future<void> init(FlyCamera camera) async {
     _outliner = await Outliner.create();
-    _outliner.canvasSizeChanged(canvas.width, canvas.height);
-
     _clicker = await Clicker.create();
-    _clicker.canvasSizeChanged(canvas.width, canvas.height);
-
     _handles = await Handles.create();
 
     Input.onFocusChanged.listen((focused) {
@@ -100,11 +91,51 @@ class Selector {
 
       if (_latestSelected != null) {
         final handleNodes = _handles.getHandles(_latestSelected!.wPos, _latestSelected!.wRot);
-        _draggedHandle = _clicker.clickUnregisteredNodes(x, y, [handleNodes.$1, handleNodes.$2, handleNodes.$3]);
-        _dragStart = (x, y);
+        _draggedHandle = _clicker.clickUnregisteredNodes(x, y, handleNodes);
+
+        if (_draggedHandle != null) {
+          final state = camera.getState();
+          if (state != null) {
+            final (linePoint, viewMat, projMat) = state;
+            final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
+
+            final axisOrNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+            final planePoint = _latestSelected!.wPos;
+
+            if (_handles.isAxisHandle(_draggedHandle!)) {
+              final cameraToObj = planePoint - linePoint;
+              var planeNormal = axisOrNormal.cross(cameraToObj.cross(axisOrNormal));
+              if (planeNormal.length2 == 0) {
+                // Fallback if camera ray is exactly on axis
+                planeNormal = lineDirection;
+              } else {
+                planeNormal.normalize();
+              }
+              final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+              if (intersection != null) {
+                final projected = planePoint + axisOrNormal * (intersection - planePoint).dot(axisOrNormal);
+                _dragOffset = _latestSelected!.wPos - projected;
+              } else {
+                _dragOffset = Vector3.zero();
+              }
+            } else if (_handles.isPlaneHandle(_draggedHandle!)) {
+              final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, axisOrNormal);
+              if (intersection != null) {
+                _dragOffset = _latestSelected!.wPos - intersection;
+              } else {
+                _dragOffset = Vector3.zero();
+              }
+            }
+          }
+          _dragStart = (x, y);
+        } else {
+          _dragStart = null;
+          _dragOffset = null;
+        }
       } else {
         _draggedHandle = null;
         _dragStart = null;
+        _dragOffset = null;
       }
 
       if (_draggedHandle == null) {
@@ -134,19 +165,32 @@ class Selector {
         final x = event.clientX - rect.left.toInt();
         final y = event.clientY - rect.top.toInt();
 
-        final delta = (x - _dragStart!.$1, y - _dragStart!.$2);
-
         final state = camera.getState();
         if (state != null) {
           final (linePoint, viewMat, projMat) = state;
           final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
 
-          final planePoint = _latestSelected!.wPos;
-          final planeNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+          final axisOrNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
+          final planePoint = _latestSelected!.wPos - (_dragOffset ?? Vector3.zero());
 
-          final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-          if (intersection != null) {
-            _latestSelected!.wPos = intersection;
+          if (_handles.isAxisHandle(_draggedHandle!)) {
+            final cameraToObj = planePoint - linePoint;
+            var planeNormal = axisOrNormal.cross(cameraToObj.cross(axisOrNormal));
+            if (planeNormal.length2 == 0) {
+              planeNormal = lineDirection;
+            } else {
+              planeNormal.normalize();
+            }
+            final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
+            if (intersection != null) {
+              final projected = planePoint + axisOrNormal * (intersection - planePoint).dot(axisOrNormal);
+              _latestSelected!.wPos = projected + (_dragOffset ?? Vector3.zero());
+            }
+          } else if (_handles.isPlaneHandle(_draggedHandle!)) {
+            final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, axisOrNormal);
+            if (intersection != null) {
+              _latestSelected!.wPos = intersection + (_dragOffset ?? Vector3.zero());
+            }
           }
         }
       }
@@ -160,14 +204,19 @@ class Selector {
       final y = event.clientY - rect.top.toInt();
 
       if (_latestSelected != null && _draggedHandle != null) {
-        // TODO: move node
+        _onSelectionTransformedController.add({
+          _latestSelected!,
+        });
         _draggedHandle = null;
       } else if (_boxSelectStart != null) {
         final dragDistance = Vector2(x.toDouble(), y.toDouble()).distanceTo(Vector2(_boxSelectStart!.$1.toDouble(), _boxSelectStart!.$2.toDouble()));
         if (dragDistance < _minDragDistance) {
           // click
 
-          final node = _clicker.click(x, canvas.height - y);
+          var node = _clicker.click(x, canvas.height - y);
+          if (node?.realNode != null) {
+            node = node?.realNode;
+          }
 
           if (event.ctrlKey) {
             if (node != null) {
@@ -188,7 +237,11 @@ class Selector {
           final width = (_boxSelectStart!.$1 - x).abs();
           final height = (_boxSelectStart!.$2 - y).abs();
 
-          final nodes = _clicker.overlap(startX, startY, width, height);
+          final nodes = <Node>{};
+          final fakeNodes = _clicker.overlap(startX, startY, width, height);
+          for (final fakeNode in fakeNodes) {
+            nodes.add(fakeNode.realNode ?? fakeNode);
+          }
 
           if (event.ctrlKey) {
             toggleNodes(nodes);
@@ -202,18 +255,14 @@ class Selector {
     });
   }
 
-  static void canvasSizeChanged(int width, int height) {
-    _outliner.canvasSizeChanged(width, height);
-    _clicker.canvasSizeChanged(width, height);
-    _handles.canvasSizeChanged(width, height);
-  }
-
   static void draw() {
     for (final (color, nodes) in _remoteSelected.values) {
       _outliner.draw(nodes, color);
     }
     _outliner.draw(_selected, _color);
-    if (_latestSelected != null) _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot, _draggedHandle);
+    if (_latestSelected != null) {
+      _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot, _draggedHandle);
+    }
     if (_boxSelectStart != null && _boxSelectCurrent != null) {
       final startX = min(_boxSelectStart!.$1, _boxSelectCurrent!.$1);
       final startY = min(_boxSelectStart!.$2, _boxSelectCurrent!.$2);
@@ -236,16 +285,30 @@ class Selector {
     _color = color;
   }
 
+  static bool _isSelectable(Node node) {
+    if (node.parent == null) return false;
+    for (final remoteSelections in _remoteSelected.values) {
+      for (final remoteSelected in remoteSelections.$2) {
+        if (node == remoteSelected) return false;
+      }
+    }
+    return true;
+  }
+
   static void selectOnly(Node? node) {
     _selected.clear();
-    if (node != null) _selected.add(node);
-    _latestSelected = node;
+    if (node != null && _isSelectable(node)) {
+      _selected.add(node);
+      _latestSelected = node;
+    } else {
+      _latestSelected = null;
+    }
     _onSelectionChangedController.add(_selected);
   }
 
   static void selectOnlyMultiple(Set<Node> nodes) {
     _selected.clear();
-    _selected.addAll(nodes);
+    _selected.addAll(nodes.where(_isSelectable));
     if (_selected.isEmpty) {
       _latestSelected = null;
     } else {
@@ -256,13 +319,15 @@ class Selector {
   }
 
   static void toggleNode(Node node) {
+    if (!_isSelectable(node)) return;
     _toggleNode(node);
     _onSelectionChangedController.add(_selected);
   }
 
   static void toggleNodes(Set<Node> nodes) {
-    if (nodes.isEmpty) return;
-    for (final node in nodes) {
+    final selectableNodes = nodes.where(_isSelectable).toSet();
+    if (selectableNodes.isEmpty) return;
+    for (final node in selectableNodes) {
       _toggleNode(node);
     }
     _onSelectionChangedController.add(_selected);
@@ -286,12 +351,14 @@ class Selector {
   }
 
   static void addNode(Node node) {
+    if (!_isSelectable(node)) return;
     _selected.add(node);
     _latestSelected = node;
     _onSelectionChangedController.add(_selected);
   }
 
   static void removeNode(Node node) {
+    if (!_isSelectable(node)) return;
     _selected.remove(node);
     if (_latestSelected == node) {
       if (_selected.isEmpty) {

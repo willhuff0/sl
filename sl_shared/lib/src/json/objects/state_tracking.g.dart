@@ -7,7 +7,6 @@ part of 'state_tracking.dart';
 // **************************************************************************
 
 StateChange _$StateChangeFromJson(Map<String, dynamic> json) => StateChange(
-  scope: json['scope'] as String?,
   objectClass: json['objectClass'] as String?,
   objectId: json['objectId'] as String,
   delta: json['delta'] as Map<String, dynamic>,
@@ -15,7 +14,6 @@ StateChange _$StateChangeFromJson(Map<String, dynamic> json) => StateChange(
 
 Map<String, dynamic> _$StateChangeToJson(StateChange instance) =>
     <String, dynamic>{
-      'scope': instance.scope,
       'objectClass': ?instance.objectClass,
       'objectId': instance.objectId,
       'delta': instance.delta,
@@ -23,7 +21,7 @@ Map<String, dynamic> _$StateChangeToJson(StateChange instance) =>
 
 CtsStateChanges _$CtsStateChangesFromJson(Map<String, dynamic> json) =>
     CtsStateChanges(
-      system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
+      sceneId: json['sceneId'] as String,
       stateChanges: (json['stateChanges'] as Map<String, dynamic>).map(
         (k, e) => MapEntry(
           int.parse(k),
@@ -34,21 +32,16 @@ CtsStateChanges _$CtsStateChangesFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$CtsStateChangesToJson(CtsStateChanges instance) =>
     <String, dynamic>{
-      'system': _$StateTrackerSystemEnumMap[instance.system]!,
+      'sceneId': instance.sceneId,
       'stateChanges': instance.stateChanges.map(
         (k, e) => MapEntry(k.toString(), e),
       ),
     };
 
-const _$StateTrackerSystemEnumMap = {
-  StateTrackerSystem.scene: 'scene',
-  StateTrackerSystem.asset: 'asset',
-};
-
 StcLocalChangeDecisions _$StcLocalChangeDecisionsFromJson(
   Map<String, dynamic> json,
 ) => StcLocalChangeDecisions(
-  system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
+  sceneId: json['sceneId'] as String,
   localChangeDecisions: (json['localChangeDecisions'] as Map<String, dynamic>)
       .map((k, e) => MapEntry(int.parse(k), e as bool)),
 );
@@ -56,7 +49,7 @@ StcLocalChangeDecisions _$StcLocalChangeDecisionsFromJson(
 Map<String, dynamic> _$StcLocalChangeDecisionsToJson(
   StcLocalChangeDecisions instance,
 ) => <String, dynamic>{
-  'system': _$StateTrackerSystemEnumMap[instance.system]!,
+  'sceneId': instance.sceneId,
   'localChangeDecisions': instance.localChangeDecisions.map(
     (k, e) => MapEntry(k.toString(), e),
   ),
@@ -64,7 +57,7 @@ Map<String, dynamic> _$StcLocalChangeDecisionsToJson(
 
 StcRemoteChanges _$StcRemoteChangesFromJson(Map<String, dynamic> json) =>
     StcRemoteChanges(
-      system: $enumDecode(_$StateTrackerSystemEnumMap, json['system']),
+      sceneId: json['sceneId'] as String,
       remoteChanges: (json['remoteChanges'] as List<dynamic>)
           .map((e) => StateChange.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -74,7 +67,7 @@ StcRemoteChanges _$StcRemoteChangesFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$StcRemoteChangesToJson(StcRemoteChanges instance) =>
     <String, dynamic>{
-      'system': _$StateTrackerSystemEnumMap[instance.system]!,
+      'sceneId': instance.sceneId,
       'remoteChanges': instance.remoteChanges,
       'latestAcknowledgedChangeId': instance.latestAcknowledgedChangeId,
     };

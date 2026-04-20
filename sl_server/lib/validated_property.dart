@@ -7,6 +7,8 @@ class ValidatedProperty<T> {
   final String key;
   final bool Function(StateTracked, dynamic) validator;
   final void Function(StateTracked, ValidatedProperty<T>, dynamic)? setter;
+  final dynamic Function(T)? _toJson;
+  final T Function(dynamic)? _fromJson;
   final bool required;
 
   ValidatedProperty(
@@ -14,8 +16,11 @@ class ValidatedProperty<T> {
     required this.key,
     required this.validator,
     this.setter,
+    dynamic Function(T)? toJson,
+    T Function(dynamic)? fromJson,
     this.required = false,
-  });
+  }) : _fromJson = fromJson,
+       _toJson = toJson;
 
   bool validate(StateTracked receiver, Delta delta) {
     if (!delta.containsKey(key)) return !required;
@@ -31,8 +36,12 @@ class ValidatedProperty<T> {
     }
   }
 
-  void getDeltaFromNull(Delta builder) {
-    builder[key] = value;
+  void getJson(Map<String, dynamic> builder) {
+    builder[key] = _toJson == null ? value : _toJson(value);
+  }
+
+  void setJson(Map<String, dynamic> json) {
+    value = _fromJson == null ? json[key] : _fromJson(json[key]);
   }
 }
 

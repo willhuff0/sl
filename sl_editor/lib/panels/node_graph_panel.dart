@@ -3,16 +3,16 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:sl_editor/client/client.dart';
 import 'package:sl_engine/editor/selector.dart';
-import 'package:sl_editor/client/objects/node.dart' as editor;
+import 'package:sl_editor/client/scenes/node.dart' as editor;
+import 'package:sl_shared/sl_shared.dart';
 
 class NodeGraphPanel extends StatefulWidget {
-  final editor.Node? root;
   final Set<editor.Node>? collapsed;
 
   const NodeGraphPanel({
     super.key,
-    required this.root,
     this.collapsed,
   });
 
@@ -23,10 +23,36 @@ class NodeGraphPanel extends StatefulWidget {
 class _NodeGraphPanelState extends State<NodeGraphPanel> {
   late final Set<editor.Node> collapsed;
 
+  late final StreamSubscription _onRootChangedSubscription;
+  late final StreamSubscription _onNodeAddedOrRemovedSubscription;
+
+  editor.Node? _root;
+
   @override
   void initState() {
     collapsed = widget.collapsed ?? {};
+    _onRootChangedSubscription = Client.get().sceneSystem.onRootChanged.listen(_onRootChanged);
+    _onNodeAddedOrRemovedSubscription = Client.get().sceneSystem.onNodeAddedOrRemoved.listen(_onNodeAddedOrRemoved);
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _onRootChangedSubscription.cancel();
+    _onNodeAddedOrRemovedSubscription.cancel();
+    super.dispose();
+  }
+
+  void _onRootChanged(editor.Node? newRoot) {
+    if (!mounted) return;
+    setState(() {
+      _root = newRoot;
+    });
+  }
+
+  void _onNodeAddedOrRemoved(_) {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
@@ -51,9 +77,10 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
               ShadBreadcrumbDropdown(
                 items: [
                   ShadBreadcrumbDropMenuItem(
-                    child: Text('Cube'),
+                    child: Text('Add Empty Node'),
                     onPressed: () {
-                      // editor.Node.create();
+                      if (_root == null || Client.get().sceneSystem.stateTracker == null) return;
+                      editor.Node.create(Client.get().sceneSystem.stateTracker!, _root!.uuid, 'New Node');
                     },
                   ),
                 ],
@@ -76,7 +103,7 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(4.0),
-            child: widget.root == null
+            child: _root == null
                 ? Align(
                     alignment: Alignment.topCenter,
                     child: Padding(
@@ -85,7 +112,7 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
                     ),
                   )
                 : _NodeTreeWidget(
-                    root: widget.root!,
+                    root: _root!,
                     collapsed: collapsed,
                   ),
           ),
@@ -126,7 +153,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
 
   List<Widget> _recurseNode(editor.Node node, int depth) {
     final bool isCollapsed = widget.collapsed.contains(node);
-    final bool isSelected = false; //TODO: Selector.getSelected().contains(node);
+    final bool isSelected = Selector.getSelected().contains(node.engineNode);
     return [
       _NodeWidget(
         node: node,
@@ -143,16 +170,16 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
         },
         isSelected: isSelected,
         areAnyChildrenSelectedAndIsCollapsed:
-            isCollapsed, //TODO: && node.children.any(Selector.getSelected().contains),
+            isCollapsed && node.children.values.map((node) => node.engineNode).any(Selector.getSelected().contains),
         onSelect: () {
           if (!mounted) return;
           if (HardwareKeyboard.instance.isControlPressed) {
-            //TODO: Selector.toggleNode(node);
+            Selector.toggleNode(node.engineNode);
           } else {
             if (Selector.getSelected().isEmpty ||
                 Selector.getSelected().length > 1 ||
                 (!isSelected && Selector.getSelected().length == 1)) {
-              //TODO: Selector.selectOnly(node);
+              Selector.selectOnly(node.engineNode);
             } else {
               Selector.clear();
             }
@@ -204,40 +231,53 @@ class _NodeWidget extends StatelessWidget {
     required this.onSelect,
   });
 
+  void _onDropAsset(Asset asset) async {
+    switch (asset.type) {
+      case .model:
+        Client.get().sceneSystem.createNewGltfAssetNode(asset, node);
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 30.0,
-      child: Row(
-        children: [
-          if (isExpandable)
-            ShadIconButton.ghost(
-              onPressed: onExpand,
-              width: 32.0,
-              icon: Icon(isCollapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp),
-            )
-          else
-            SizedBox(width: 32.0),
-          // ShadIconButton.ghost(
-          //   enabled: false,
-          //   width: 32.0,
-          //   icon: Icon(LucideIcons.circleSmall, size: 14.0),
-          // ),
-          ...Iterable.generate(depth, (_) => _IndentGuide()),
-          ShadButton.ghost(
-            backgroundColor: isSelected ? ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.6) : null,
-            hoverBackgroundColor: isSelected
-                ? ShadTheme.of(context).colorScheme.selection
-                : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
-            padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-            onPressed: onSelect,
-            child: Text(node.name.get()),
-          ),
-          if (areAnyChildrenSelectedAndIsCollapsed) ...[
-            SizedBox(width: 8.0),
-            Icon(LucideIcons.dot),
+      child: DragTarget<Asset>(
+        onAcceptWithDetails: (details) => _onDropAsset(details.data),
+        builder: (context, _, _) => Row(
+          children: [
+            if (isExpandable)
+              ShadIconButton.ghost(
+                onPressed: onExpand,
+                width: 32.0,
+                icon: Icon(isCollapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp),
+              )
+            else
+              SizedBox(width: 32.0),
+            // ShadIconButton.ghost(
+            //   enabled: false,
+            //   width: 32.0,
+            //   icon: Icon(LucideIcons.circleSmall, size: 14.0),
+            // ),
+            ...Iterable.generate(depth, (_) => _IndentGuide()),
+            ShadButton.ghost(
+              backgroundColor: isSelected ? ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.6) : null,
+              hoverBackgroundColor: isSelected
+                  ? ShadTheme.of(context).colorScheme.selection
+                  : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
+              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+              onPressed: onSelect,
+              child: Text(node.name.get()),
+            ),
+            if (areAnyChildrenSelectedAndIsCollapsed) ...[
+              SizedBox(width: 8.0),
+              Icon(LucideIcons.dot),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

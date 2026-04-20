@@ -10,6 +10,8 @@ abstract class Component {
   Node get node => _node!;
   bool get enabled => _enabled;
 
+  Component clone();
+
   @protected
   void enterScene() {}
   @protected
@@ -40,6 +42,15 @@ class Node {
   final List<Node> _children = [];
   final List<Component> _components = [];
 
+  Node? realNode;
+
+  void setRealNode(Node? newRealNode) {
+    realNode = newRealNode;
+    for (final child in children) {
+      child.setRealNode(newRealNode);
+    }
+  }
+
   Vector3 _lPos = Vector3.zero();
   Quaternion _lRot = Quaternion.identity();
   Vector3 _lScale = Vector3(1.0, 1.0, 1.0);
@@ -53,6 +64,22 @@ class Node {
     if (pos != null) _lPos = pos;
     if (rot != null) _lRot = rot;
     if (scale != null) _lScale = scale;
+  }
+
+  Node clone() {
+    final newClone = Node(
+      name: name,
+      pos: lPos,
+      rot: lRot,
+      scale: lScale,
+    );
+    for (final child in children) {
+      newClone.addChild(child.clone());
+    }
+    for (final component in components) {
+      newClone.addComponent(component.clone());
+    }
+    return newClone;
   }
 
   bool get enabled {
@@ -183,15 +210,15 @@ class Node {
   }
 
   Vector3 getForwardVector() {
-    return wRot.rotate(Vector3(0.0, 0.0, 1.0));
+    return wRot.inverted().rotate(Vector3(0.0, 0.0, 1.0));
   }
 
   Vector3 getRightVector() {
-    return wRot.rotate(Vector3(1.0, 0.0, 0.0));
+    return wRot.inverted().rotate(Vector3(1.0, 0.0, 0.0));
   }
 
   Vector3 getUpVector() {
-    return wRot.rotate(Vector3(0.0, 1.0, 0.0));
+    return wRot.inverted().rotate(Vector3(0.0, 1.0, 0.0));
   }
 
   bool isFullyEnabled() {
@@ -228,12 +255,15 @@ class Node {
 
   void addComponent(Component component) {
     if (component._node != null) component.node.removeComponent(component);
+
     _components.add(component);
     component._node = this;
   }
 
   void removeComponent(Component component) {
-    if (_components.remove(component)) component._node = null;
+    if (_components.remove(component)) {
+      component._node = null;
+    }
   }
 
   void enterScene() {

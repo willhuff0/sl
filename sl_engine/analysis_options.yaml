@@ -19,9 +19,9 @@ formatter:
   page_width: 240
   trailing_commas: preserve
 
-# linter:
-#   rules:
-#     - camel_case_types
+linter:
+  rules:
+    - unawaited_futures
 
 # analyzer:
 #   exclude:

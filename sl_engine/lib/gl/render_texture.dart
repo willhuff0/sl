@@ -65,12 +65,12 @@ class RenderTexture {
         break;
     }
 
-    gl.bindFramebuffer(GL.FRAMEBUFFER, null);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, defaultFramebuffer);
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
 
   void bindFramebuffer() {
-    gl.bindFramebuffer(GL.FRAMEBUFFER, _framebuffer);
+    gl.bindFramebuffer(GL.FRAMEBUFFER, _framebuffer!);
   }
 
   void unbindFramebuffer() {

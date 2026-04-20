@@ -84,6 +84,11 @@ class Renderer {
     _uniformBuffer.bindToUniformBuffer(1);
   }
 
+  static void clear() {
+    _materials.clear();
+    _nodes.clear();
+  }
+
   static void addNode(Node node, Material material, Mesh mesh) {
     final meshes = _materials[material] ??= {};
     final nodes = meshes[mesh] ??= {};
@@ -156,11 +161,11 @@ class Renderer {
     }
 
     final meshComponents = node.components.whereType<MeshComponent>();
-    for (final meshComponents in meshComponents) {
-      meshComponents.material.bind();
-      meshComponents.mesh.bind();
+    for (final meshComponent in meshComponents) {
+      meshComponent.material.bind();
+      meshComponent.mesh.bind();
       _setUboForNode(node);
-      meshComponents.mesh.draw();
+      meshComponent.mesh.draw();
     }
   }
 

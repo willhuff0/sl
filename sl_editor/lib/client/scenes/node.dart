@@ -1,7 +1,9 @@
 import 'dart:collection';
 
+import 'package:sl_editor/client/bi_delta.dart';
+import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/client/state_tracker.dart';
-import 'package:sl_editor/client/systems/scene_system.dart';
+import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_engine/node.dart' as engine;
 import 'package:sl_shared/sl_shared.dart';
@@ -17,6 +19,7 @@ class Node extends SceneStateTracked {
     path: 'parent',
     value: null,
     effect: _parentEffect,
+    fromJson: (v) => v == null ? null : ParentAndOrder.fromJson(v),
   );
   final SplayTreeMap<Fraction, Node> children = SplayTreeMap();
   final TrackedProperty<Vector3> lPos = TrackedProperty(
@@ -40,13 +43,52 @@ class Node extends SceneStateTracked {
     toJson: vec3ToJson,
     fromJson: vec3FromJson,
   );
+  final TrackedProperty<UUID?> asset = TrackedProperty(
+    path: 'asset',
+    value: null,
+    effect: _assetEffect,
+  );
+  engine.Node? assetNode;
 
   final engine.Node engineNode;
 
   static ObjectClass get objectClass => 'node';
 
-  static Node create(StateTracker tracker) {
+  static Fraction _insertIntoParent(Node parent, Fraction left) {
+    assert(parent.children.length >= 2);
+
+    final right = parent.children.firstKeyAfter(left);
+    if (right != null) {
+      return Fraction.midpoint(left, right);
+    } else {
+      final leftNode = parent.children[left]!;
+
+      final beforeLeft = parent.children.lastKeyBefore(left)!;
+      final newLeft = Fraction.midpoint(beforeLeft, left);
+
+      leftNode.modifyLocal((builder) {
+        leftNode.parent.set(leftNode, builder, ParentAndOrder(uuid: parent.uuid, order: newLeft));
+      });
+
+      return left;
+    }
+  }
+
+  static Node create(StateTracker<SceneStateTracked> tracker, UUID parent, String name) {
+    final parentNode = tracker.getObject(parent) as Node;
+    Fraction order;
+    // always insert last for now
+    if (parentNode.children.isEmpty) {
+      order = Fraction.zero;
+    } else if (parentNode.children.length == 1) {
+      order = Fraction.one;
+    } else {
+      order = _insertIntoParent(parentNode, parentNode.children.lastKey()!);
+    }
+
     final node = Node(tracker, generateUuid());
+    node.parent.set(node, BiDeltaBuilder(), ParentAndOrder(uuid: parent, order: order));
+    node.name.set(node, BiDeltaBuilder(), name);
     node.createThis(objectClass);
     return node;
   }
@@ -56,16 +98,12 @@ class Node extends SceneStateTracked {
       super(
         doesExistEffect: (node, newDoesExist) {
           if (!newDoesExist) {
-            // TODO: delete node
-            (node as Node).engineNode.exitScene();
+            Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+            (node as Node).engineNode.parent!.removeChild(node.engineNode);
+            node.engineNode.exitScene();
           }
         },
-      ) {
-    // TODO: temporary
-    // root.addChild(engineNode);
-    // engineNode.addComponent(MeshComponent(mesh: cubeMesh));
-    // engineNode.enterScene();
-  }
+      );
 
   @override
   void getDeltaFromNull(Delta builder) {
@@ -74,6 +112,7 @@ class Node extends SceneStateTracked {
     lPos.getDeltaFromNullRelToObject(builder);
     lRot.getDeltaFromNullRelToObject(builder);
     lScale.getDeltaFromNullRelToObject(builder);
+    asset.getDeltaFromNullRelToObject(builder);
     super.getDeltaFromNull(builder);
   }
 
@@ -84,6 +123,7 @@ class Node extends SceneStateTracked {
     lPos.applyDeltaRelToObject(this, delta);
     lRot.applyDeltaRelToObject(this, delta);
     lScale.applyDeltaRelToObject(this, delta);
+    asset.applyDeltaRelToObject(this, delta);
     super.applyDelta(delta);
   }
 
@@ -93,17 +133,37 @@ class Node extends SceneStateTracked {
       final parentNode = receiver.tracker.getObject<Node>(node.parent.get()!.uuid)!;
       parentNode.children.remove(node.parent.get()!.order);
       parentNode.engineNode.removeChild(node.engineNode);
-    } else {
-      // TODO: temporary
-      // root.removeChild(node.engineNode);
     }
     if (newParent != null) {
       final newParentNode = receiver.tracker.getObject<Node>(newParent.uuid)!;
       newParentNode.children[newParent.order] = node;
       newParentNode.engineNode.addChild(node.engineNode);
     } else {
-      // TODO: temporary
-      // root.addChild(node.engineNode);
+      Client.get().sceneSystem.setRoot(node);
     }
+  }
+
+  static void _assetEffect(StateTracked receiver, UUID? newAsset) async {
+    final node = (receiver as Node);
+
+    if (newAsset == null) {
+      if (node.assetNode != null) {
+        node.engineNode.removeChild(node.assetNode!);
+        node.assetNode!.exitScene();
+        node.assetNode = null;
+      }
+      return;
+    }
+    final asset = await getAssetByUUID(Client.get().assetSystem.sharedDatabase, newAsset);
+    if (asset == null) {
+      if (node.assetNode != null) {
+        node.engineNode.removeChild(node.assetNode!);
+        node.assetNode!.exitScene();
+        node.assetNode = null;
+      }
+      return;
+    }
+
+    await Client.get().sceneSystem.addGltfToRealNode(asset, node);
   }
 }
