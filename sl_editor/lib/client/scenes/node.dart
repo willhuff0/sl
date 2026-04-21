@@ -13,7 +13,10 @@ class Node extends SceneStateTracked {
   final TrackedProperty<String> name = TrackedProperty(
     path: 'name',
     value: 'New Node',
-    effect: (node, newName) => (node as Node).engineNode.name = newName,
+    effect: (node, newName) {
+      (node as Node).engineNode.name = newName;
+      Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+    },
   );
   final TrackedProperty<ParentAndOrder?> parent = TrackedProperty(
     path: 'parent',
