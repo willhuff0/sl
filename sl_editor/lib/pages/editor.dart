@@ -9,6 +9,7 @@ import 'package:sl_editor/panels/properties_panel.dart';
 import 'package:sl_editor/widgets/avatars.dart';
 import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
+import 'package:sl_engine/editor/selector.dart';
 import 'package:web/web.dart' as web;
 
 class EditorClientLoader extends StatefulWidget {
@@ -140,6 +141,40 @@ class EditorPage extends StatelessWidget {
                           ),
                         ],
                         child: Text('View'),
+                      ),
+                    ],
+                  ),
+                ],
+                centered: [
+                  Row(
+                    mainAxisAlignment: .center,
+                    children: [
+                      ShadButton.ghost(
+                        width: 40.0,
+                        height: 40.0,
+                        size: .sm,
+                        child: Icon(LucideIcons.move3d),
+                        onPressed: () {
+                          Selector.setGizmoType(.translation);
+                        },
+                      ),
+                      ShadButton.ghost(
+                        width: 40.0,
+                        height: 40.0,
+                        size: .sm,
+                        child: Icon(LucideIcons.rotate3d),
+                        onPressed: () {
+                          Selector.setGizmoType(.rotation);
+                        },
+                      ),
+                      ShadButton.ghost(
+                        width: 40.0,
+                        height: 40.0,
+                        size: .sm,
+                        child: Icon(LucideIcons.scale3d),
+                        onPressed: () {
+                          Selector.setGizmoType(.scale);
+                        },
                       ),
                     ],
                   ),

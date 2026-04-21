@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:js_interop';
 
+import 'package:sl_engine/editor/avatars.dart';
 import 'package:sl_engine/editor/fly_camera.dart';
 import 'package:sl_engine/editor/model_preview_generator.dart';
 import 'package:sl_engine/editor/selector.dart';
@@ -56,6 +57,8 @@ class SLEditor {
 
     _directionalLight = await DirectionalLight.create();
     _directionalLight!.bindUbo();
+
+    await Avatars.init();
 
     // final model = (await GLTF.load('models/FlightHelmet.glb'))!;
     // model.root.lScale = Vector3.all(4.0);
@@ -119,6 +122,8 @@ class SLEditor {
     // Physics.tick(dt);
     // }
 
+    Avatars.tick(time, dt);
+
     Input.postTick();
   }
 
@@ -138,6 +143,7 @@ class SLEditor {
     Renderer.renderAll();
     // final (viewPos, viewMat, projMat) = _camera!.getState()!;
     // Renderer.drawAllBounds(viewMat);
+    Avatars.draw();
     Selector.draw();
 
     // Physics.drawDebugShapes();

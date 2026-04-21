@@ -42,7 +42,7 @@ class Clicker {
     _renderTexture.resize(width, height);
   }
 
-  Node? click(int x, int y) {
+  Node? click(int x, int y, {double? screenScale}) {
     _uniqueShader.bind();
 
     _renderTexture.bindFramebuffer();
@@ -60,6 +60,7 @@ class Clicker {
 
         _uniqueShader.setUniform('u_modelMat', node.getMatrix());
         _uniqueShader.setUniform('u_color', color);
+        _uniqueShader.setUniform('u_screenScale', screenScale ?? 0.0);
       },
     );
 
@@ -75,7 +76,7 @@ class Clicker {
     return colorToNode[color];
   }
 
-  Set<Node> overlap(int startX, int startY, int width, int height) {
+  Set<Node> overlap(int startX, int startY, int width, int height, {double? screenScale}) {
     _uniqueShader.bind();
 
     _renderTexture.bindFramebuffer();
@@ -93,6 +94,7 @@ class Clicker {
 
         _uniqueShader.setUniform('u_modelMat', node.getMatrix());
         _uniqueShader.setUniform('u_color', color);
+        _uniqueShader.setUniform('u_screenScale', screenScale ?? 0.0);
       },
     );
 
@@ -121,7 +123,7 @@ class Clicker {
     return indices.map((index) => indexToNode[index]!).toSet();
   }
 
-  Node? clickUnregisteredNodes(int x, int y, Iterable<Node> roots) {
+  Node? clickUnregisteredNodes(int x, int y, Iterable<Node> roots, {double? screenScale}) {
     _uniqueShader.bind();
 
     _renderTexture.bindFramebuffer();
@@ -141,6 +143,7 @@ class Clicker {
 
           _uniqueShader.setUniform('u_modelMat', node.getMatrix());
           _uniqueShader.setUniform('u_color', color);
+          _uniqueShader.setUniform('u_screenScale', screenScale ?? 0.0);
         },
       );
     }
@@ -157,7 +160,7 @@ class Clicker {
     return colorToNode[color];
   }
 
-  void debugDraw(Iterable<Node> roots) {
+  void debugDraw(Iterable<Node> roots, {double? screenScale}) {
     _uniqueShader.bind();
 
     for (final root in roots) {
@@ -166,6 +169,7 @@ class Clicker {
         bindUniformsCallback: (node) {
           _uniqueShader.setUniform('u_modelMat', node.getMatrix());
           _uniqueShader.setUniform('u_color', (1.0, 1.0, 1.0));
+          _uniqueShader.setUniform('u_screenScale', screenScale ?? 0.0);
         },
       );
     }

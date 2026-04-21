@@ -28,7 +28,10 @@ in vec3 v_position;
 in vec3 v_normal;
 in vec3 v_tangent;
 in vec3 v_bitangent;
-in vec2 v_uv;
+in vec2 v_uv_0;
+in vec2 v_uv_1;
+in vec2 v_uv_2;
+in vec2 v_uv_3;
 
 out vec4 o_color;
 
@@ -49,21 +52,26 @@ uniform float u_roughnessFactor;
 
 uniform sampler2D u_baseColorTexture;
 uniform bool u_hasBaseColorTexture;
+uniform int u_baseColorTexCoord;
 
 uniform sampler2D u_metallicRoughnessTexture;
 uniform bool u_hasMetallicRoughnessTexture;
+uniform int u_metallicRoughnessTexCoord;
 
 uniform sampler2D u_normalTexture;
 uniform bool u_hasNormalTexture;
 uniform float u_normalScale;
+uniform int u_normalTexCoord;
 
 uniform sampler2D u_occlusionTexture;
 uniform bool u_hasOcclusionTexture;
 uniform float u_occlusionStrength;
+uniform int u_occlusionTexCoord;
 
 uniform sampler2D u_emissiveTexture;
 uniform bool u_hasEmissiveTexture;
 uniform vec3 u_emissiveFactor;
+uniform int u_emissiveTexCoord;
 
 const float PI = 3.14159265359;
 
@@ -105,6 +113,13 @@ float G_Smith(float NdotV, float NdotL, float roughness) {
     float ggx2 = G_SchlickGGX(NdotV, roughness);
     float ggx1 = G_SchlickGGX(NdotL, roughness);
     return ggx1 * ggx2;
+}
+
+vec2 getUV(int texCoordIndex) {
+    if (texCoordIndex == 1) return v_uv_1;
+    if (texCoordIndex == 2) return v_uv_2;
+    if (texCoordIndex == 3) return v_uv_3;
+    return v_uv_0;
 }
 
 mat3 getTangentFrame(vec3 normal, vec3 position, vec2 uv) {
@@ -163,7 +178,7 @@ void main() {
     // Fallback constants if uniforms aren't being set yet
     vec4 baseColor = u_baseColorFactor == vec4(0.0) ? vec4(0.8, 1.0, 1.0, 1.0) : u_baseColorFactor;
     if (u_hasBaseColorTexture) {
-        vec4 texColor = texture(u_baseColorTexture, v_uv);
+        vec4 texColor = texture(u_baseColorTexture, getUV(u_baseColorTexCoord));
         // glTF spec requires baseColorTexture to be strictly sRGB to linear
         texColor.rgb = pow(texColor.rgb, vec3(2.2));
         baseColor *= texColor;
@@ -173,7 +188,7 @@ void main() {
     float roughness = u_metallicFactor == 0.0 && u_roughnessFactor == 0.0 ? 0.4 : u_roughnessFactor;
     
     if (u_hasMetallicRoughnessTexture) {
-        vec4 mrTex = texture(u_metallicRoughnessTexture, v_uv);
+        vec4 mrTex = texture(u_metallicRoughnessTexture, getUV(u_metallicRoughnessTexCoord));
         // glTF spec: metallic is in the B channel, roughness is in the G channel
         metallic *= mrTex.b;
         roughness *= mrTex.g;
@@ -181,16 +196,17 @@ void main() {
     
     vec3 N = normalize(v_normal);
     if (u_hasNormalTexture) {
+        vec2 normalUV = getUV(u_normalTexCoord);
         mat3 tbn;
         if (length(v_tangent) > 0.001) {
             vec3 t = normalize(v_tangent);
             vec3 b = normalize(v_bitangent);
             tbn = mat3(t, b, N);
         } else {
-            tbn = getTangentFrame(N, v_position, v_uv);
+            tbn = getTangentFrame(N, v_position, normalUV);
         }
         
-        vec3 nTex = texture(u_normalTexture, v_uv).rgb * 2.0 - 1.0;
+        vec3 nTex = texture(u_normalTexture, normalUV).rgb * 2.0 - 1.0;
         nTex = normalize(vec3(nTex.xy * u_normalScale, nTex.z));
         N = normalize(tbn * nTex);
     }
@@ -248,13 +264,13 @@ void main() {
     
     float ao = 1.0;
     if (u_hasOcclusionTexture) {
-        ao = texture(u_occlusionTexture, v_uv).r;
+        ao = texture(u_occlusionTexture, getUV(u_occlusionTexCoord)).r;
         ao = 1.0 + u_occlusionStrength * (ao - 1.0);
     }
     
     vec3 emissive = u_emissiveFactor;
     if (u_hasEmissiveTexture) {
-        vec3 eTex = texture(u_emissiveTexture, v_uv).rgb;
+        vec3 eTex = texture(u_emissiveTexture, getUV(u_emissiveTexCoord)).rgb;
         eTex = pow(eTex, vec3(2.2));
         emissive *= eTex;
     }

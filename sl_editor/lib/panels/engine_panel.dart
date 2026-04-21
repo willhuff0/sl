@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_engine/editor/selector.dart';
@@ -17,11 +16,12 @@ class EnginePanel extends StatefulWidget {
 }
 
 class _EngineViewState extends State<EnginePanel> {
+  final _canvasKey = GlobalKey();
+
   late final StreamSubscription _onClientStatesChangedSubscription;
 
   @override
   void initState() {
-    ServicesBinding.instance.keyboard.addHandler(_onKey);
     ui_web.platformViewRegistry.registerViewFactory('sl-engine-view', (int viewId, {Object? params}) {
       final canvas = web.HTMLCanvasElement();
       canvas.style.width = '100%';
@@ -35,7 +35,6 @@ class _EngineViewState extends State<EnginePanel> {
 
   @override
   void dispose() {
-    ServicesBinding.instance.keyboard.removeHandler(_onKey);
     _onClientStatesChangedSubscription.cancel();
     super.dispose();
   }
@@ -45,19 +44,11 @@ class _EngineViewState extends State<EnginePanel> {
     Selector.setColor(Vector4(color.r, color.g, color.b, color.a));
   }
 
-  bool _onKey(KeyEvent event) {
-    print(event.physicalKey.debugName);
-    print(event.logicalKey.debugName);
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(child: HtmlElementView(viewType: 'sl-engine-view')),
-        // Positioned.fill(child: CursorsWidget()),
-      ],
+    return HtmlElementView(
+      key: _canvasKey,
+      viewType: 'sl-engine-view',
     );
   }
 }

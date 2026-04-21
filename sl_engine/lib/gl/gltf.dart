@@ -84,6 +84,9 @@ const _attributeInfo = {
   'NORMAL': (1, 3),
   'TANGENT': (2, 4),
   'TEXCOORD_0': (3, 2),
+  'TEXCOORD_1': (4, 2),
+  'TEXCOORD_2': (5, 2),
+  'TEXCOORD_3': (6, 2),
 };
 
 class GLTF {
@@ -392,14 +395,15 @@ class GLTF {
         final emissiveFactor = _listToVector3(material['emissiveFactor'] as List<dynamic>? ?? [0.0, 0.0, 0.0]);
 
         final Map<int, Texture> textures = {};
+        final Map<int, int> texCoords = {};
         Future<bool> addTexture(int slot, Map<String, dynamic>? textureInfo) async {
           if (textureInfo == null) return true;
 
           final textureIndex = textureInfo['index'] as int;
-          final texCoord = textureInfo['texCoord'] as int?;
+          final texCoord = textureInfo['texCoord'] as int? ?? 0;
 
-          if (texCoord != null && texCoord != 0) {
-            Logger.log('Tried to load a GLTF \'$path\' which uses unsupported additional texture coordinate attributes.', .warning);
+          if (texCoord > 3) {
+            Logger.log('Tried to load a GLTF \'$path\' which uses an unsupported texture coordinate attribute > 3 ($texCoord).', .warning);
             return false;
           }
 
@@ -407,6 +411,7 @@ class GLTF {
           if (result == null) return false;
 
           textures[slot] = result;
+          texCoords[slot] = texCoord;
           return true;
         }
 
@@ -427,10 +432,15 @@ class GLTF {
             'u_occlusionStrength': occlusionStrength,
             'u_emissiveFactor': emissiveFactor,
             'u_hasBaseColorTexture': textures.containsKey(0),
+            'u_baseColorTexCoord': texCoords[0] ?? 0,
             'u_hasMetallicRoughnessTexture': textures.containsKey(1),
+            'u_metallicRoughnessTexCoord': texCoords[1] ?? 0,
             'u_hasNormalTexture': textures.containsKey(2),
+            'u_normalTexCoord': texCoords[2] ?? 0,
             'u_hasOcclusionTexture': textures.containsKey(3),
+            'u_occlusionTexCoord': texCoords[3] ?? 0,
             'u_hasEmissiveTexture': textures.containsKey(4),
+            'u_emissiveTexCoord': texCoords[4] ?? 0,
           },
           textures: textures,
         );
@@ -511,7 +521,10 @@ class GLTF {
             final normalized = accessor['normalized'] ?? false;
             final count = accessor['count'] as int;
             if (minCount == null || count < minCount) minCount = count;
-            // TODO: sparse
+
+            if (accessor.containsKey('sparse')) {
+              Logger.log('Tried to load a GLTF \'$path\' which uses unsupported sparse accessor data.', .warning);
+            }
 
             if (attribute == 'POSITION') {
               final min = accessor['min'] as List<dynamic>?;
@@ -540,7 +553,10 @@ class GLTF {
             meshOffset = accessor['byteOffset'] as int? ?? 0;
             meshIndexType = accessor['componentType'];
             meshCount = accessor['count'] as int;
-            // TODO: sparse
+
+            if (accessor.containsKey('sparse')) {
+              Logger.log('Tried to load a GLTF \'$path\' which uses unsupported sparse accessor data.', .warning);
+            }
 
             final gpuBuffer = await getGpuBufferFromView(bufferViewIndex, GL.ELEMENT_ARRAY_BUFFER);
             if (gpuBuffer == null) continue;

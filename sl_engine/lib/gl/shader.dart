@@ -86,14 +86,6 @@ class _UniformTypeInfo {
   _UniformTypeInfo(this.name, this.acceptedTypes, this.setter);
 }
 
-typedef Vector2Int = (int, int);
-typedef Vector3Int = (int, int, int);
-typedef Vector4Int = (int, int, int, int);
-
-typedef Vector2Bool = (bool, bool);
-typedef Vector3Bool = (bool, bool, bool);
-typedef Vector4Bool = (bool, bool, bool, bool);
-
 final _uniformTypeInfos = {
   // float
   GL.FLOAT: _UniformTypeInfo('float (dart double)', {double, int}, (location, num value) => gl.uniform1f(location, value)),

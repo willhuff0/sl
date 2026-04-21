@@ -6,7 +6,6 @@ import 'package:sl_engine/editor/fly_camera.dart';
 import 'package:sl_engine/editor/handles.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/gl.dart';
-import 'package:sl_engine/gl/shader.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
 import 'package:sl_engine/editor/outliner.dart';
@@ -14,32 +13,14 @@ import 'package:sl_engine/utils/clicker.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
 
+enum GizmoType {
+  translation,
+  rotation,
+  scale,
+}
+
 const _multiselectBoxOpacity = 0.2;
 const _minDragDistance = 14.0;
-
-Vector3? _linePlaneIntersection(Vector3 linePoint, Vector3 lineDirection, Vector3 planePoint, Vector3 planeNormal) {
-  final denominator = lineDirection.dot(planeNormal);
-
-  if (denominator.abs() < 0.000001) return null;
-
-  final t = (planePoint - linePoint).dot(planeNormal) / denominator;
-  return linePoint + lineDirection * t;
-}
-
-Vector3 _getCameraRayDirection(Vector2Int mousePosition, Vector2Int windowSize, Matrix4 projMat, Matrix4 viewMat) {
-  final x = (2.0 * mousePosition.$1) / windowSize.$1 - 1.0;
-  final y = 1.0 - (2.0 * mousePosition.$2) / windowSize.$2;
-
-  final clipRay = Vector4(x, y, -1.0, 1.0);
-
-  final eyeRay = Matrix4.inverted(projMat) * clipRay as Vector4;
-  eyeRay.z = -1.0;
-  eyeRay.w = 0.0;
-
-  final worldRay = Matrix4.inverted(viewMat) * eyeRay as Vector4;
-
-  return Vector3(worldRay.x, worldRay.y, worldRay.z)..normalize();
-}
 
 class Selector {
   static late final Outliner _outliner;
@@ -61,15 +42,11 @@ class Selector {
   static Vector2Int? _boxSelectCurrent;
 
   static Node? _draggedHandle;
-  static Vector2Int? _dragStart;
-  static Vector3? _dragOffset;
 
   static void _clearDragState() {
     _boxSelectStart = null;
     _boxSelectCurrent = null;
     _draggedHandle = null;
-    _dragStart = null;
-    _dragOffset = null;
   }
 
   static Future<void> init(FlyCamera camera) async {
@@ -90,52 +67,9 @@ class Selector {
       final y = event.clientY - rect.top.toInt();
 
       if (_latestSelected != null) {
-        final handleNodes = _handles.getHandles(_latestSelected!.wPos, _latestSelected!.wRot);
-        _draggedHandle = _clicker.clickUnregisteredNodes(x, y, handleNodes);
-
-        if (_draggedHandle != null) {
-          final state = camera.getState();
-          if (state != null) {
-            final (linePoint, viewMat, projMat) = state;
-            final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
-
-            final axisOrNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
-            final planePoint = _latestSelected!.wPos;
-
-            if (_handles.isAxisHandle(_draggedHandle!)) {
-              final cameraToObj = planePoint - linePoint;
-              var planeNormal = axisOrNormal.cross(cameraToObj.cross(axisOrNormal));
-              if (planeNormal.length2 == 0) {
-                // Fallback if camera ray is exactly on axis
-                planeNormal = lineDirection;
-              } else {
-                planeNormal.normalize();
-              }
-              final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-              if (intersection != null) {
-                final projected = planePoint + axisOrNormal * (intersection - planePoint).dot(axisOrNormal);
-                _dragOffset = _latestSelected!.wPos - projected;
-              } else {
-                _dragOffset = Vector3.zero();
-              }
-            } else if (_handles.isPlaneHandle(_draggedHandle!)) {
-              final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, axisOrNormal);
-              if (intersection != null) {
-                _dragOffset = _latestSelected!.wPos - intersection;
-              } else {
-                _dragOffset = Vector3.zero();
-              }
-            }
-          }
-          _dragStart = (x, y);
-        } else {
-          _dragStart = null;
-          _dragOffset = null;
-        }
+        _draggedHandle = _handles.activeGizmo.onMouseDown(x, y, _latestSelected!, camera, _clicker);
       } else {
         _draggedHandle = null;
-        _dragStart = null;
-        _dragOffset = null;
       }
 
       if (_draggedHandle == null) {
@@ -160,39 +94,12 @@ class Selector {
         }
       }
 
-      if (_latestSelected != null && _draggedHandle != null && _dragStart != null) {
+      if (_latestSelected != null && _draggedHandle != null) {
         final rect = canvas.getBoundingClientRect();
         final x = event.clientX - rect.left.toInt();
         final y = event.clientY - rect.top.toInt();
 
-        final state = camera.getState();
-        if (state != null) {
-          final (linePoint, viewMat, projMat) = state;
-          final lineDirection = _getCameraRayDirection((x, y), (canvas.width, canvas.height), projMat, viewMat);
-
-          final axisOrNormal = _handles.getHandleDirection(_latestSelected!, _draggedHandle!);
-          final planePoint = _latestSelected!.wPos - (_dragOffset ?? Vector3.zero());
-
-          if (_handles.isAxisHandle(_draggedHandle!)) {
-            final cameraToObj = planePoint - linePoint;
-            var planeNormal = axisOrNormal.cross(cameraToObj.cross(axisOrNormal));
-            if (planeNormal.length2 == 0) {
-              planeNormal = lineDirection;
-            } else {
-              planeNormal.normalize();
-            }
-            final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, planeNormal);
-            if (intersection != null) {
-              final projected = planePoint + axisOrNormal * (intersection - planePoint).dot(axisOrNormal);
-              _latestSelected!.wPos = projected + (_dragOffset ?? Vector3.zero());
-            }
-          } else if (_handles.isPlaneHandle(_draggedHandle!)) {
-            final intersection = _linePlaneIntersection(linePoint, lineDirection, planePoint, axisOrNormal);
-            if (intersection != null) {
-              _latestSelected!.wPos = intersection + (_dragOffset ?? Vector3.zero());
-            }
-          }
-        }
+        _handles.activeGizmo.onMouseMove(x, y, _latestSelected!, camera);
       }
     });
 
@@ -204,6 +111,7 @@ class Selector {
       final y = event.clientY - rect.top.toInt();
 
       if (_latestSelected != null && _draggedHandle != null) {
+        _handles.activeGizmo.onMouseUp();
         _onSelectionTransformedController.add({
           _latestSelected!,
         });
@@ -255,13 +163,29 @@ class Selector {
     });
   }
 
+  static void setGizmoType(GizmoType gizmoType) {
+    try {
+      switch (gizmoType) {
+        case .translation:
+          _handles.activeGizmo = _handles.translationGizmo;
+          break;
+        case .rotation:
+          _handles.activeGizmo = _handles.rotationGizmo;
+          break;
+        case .scale:
+          _handles.activeGizmo = _handles.scaleGizmo;
+          break;
+      }
+    } catch (_) {}
+  }
+
   static void draw() {
     for (final (color, nodes) in _remoteSelected.values) {
       _outliner.draw(nodes, color);
     }
     _outliner.draw(_selected, _color);
     if (_latestSelected != null) {
-      _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot, _draggedHandle);
+      _handles.drawHandles(_latestSelected!.wPos, _latestSelected!.wRot);
     }
     if (_boxSelectStart != null && _boxSelectCurrent != null) {
       final startX = min(_boxSelectStart!.$1, _boxSelectCurrent!.$1);

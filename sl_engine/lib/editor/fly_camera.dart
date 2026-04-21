@@ -81,7 +81,7 @@ class FlyCamera {
     );
     _viewPosition = (
       _position,
-      Quaternion.euler(_yaw, _pitch, 0.0),
+      Quaternion.euler(radians(-_yaw + 90.0), radians(-_pitch), 0.0),
       fov,
     );
   }

@@ -19,6 +19,14 @@ late final int canvasSampleCount;
 final _canvasSizeChangedController = StreamController<(int, int)>.broadcast();
 final slCanvasSizeChanged = _canvasSizeChangedController.stream;
 
+typedef Vector2Int = (int, int);
+typedef Vector3Int = (int, int, int);
+typedef Vector4Int = (int, int, int, int);
+
+typedef Vector2Bool = (bool, bool);
+typedef Vector3Bool = (bool, bool, bool);
+typedef Vector4Bool = (bool, bool, bool, bool);
+
 void initGl(Canvas canvas_, {bool vr = false}) {
   canvas = canvas_;
   final context =

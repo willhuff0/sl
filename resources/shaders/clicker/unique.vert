@@ -9,9 +9,18 @@ layout(std140) uniform SL {
 } sl;
 
 uniform mat4 u_modelMat;
+uniform float u_screenScale;
 
 layout(location = 0) in vec3 a_position;
 
 void main() {
-    gl_Position = sl.viewProjMat * u_modelMat * vec4(a_position, 1.0);
+    mat4 modelViewProjMat = sl.viewProjMat * u_modelMat;
+
+    float w = 1.0;
+    if (u_screenScale > 0.0) {
+        w = (modelViewProjMat * vec4(0.0, 0.0, 0.0, 1.0)).w;
+        w *= u_screenScale;
+    }
+
+    gl_Position = modelViewProjMat * vec4(a_position * w, 1.0);
 }

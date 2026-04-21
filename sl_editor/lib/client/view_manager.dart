@@ -2,10 +2,19 @@ import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/client/scenes/node.dart';
 import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/state_tracker.dart';
+import 'package:sl_engine/editor/avatars.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
+
+Vector3 _tupleToVec3((double, double, double) tuple) {
+  return Vector3(tuple.$1, tuple.$2, tuple.$3);
+}
+
+Quaternion _tupleToQuaternion((double, double, double, double) tuple) {
+  return Quaternion(tuple.$1, tuple.$2, tuple.$3, tuple.$4);
+}
 
 class ViewManager {
   static (Vector3, Quaternion, double)? _lastViewPosition;
@@ -51,6 +60,13 @@ class ViewManager {
         )),
       ),
     );
-    // TODO: set remote cameras
+    Avatars.setRemoteViews(
+      viewPositions.map(
+        (clientId, value) => MapEntry(
+          clientId,
+          (_tupleToVec3(value.$2.position), _tupleToQuaternion(value.$2.orientation), value.$1),
+        ),
+      ),
+    );
   }
 }
