@@ -141,7 +141,10 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
 
   @override
   void initState() {
-    _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) => setState(() {}));
+    _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) {
+      if (!mounted) return;
+      setState(() {});
+    });
     super.initState();
   }
 
@@ -234,50 +237,85 @@ class _NodeWidget extends StatelessWidget {
   void _onDropAsset(Asset asset) async {
     switch (asset.type) {
       case .model:
-        Client.get().sceneSystem.createNewGltfAssetNode(asset, node);
+        await Client.get().sceneSystem.createNewGltfAssetNode(asset, node);
         break;
       default:
         break;
     }
   }
 
+  void _onDropNode(editor.Node other) async {
+    // final parentUuid = node.parent.get()?.uuid;
+    // if (parentUuid == null) return;
+    // final parent = Client.get().sceneSystem.stateTracker?.getObject(parentUuid) as editor.Node?;
+    // if (parent == null) return;
+    // other.moveTo(parent, after: node);
+
+    other.moveTo(node);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 30.0,
-      child: DragTarget<Asset>(
-        onAcceptWithDetails: (details) => _onDropAsset(details.data),
-        builder: (context, _, _) => Row(
-          children: [
-            if (isExpandable)
-              ShadIconButton.ghost(
-                onPressed: onExpand,
-                width: 32.0,
-                icon: Icon(isCollapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp),
-              )
-            else
-              SizedBox(width: 32.0),
-            // ShadIconButton.ghost(
-            //   enabled: false,
-            //   width: 32.0,
-            //   icon: Icon(LucideIcons.circleSmall, size: 14.0),
-            // ),
-            ...Iterable.generate(depth, (_) => _IndentGuide()),
-            ShadButton.ghost(
-              backgroundColor: isSelected ? ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.6) : null,
-              hoverBackgroundColor: isSelected
-                  ? ShadTheme.of(context).colorScheme.selection
-                  : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
-              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-              onPressed: onSelect,
+      child: Row(
+        children: [
+          if (isExpandable)
+            ShadIconButton.ghost(
+              onPressed: onExpand,
+              width: 32.0,
+              icon: Icon(isCollapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp),
+            )
+          else
+            SizedBox(width: 32.0),
+          // ShadIconButton.ghost(
+          //   enabled: false,
+          //   width: 32.0,
+          //   icon: Icon(LucideIcons.circleSmall, size: 14.0),
+          // ),
+          ...Iterable.generate(depth, (_) => _IndentGuide()),
+          Draggable<editor.Node>(
+            data: node,
+            feedback: Container(
+              padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
+              decoration: BoxDecoration(
+                color: ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(4.0),
+              ),
               child: Text(node.name.get()),
             ),
-            if (areAnyChildrenSelectedAndIsCollapsed) ...[
-              SizedBox(width: 8.0),
-              Icon(LucideIcons.dot),
-            ],
+            childWhenDragging: ShadButton.ghost(
+              enabled: false,
+              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+              child: Text(node.name.get()),
+            ),
+            child: DragTarget(
+              onAcceptWithDetails: (details) {
+                switch (details.data) {
+                  case editor.Node node:
+                    _onDropNode(node);
+                    break;
+                  case Asset asset:
+                    _onDropAsset(asset);
+                    break;
+                }
+              },
+              builder: (context, _, _) => ShadButton.ghost(
+                backgroundColor: isSelected ? ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.6) : null,
+                hoverBackgroundColor: isSelected
+                    ? ShadTheme.of(context).colorScheme.selection
+                    : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
+                padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                onPressed: onSelect,
+                child: Text(node.name.get()),
+              ),
+            ),
+          ),
+          if (areAnyChildrenSelectedAndIsCollapsed) ...[
+            SizedBox(width: 8.0),
+            Icon(LucideIcons.dot),
           ],
-        ),
+        ],
       ),
     );
   }

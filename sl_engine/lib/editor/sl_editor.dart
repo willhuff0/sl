@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:math';
 
 import 'package:sl_engine/editor/avatars.dart';
 import 'package:sl_engine/editor/fly_camera.dart';
@@ -29,6 +30,7 @@ class SLEditor {
   static Skybox? get skybox => _skybox;
   static Node? get root => _root;
 
+  static final _random = Random(DateTime.now().millisecondsSinceEpoch);
   static Future<void> initSlEditorMode(web.HTMLCanvasElement canvas_) async {
     canvas_.onContextMenu.listen((event) {
       event.preventDefault();
@@ -38,8 +40,14 @@ class SLEditor {
     SL.init();
     Input.init(editorMode: true);
 
+    var jitter = Vector3(
+      (_random.nextDouble() - 0.5) * 5.0,
+      (_random.nextDouble() - 0.5) * 5.0,
+      (_random.nextDouble() - 0.5) * 5.0,
+    );
+
     _camera = FlyCamera(
-      position: Vector3(3.0, 2.0, 3.0),
+      position: Vector3(3.0, 2.0, 3.0) + jitter,
       yaw: -90.0 - 45.0,
       pitch: -30.0,
       near: 0.1,

@@ -199,6 +199,8 @@ class SceneSystem {
     if (scene.clients.isEmpty) {
       _scenes.remove(client.sceneId);
       await scene.dispose();
+    } else {
+      scene.hasAnyClientStateChanged = true;
     }
     client.state.sceneId = null;
   }

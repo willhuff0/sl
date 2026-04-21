@@ -134,7 +134,7 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
 
   @override
   void initState() {
-    _focusNode = FocusNode();
+    _focusNode = FocusNode()..addListener(_onFocusChanged);
     _textEditingController = TextEditingController(text: getValue());
     _onChangedSubscription = widget.property.onChanged.listen(_onChanged);
     super.initState();
@@ -144,8 +144,15 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
   void dispose() {
     _onChangedSubscription.cancel();
     _textEditingController.dispose();
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _editingComplete();
+    }
   }
 
   void _onChanged(dynamic value) {
@@ -189,7 +196,8 @@ class QuaternionPropertyField extends StatefulWidget {
 }
 
 class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
-  late final FocusNode _focusNode;
+  late final List<FocusNode> _focusNodes;
+  late final List<VoidCallback> _focusListeners;
   late final List<TextEditingController> _textEditingControllers;
   late final StreamSubscription _onChangedSubscription;
 
@@ -201,7 +209,14 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
 
   @override
   void initState() {
-    _focusNode = FocusNode();
+    _focusListeners = List.generate(3, (index) {
+      return () {
+        if (!_focusNodes[index].hasFocus) {
+          _editingComplete();
+        }
+      };
+    });
+    _focusNodes = List.generate(3, (index) => FocusNode()..addListener(_focusListeners[index]));
     _init();
     _onChangedSubscription = widget.property.onChanged.listen(_onChanged);
     super.initState();
@@ -213,7 +228,10 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     for (final textEditingController in _textEditingControllers) {
       textEditingController.dispose();
     }
-    _focusNode.dispose();
+    for (int i = 0; i < 3; i++) {
+      _focusNodes[i].removeListener(_focusListeners[i]);
+      _focusNodes[i].dispose();
+    }
     super.dispose();
   }
 
@@ -231,7 +249,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
   }
 
   void _onChanged(dynamic value) {
-    if (_focusNode.hasFocus) return;
+    if (_focusNodes.any((n) => n.hasFocus)) return;
     value = value as Quaternion;
     final rotationMatrix = value.asRotationMatrix();
     final pitch = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
@@ -256,35 +274,35 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      child: Row(
-        children: [
-          Expanded(
-            child: ShadInput(
-              controller: _textEditingControllers[0],
-              onEditingComplete: _editingComplete,
-              placeholder: Text(getValueTypeName()),
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: ShadInput(
+            controller: _textEditingControllers[0],
+            focusNode: _focusNodes[0],
+            onEditingComplete: _editingComplete,
+            placeholder: Text(getValueTypeName()),
           ),
-          SizedBox(width: 4.0),
-          Expanded(
-            child: ShadInput(
-              controller: _textEditingControllers[1],
-              onEditingComplete: _editingComplete,
-              placeholder: Text(getValueTypeName()),
-            ),
+        ),
+        SizedBox(width: 4.0),
+        Expanded(
+          child: ShadInput(
+            controller: _textEditingControllers[1],
+            focusNode: _focusNodes[1],
+            onEditingComplete: _editingComplete,
+            placeholder: Text(getValueTypeName()),
           ),
-          SizedBox(width: 4.0),
-          Expanded(
-            child: ShadInput(
-              controller: _textEditingControllers[2],
-              onEditingComplete: _editingComplete,
-              placeholder: Text(getValueTypeName()),
-            ),
+        ),
+        SizedBox(width: 4.0),
+        Expanded(
+          child: ShadInput(
+            controller: _textEditingControllers[2],
+            focusNode: _focusNodes[2],
+            onEditingComplete: _editingComplete,
+            placeholder: Text(getValueTypeName()),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

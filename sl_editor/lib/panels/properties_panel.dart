@@ -77,7 +77,9 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
   @override
   void initState() {
     _scrollController = SmoothScrollController();
-    _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) => setState(() {}));
+    _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) {
+      setState(() {});
+    });
     super.initState();
   }
 
@@ -113,6 +115,7 @@ class _PropertiesWidgetState extends State<_PropertiesWidget> {
     final tracked = Client.get().sceneSystem.getTrackedFromEngineNode(selected);
 
     return ListView(
+      key: ValueKey(selected),
       controller: _scrollController,
       padding: EdgeInsets.all(8.0),
       shrinkWrap: true,

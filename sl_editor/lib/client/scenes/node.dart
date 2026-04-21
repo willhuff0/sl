@@ -54,36 +54,14 @@ class Node extends SceneStateTracked {
 
   static ObjectClass get objectClass => 'node';
 
-  static Fraction _insertIntoParent(Node parent, Fraction left) {
-    assert(parent.children.length >= 2);
-
-    final right = parent.children.firstKeyAfter(left);
-    if (right != null) {
-      return Fraction.midpoint(left, right);
-    } else {
-      final leftNode = parent.children[left]!;
-
-      final beforeLeft = parent.children.lastKeyBefore(left)!;
-      final newLeft = Fraction.midpoint(beforeLeft, left);
-
-      leftNode.modifyLocal((builder) {
-        leftNode.parent.set(leftNode, builder, ParentAndOrder(uuid: parent.uuid, order: newLeft));
-      });
-
-      return left;
-    }
-  }
-
   static Node create(StateTracker<SceneStateTracked> tracker, UUID parent, String name) {
     final parentNode = tracker.getObject(parent) as Node;
+
     Fraction order;
-    // always insert last for now
     if (parentNode.children.isEmpty) {
       order = Fraction.zero;
-    } else if (parentNode.children.length == 1) {
-      order = Fraction.one;
     } else {
-      order = _insertIntoParent(parentNode, parentNode.children.lastKey()!);
+      order = parentNode.children.lastKey()! + Fraction.one;
     }
 
     final node = Node(tracker, generateUuid());
@@ -104,6 +82,70 @@ class Node extends SceneStateTracked {
           }
         },
       );
+
+  void delete() {
+    // Make a copy of the values before iterating, since deleting children removes them from the map.
+    final currentChildren = children.values.toList();
+    for (final child in currentChildren) {
+      child.delete();
+    }
+
+    modifyLocal((builder) {
+      doesExist.set(this, builder, false);
+    });
+  }
+
+  /// Moves this node to a new parent, and optionally positions it between `before` and `after`.
+  void moveTo(Node newParent, {Node? before, Node? after}) {
+    Fraction newOrder;
+
+    if (before == null && after == null) {
+      // No specific siblings requested
+      if (newParent.children.isEmpty) {
+        newOrder = Fraction.zero; // First node
+      } else {
+        // Just append to the very end
+        newOrder = newParent.children.lastKey()! + Fraction.one;
+      }
+    } else if (before != null && after == null) {
+      // Place after the chosen 'before' node (at the new end)
+      newOrder = before.parent.get()!.order + Fraction.one;
+    } else if (before == null && after != null) {
+      // Place before the chosen 'after' node (at the new beginning)
+      newOrder = after.parent.get()!.order - Fraction.one;
+    } else {
+      // Place exactly between the two sibling nodes
+      newOrder = Fraction.midpoint(before!.parent.get()!.order, after!.parent.get()!.order);
+    }
+
+    final realWPos = engineNode.wPos.clone();
+    final realWRot = engineNode.wRot.clone();
+    final realWScale = engineNode.wScale.clone();
+
+    final previousParent = engineNode.parent;
+    newParent.engineNode.addChild(engineNode);
+
+    engineNode.wPos = realWPos;
+    engineNode.wRot = realWRot;
+    engineNode.wScale = realWScale;
+
+    final newLPos = engineNode.lPos;
+    final newLRot = engineNode.lRot;
+    final newLScale = engineNode.lScale;
+
+    if (previousParent != null) {
+      previousParent.addChild(engineNode);
+    } else {
+      newParent.engineNode.removeChild(engineNode);
+    }
+
+    modifyLocal((builder) {
+      parent.set(this, builder, ParentAndOrder(uuid: newParent.uuid, order: newOrder));
+      lPos.set(this, builder, newLPos);
+      lRot.set(this, builder, newLRot);
+      lScale.set(this, builder, newLScale);
+    });
+  }
 
   @override
   void getDeltaFromNull(Delta builder) {
@@ -141,6 +183,8 @@ class Node extends SceneStateTracked {
     } else {
       Client.get().sceneSystem.setRoot(node);
     }
+
+    Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
   }
 
   static void _assetEffect(StateTracked receiver, UUID? newAsset) async {
