@@ -19,8 +19,8 @@ dependencies:
   stack_trace: ^1.12.1
   sl_wasm:
     path: ../sl_wasm
-  oimo_physics:
-    path: ../../oimo_physics
+  # oimo_physics:
+  #   path: ../../oimo_physics
 
 dev_dependencies:
   build_runner: ^2.11.1

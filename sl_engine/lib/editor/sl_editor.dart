@@ -9,11 +9,12 @@ import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/gl/debug_draw.dart';
 import 'package:sl_engine/gl/directional_light.dart';
 import 'package:sl_engine/gl/gl.dart';
+import 'package:sl_engine/gl/gltf.dart';
 import 'package:sl_engine/gl/skybox.dart';
 import 'package:sl_engine/gl/sl.dart';
 import 'package:sl_engine/input.dart';
 import 'package:sl_engine/node.dart';
-import 'package:sl_engine/utils/physics.dart';
+// import 'package:sl_engine/utils/physics.dart';
 import 'package:sl_engine/utils/renderer.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:web/web.dart' as web;
@@ -58,7 +59,7 @@ class SLEditor {
     await DebugDraw.init();
     await Selector.init(_camera!);
     _modelPreviewGenerator = await ModelPreviewGenerator.create();
-    Physics.init();
+    // Physics.init();
 
     final hdri = (await HDRI.loadFromHdr('skybox_02.hdr'))!;
     _skybox = await Skybox.fromHdri(hdri);
@@ -68,34 +69,34 @@ class SLEditor {
 
     await Avatars.init();
 
-    // final model = (await GLTF.load('models/FlightHelmet.glb'))!;
-    // model.root.lScale = Vector3.all(4.0);
+    final model = (await GLTF.load('models/FlightHelmet.glb'))!;
+    model.root.lScale = Vector3.all(4.0);
     // model.root.addComponent(PhysicsComponent.fromNodeBounds(model.root));
-    // model.root.enterScene();
+    model.root.enterScene();
 
-    // final model2 = (await GLTF.load('models/DamagedHelmet.glb'))!;
-    // model2.root.lPos = Vector3(0.0, 4.0, 0.0);
+    final model2 = (await GLTF.load('models/DamagedHelmet.glb'))!;
+    model2.root.lPos = Vector3(0.0, 4.0, 0.0);
     // model2.root.addComponent(PhysicsComponent.fromSphere(radius: 1.0, pivot: Vector3(0.0, -0.2, 0.0)));
-    // model2.root.enterScene();
+    model2.root.enterScene();
 
-    // final model3 = (await GLTF.load('models/ABeautifulGame.glb'))!;
-    // model3.root.lPos = Vector3(-0.0, 6.5, 0.0);
-    // model3.root.lScale = Vector3.all(4.0);
-    // // model3.root.addComponent(PhysicsComponent.fromNodeBounds(model3.root));
-    // for (final child in model3.root.children) {
-    //   child.updateWorldFromParent();
-    //   child.addComponent(PhysicsComponent.fromNodeBounds(child));
-    //   child.lScale = Vector3.all(4.0);
-    //   child.enterScene();
-    // }
-    // model3.root.removeAllChildren();
-    // // model3.root.enterScene();
+    final model3 = (await GLTF.load('models/ABeautifulGame.glb'))!;
+    model3.root.lPos = Vector3(-0.0, 6.5, 0.0);
+    model3.root.lScale = Vector3.all(4.0);
+    // model3.root.addComponent(PhysicsComponent.fromNodeBounds(model3.root));
+    for (final child in model3.root.children) {
+      child.updateWorldFromParent();
+      // child.addComponent(PhysicsComponent.fromNodeBounds(child));
+      child.lScale = Vector3.all(4.0);
+      child.enterScene();
+    }
+    model3.root.removeAllChildren();
+    // model3.root.enterScene();
 
-    // final floor = (await GLTF.load('models/Floor.glb'))!;
-    // floor.root.lPos = Vector3(0.0, -10.0, 0.0);
-    // floor.root.lScale = Vector3.all(1.0);
+    final floor = (await GLTF.load('models/Floor.glb'))!;
+    floor.root.lPos = Vector3(0.0, -10.0, 0.0);
+    floor.root.lScale = Vector3.all(1.0);
     // floor.root.addComponent(PhysicsComponent.fromNodeBounds(floor.root, move: false));
-    // floor.root.enterScene();
+    floor.root.enterScene();
 
     web.window.requestAnimationFrame(_frame.toJS);
   }
@@ -103,7 +104,7 @@ class SLEditor {
   static void changeScene(Node? newRoot) {
     Selector.clear();
     Renderer.clear();
-    Physics.clear();
+    // Physics.clear();
     _root = newRoot;
   }
 
