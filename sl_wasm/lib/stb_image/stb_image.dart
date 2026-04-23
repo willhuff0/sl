@@ -8,7 +8,17 @@ class StbImage {
   final DynamicLibrary _library;
   final StbImageBindings _bindings;
 
-  StbImage(this._library) : _bindings = StbImageBindings(_library);
+  StbImage._(this._library) : _bindings = StbImageBindings(_library);
+
+  static Future<StbImage> create(String libPath) async {
+    return StbImage._(
+      await DynamicLibrary.open(
+        libPath,
+        moduleName: 'SLWasmStbImage',
+        wasmType: WasmType.wasm32Emscripten,
+      ),
+    );
+  }
 
   (Uint8List bytes, int width, int height, int channels) loadFromMemory(Uint8List encodedBytes, {int? channels}) {
     return using((Arena arena) {

@@ -6,14 +6,14 @@ void main() {
   final packageRoot = Platform.script.resolve('../');
   FfiGenerator(
     output: Output(
-      dartFile: packageRoot.resolve('lib/stb_image.g.dart'),
+      dartFile: packageRoot.resolve('lib/stb_image/stb_image.g.dart'),
       style: DynamicLibraryBindings(
         wrapperName: 'StbImageBindings',
       ),
     ),
     headers: Headers(
       entryPoints: [
-        packageRoot.resolve('src/stb_image.h'),
+        packageRoot.resolve('c_src/stb_image/stb_image.h'),
       ],
     ),
     functions: Functions.includeSet({
@@ -24,7 +24,7 @@ void main() {
     }),
   ).generate();
 
-  final file = File(packageRoot.resolve('lib/stb_image.g.dart').toFilePath());
+  final file = File(packageRoot.resolve('lib/stb_image/stb_image.g.dart').toFilePath());
   if (file.existsSync()) {
     var content = file.readAsStringSync();
     content = content.replaceAll('''import 'dart:ffi' as ffi;''', '''import 'package:wasm_ffi/ffi.dart' as ffi;''');
