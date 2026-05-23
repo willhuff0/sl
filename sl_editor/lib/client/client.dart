@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart';
 import 'package:sl_editor/client/assets/asset_system.dart';
 import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/view_manager.dart';
@@ -36,13 +35,13 @@ class Client {
     void Function()? onDisconnected,
     void Function()? onFailedToConnect,
   }) async {
-    final database = await openDatabase(p.join(projectId, 'db.sqlite3'));
+    final database = await openDatabaseInMemory(); // await openDatabase(p.join(projectId, 'db.sqlite3'));
     final socket = WebSocketChannel.connect(
       serverUri.replace(
-        scheme: 'wss',
-        path: 'joinRoom',
+        scheme: kReleaseMode ? 'wss' : 'ws',
+        path: '/rooms/join',
         queryParameters: {
-          'room': projectId,
+          'project': projectId,
         },
       ),
     );

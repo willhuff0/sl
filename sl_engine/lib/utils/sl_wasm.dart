@@ -1,9 +1,7 @@
-import 'package:sl_wasm/sl_wasm.dart';
+import 'package:sl_wasm/stb_image/stb_image.dart';
 
-const slWasmPath = 'sl_wasm.wasm';
-
-SLWasm? _slWasm;
-Future<SLWasm> getSLWasm() async {
-  _slWasm ??= await SLWasm.create('sl_wasm.js');
-  return _slWasm!;
+StbImage? _stbImage;
+Future<StbImage> getStbImage() async {
+  _stbImage ??= await StbImage.create('sl_wasm.js');
+  return _stbImage!;
 }

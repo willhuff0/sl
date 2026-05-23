@@ -37,7 +37,7 @@ class HDRI {
     final encodedBytes = await resourceLoader.loadBytes(path);
     if (encodedBytes == null) return null;
 
-    final (hdriPixels, width, height, _) = (await getSLWasm()).stbImage.loadfFromMemory(encodedBytes, channels: 3);
+    final (hdriPixels, width, height, _) = (await getStbImage()).loadfFromMemory(encodedBytes, channels: 3);
     return HDRI.fromPixels(hdriPixels, width, height);
   }
 }

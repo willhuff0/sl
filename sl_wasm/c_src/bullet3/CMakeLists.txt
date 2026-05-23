@@ -1,10 +1,7 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.28.3)
 project(sl_wasm_bullet3 C CXX)
 
-#set(CMAKE_C_STANDARD 11)
-#set(CMAKE_C_STANDARD_REQUIRED ON)
-
-set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
 
 add_executable(sl_wasm_bullet3 bullet3.cpp)
 
@@ -17,6 +14,6 @@ target_link_options(sl_wasm_bullet3 PRIVATE
     "-sEXPORTED_FUNCTIONS=@${CMAKE_CURRENT_SOURCE_DIR}/exports.txt"
 )
 
-find_package(Bullet REQUIRED)
-target_include_directories(sl_wasm_bullet3 PRIVATE ${BULLET_INCLUDE_DIRS})
-target_link_libraries(sl_wasm_bullet3 PRIVATE ${BULLET_LIBRARIES})
+add_subdirectory(bullet3)
+target_include_directories(sl_wasm_bullet3 PRIVATE bullet3/src)
+target_link_libraries(sl_wasm_bullet3 PRIVATE BulletDynamics BulletCollision LinearMath)

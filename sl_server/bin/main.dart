@@ -3,68 +3,30 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart' hide Server;
 import 'package:shelf/shelf_io.dart';
-import 'package:shelf_router/shelf_router.dart';
-import 'package:shelf_static/shelf_static.dart';
+import 'package:sl_server/globals.dart';
+import 'package:sl_server/handlers/root.dart';
 import 'package:sl_server/server.dart';
-
-const _serverRoot = 'root';
-final _publicDir = p.join(_serverRoot, 'public');
-
-final Map<String, Server> _rooms = {};
-
-final _router = Router()
-  ..get('/', _rootHandler)
-  ..get('/joinRoom', _joinRoomHandler)
-  ..get('/thumb', _getThumbHandler)
-  ..post('/thumb', _postThumbHandler)
-  ..mount('/live', createStaticHandler(_publicDir, defaultDocument: 'index.html'));
-
-Response _rootHandler(Request req) {
-  return Response.ok('Hello, World!\n');
-}
-
-Response _joinRoomHandler(Request req) {
-  final roomId = req.url.queryParameters['room'];
-  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
-  final room = _rooms[roomId];
-  if (room == null) return Response.notFound('Room not found!');
-  return room.getWebSocketHandler().handle(req);
-}
-
-Future<Response> _getThumbHandler(Request req) async {
-  final roomId = req.url.queryParameters['room'];
-  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
-  final room = _rooms[roomId];
-  if (room == null) return Response.notFound('Room not found!');
-  return await room.handleGetThumb(req);
-}
-
-Future<Response> _postThumbHandler(Request req) async {
-  final roomId = req.url.queryParameters['room'];
-  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
-  final room = _rooms[roomId];
-  if (room == null) return Response.notFound('Room not found!');
-  return await room.handlePostThumb(req);
-}
 
 void main(List<String> args) async {
   try {
-    _rooms['test-room'] = await Server.create(p.join(_serverRoot, 'test-room'));
+    var serveStaticEditor = bool.fromEnvironment('dart.vm.product');
+
+    ServerGlobalState.rooms['test-room'] = await Server.openProjectNoMutate(
+      p.join(ServerGlobalConstants.serverRoot, 'test-room'),
+    );
 
     final ip = InternetAddress.anyIPv4;
 
-    final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
+    final handler = Pipeline().addMiddleware(logRequests()).addHandler(getRootRouter(serveStaticEditor).call);
 
     final port = int.parse(Platform.environment['PORT'] ?? '8080');
     final server = await serve(handler, ip, port);
 
     print('Server listening on port ${server.port}');
-    print('Hosting client app at ${server.address.address}/live');
+    if (serveStaticEditor) print('Hosting client app at ${server.address.address}/editor');
 
     await for (final _ in stdin) {}
   } finally {
-    for (final room in _rooms.values) {
-      await room.dispose();
-    }
+    await ServerGlobalState.dispose();
   }
 }

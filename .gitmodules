@@ -1,0 +1,3 @@
+[submodule "sl_wasm/c_src/bullet3/bullet3"]
+	path = sl_wasm/c_src/bullet3/bullet3
+	url = https://github.com/bulletphysics/bullet3

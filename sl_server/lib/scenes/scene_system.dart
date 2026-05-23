@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
 import 'package:sl_server/scenes/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_server/state_tracker.dart';
@@ -86,14 +85,10 @@ class SceneSystem {
 
   SceneSystem(this.server);
 
-  String _getPathOfSceneSave(String sceneId) {
-    return p.join(server.rootPath, 'scenes', '$sceneId.json');
-  }
-
   Future<Scene?> _getOrCreateScene(UUID sceneId) async {
     if (!Uuid.isValidUUID(fromString: sceneId)) return null;
 
-    final path = _getPathOfSceneSave(sceneId);
+    final path = server.pathProvider.getSceneSavePath(sceneId);
 
     final loadedScene = await Scene.loadFromFile(
       server: server,

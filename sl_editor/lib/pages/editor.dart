@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/client.dart';
@@ -35,20 +36,22 @@ class _EditorClientLoaderState extends State<EditorClientLoader> {
   }
 
   Future<void> _load() async {
-    const room = 'test-room';
+    final serverUri = Uri.base.replace(path: '/', port: kReleaseMode ? 443 : 8080);
+    final projectId = Uri.base.queryParameters['project'] ?? 'test-room';
     _client = await Client.connect(
-      projectId: room,
-      serverUri: Uri.parse('https://sl.willhuffman.com/'),
+      projectId: projectId,
+      serverUri: serverUri,
       onDisconnected: () {
         if (!mounted) return;
         ShadToaster.of(context).show(
           ShadToast(
             title: Text('Disconnected'),
-            description: Text('The connection was lost or forcibly terminated by the server'),
+            description: Text('The connection was lost or was forcibly terminated by the server.'),
             action: ShadButton.outline(
               child: const Text('Refresh Page'),
               onPressed: () => web.window.location.reload(),
             ),
+            duration: Duration(days: 1),
           ),
         );
       },

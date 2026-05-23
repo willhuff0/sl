@@ -24,7 +24,7 @@ class AssetThumbs {
   static String getUri(UUID uuid) {
     return Client.get().serverUri
         .replace(
-          path: 'thumb',
+          path: 'thumbs',
           queryParameters: {
             'room': Client.get().projectId,
             'uuid': uuid,
@@ -36,7 +36,7 @@ class AssetThumbs {
   static Future<void> upload(UUID uuid, Uint8List bytes) async {
     await http.post(
       Client.get().serverUri.replace(
-        path: 'thumb',
+        path: 'thumbs',
         queryParameters: {
           'room': Client.get().projectId,
           'uuid': uuid,

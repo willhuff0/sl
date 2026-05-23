@@ -1,6 +1,6 @@
 #include "bullet3.h"
 
-#include "bullet3/src/btBulletDynamicsCommon.h"
+#include "btBulletDynamicsCommon.h"
 
 static btDefaultCollisionConfiguration* collisionConfiguration;
 static btCollisionDispatcher* dispatcher;
@@ -22,7 +22,7 @@ void World_SetGravity(float x, float y, float z) {
 }
 
 void World_AddRigidBody(RigidBody* rigidBody) {
-    dynamicsWorld->addRigidBody(rigidBody);
+    dynamicsWorld->addRigidBody(static_cast<btRigidBody*>(rigidBody));
 }
 
 void World_StepSimulation(float timeStep, int maxSubSteps, float fixedTimeStep) {
@@ -30,53 +30,68 @@ void World_StepSimulation(float timeStep, int maxSubSteps, float fixedTimeStep) 
 }
 //
 
-// Transform
+// transform
 Vector3 Transform_GetOrigin(Transform* transform) {
-    return transform->getOrigin();
+    auto result = static_cast<btTransform*>(transform)->getOrigin();
+    return {
+        .x = result.getX(),
+        .y = result.getY(),
+        .z = result.getZ(),
+    };
 }
 Quaternion Transform_GetRotation(Transform* transform) {
-    return transform->getRotation();
+    auto result = static_cast<btTransform*>(transform)->getRotation();
+    return {
+        .x = result.getX(),
+        .y = result.getY(),
+        .z = result.getZ(),
+        .w = result.getW(),
+    };
 }
 
 void Transform_SetIdentity(Transform* transform) {
-    transform->setIdentity();
+    static_cast<btTransform*>(transform)->setIdentity();
 }
 void Transform_SetOrigin(Transform* transform, Vector3 origin) {
-    transform->setOrigin(origin);
+    static_cast<btTransform*>(transform)->setOrigin(btVector3(origin.x, origin.y, origin.z));
 }
 void Transform_SetRotation(Transform* transform, Quaternion rotation) {
-    transform->setRotation(rotation);
+    static_cast<btTransform*>(transform)->setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
 }
 
 void Transform_GetOpenGLMatrix(Transform* transform, float* matrix) {
-    transform->getOpenGLMatrix(matrix);
+    static_cast<btTransform*>(transform)->getOpenGLMatrix(matrix);
 }
 void Transform_SetFromOpenGLMatrix(Transform* transform, float* matrix) {
-    transform->setFromOpenGLMatrix(matrix);
+    static_cast<btTransform*>(transform)->setFromOpenGLMatrix(matrix);
 }
 //
 
-// CollisionShape
+// btCollisionShape
 CollisionShape* CollisionShape_NewBoxShape(Vector3 halfExtents) {
-    return new btBoxShape(halfExtents);
+    return new btBoxShape(btVector3(halfExtents.x, halfExtents.y, halfExtents.z));
 }
 
 void CollisionShape_CalculateLocalInertia(CollisionShape* self, float mass, Vector3* localInertia) {
-    self->calculateLocalInertia(mass, *localInertia);
+    btVector3 localInertiaResult(0.0, 0.0, 0.0);
+    static_cast<btCollisionShape*>(self)->calculateLocalInertia(mass, localInertiaResult);
+    localInertia->x = localInertiaResult.getX();
+    localInertia->y = localInertiaResult.getY();
+    localInertia->z = localInertiaResult.getZ();
 }
 //
 
-// RigidBody
+// btRigidBody
 RigidBody* RigidBody_New(float mass, Transform* transform, CollisionShape* shape, Vector3 localInertia) {
-    btDefaultMotionState* motionState = new btDefaultMotionState(*transform);
-    RigidBody::btRigidBodyConstructionInfo rigidBodyInfo(mass, motionState, shape, localInertia);
-    return new RigidBody(rigidBodyInfo);
+    btDefaultMotionState* motionState = new btDefaultMotionState(*static_cast<btTransform*>(transform));
+    btRigidBody::btRigidBodyConstructionInfo rigidBodyInfo(mass, motionState, static_cast<btCollisionShape*>(shape), btVector3(localInertia.x, localInertia.y, localInertia.z));
+    return new btRigidBody(rigidBodyInfo);
 }
 
 void RigidBody_GetWorldTransform(RigidBody* self, Transform* transform) {
-    self->getMotionState()->getWorldTransform(*transform);
+    static_cast<btRigidBody*>(self)->getMotionState()->getWorldTransform(*static_cast<btTransform*>(transform));
 }
 void RigidBody_SetWorldTransform(RigidBody* self, Transform* transform) {
-    self->getMotionState()->setWorldTransform(*transform);
+    static_cast<btRigidBody*>(self)->getMotionState()->setWorldTransform(*static_cast<btTransform*>(transform));
 }
 //

@@ -3,13 +3,10 @@ import 'package:sqlite_crdt/sqlite_crdt.dart';
 
 export 'asset.dart';
 
-Future<SqliteCrdt> openDatabase(String path) async {
-  return await SqliteCrdt.open(
-    path,
-    version: 1,
-    onCreate: (db, version) async {
-      await db.execute('PRAGMA foreign_keys = ON;');
-      await db.execute('''
+const _version = 1;
+Future<void> _onCreate(CrdtTableExecutor db, int version) async {
+  await db.execute('PRAGMA foreign_keys = ON;');
+  await db.execute('''
 CREATE TABLE assets (
     uuid TEXT NOT NULL PRIMARY KEY,
     parent TEXT REFERENCES assets(uuid),
@@ -22,16 +19,35 @@ CREATE TABLE assets (
     thumb_mime TEXT
 );
 ''');
-      await db.execute('CREATE INDEX idx_assets_parent ON assets(parent);');
-    },
+  await db.execute('CREATE INDEX idx_assets_parent ON assets(parent);');
+}
+
+Future<SqliteCrdt> openDatabase(String path) async {
+  return await SqliteCrdt.open(
+    path,
+    version: _version,
+    onCreate: _onCreate,
   );
 }
 
-const _getAssetByUUIDSql = 'SELECT * FROM assets WHERE uuid = ?1 AND is_deleted = 0;';
-Future<Asset?> getAssetByUUID(SqliteCrdt db, UUID uuid) async {
-  final results = await db.query(_getAssetByUUIDSql, [uuid]);
+Future<SqliteCrdt> openDatabaseInMemory() async {
+  return await SqliteCrdt.openInMemory(
+    version: _version,
+    onCreate: _onCreate,
+  );
+}
+
+const _getAssetByUuidSql = 'SELECT * FROM assets WHERE uuid = ?1 AND is_deleted = 0;';
+Future<Asset?> getAssetByUuid(SqliteCrdt db, UUID uuid) async {
+  final results = await db.query(_getAssetByUuidSql, [uuid]);
   if (results.isEmpty) return null;
   return Asset.deserialize(results.first);
+}
+
+const _getAllAssetUuids = 'SELECT uuid FROM assets WHERE is_deleted = 0;';
+Future<Set<UUID>> getAllAssetUuids(SqliteCrdt db) async {
+  final results = await db.query(_getAllAssetUuids);
+  return results.map((row) => row['uuid'] as String).toSet();
 }
 
 const _getAssetsInDirectorySql = '''

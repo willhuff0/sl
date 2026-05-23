@@ -14,7 +14,7 @@ class StbImage {
     return StbImage._(
       await DynamicLibrary.open(
         libPath,
-        moduleName: 'SLWasmStbImage',
+        moduleName: 'SLWasm',
         wasmType: WasmType.wasm32Emscripten,
       ),
     );

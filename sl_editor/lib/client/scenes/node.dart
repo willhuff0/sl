@@ -201,7 +201,7 @@ class Node extends SceneStateTracked {
       }
       return;
     }
-    final asset = await getAssetByUUID(Client.get().assetSystem.sharedDatabase, newAsset);
+    final asset = await getAssetByUuid(Client.get().assetSystem.sharedDatabase, newAsset);
     if (asset == null) {
       if (node.assetNode != null) {
         node.engineNode.removeChild(node.assetNode!);

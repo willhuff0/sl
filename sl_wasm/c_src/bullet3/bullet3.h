@@ -4,13 +4,22 @@
 extern "C" {
 #endif
 
-typedef struct btVector3 Vector3;
-typedef struct btQuaternion Quaternion;
+typedef struct {
+    float x;
+    float y;
+    float z;
+} Vector3;
+typedef struct {
+    float x;
+    float y;
+    float z;
+    float w;
+} Quaternion;
 
-typedef struct btTransform Transform;
+typedef void Transform;
 
-typedef struct btCollisionShape CollisionShape;
-typedef struct btRigidBody RigidBody;
+typedef void CollisionShape;
+typedef void RigidBody;
 
 // World
 void World_New();
@@ -34,7 +43,7 @@ void Transform_GetOpenGLMatrix(Transform* transform, float* matrix);
 void Transform_SetFromOpenGLMatrix(Transform* transform, float* matrix);
 //
 
-// CollisionShape
+// btCollisionShape
 CollisionShape* CollisionShape_NewBoxShape(Vector3 halfExtents);
 
 void CollisionShape_CalculateLocalInertia(CollisionShape* self, float mass, Vector3* localInertia);

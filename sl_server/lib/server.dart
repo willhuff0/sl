@@ -7,12 +7,12 @@ import 'dart:typed_data';
 
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:sl_server/assets/asset_system.dart';
+import 'package:sl_server/path_provider.dart';
 import 'package:sl_server/scenes/scene_system.dart';
 import 'package:sl_server/web_socket_handler.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:path/path.dart' as p;
 
 const tickInterval = Duration(milliseconds: 400);
 
@@ -41,7 +41,7 @@ class Client {
 }
 
 class Server {
-  final String rootPath;
+  final PathProvider pathProvider;
   final SqliteCrdt _database;
 
   late final WebSocketHandler _webSocketHandler;
@@ -56,7 +56,7 @@ class Server {
 
   late final Timer _tickTimer;
 
-  Server._(this.rootPath, this._database) {
+  Server._(this.pathProvider, this._database) {
     _webSocketHandler = WebSocketHandler(_onConnection, null, null, Duration(seconds: 20));
 
     _sceneSystem = SceneSystem(this);
@@ -65,16 +65,51 @@ class Server {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
   }
 
-  static Future<Server> create(String rootPath) async {
+  static Future<Server> openProject(String rootPath) async {
     final absoluteRootPath = Directory(rootPath).absolute.path;
     await Directory(absoluteRootPath).create(recursive: true);
-    return Server._(absoluteRootPath, await openDatabase(p.join(absoluteRootPath, 'db.sqlite3')));
+
+    final pathProvider = RootedPathProvider(rootPath: absoluteRootPath);
+    final database = await openDatabase(pathProvider.getDatabasePath());
+
+    return Server._(pathProvider, database);
+  }
+
+  static Future<Set<UUID>> _getAllAssetUuids(String absoluteRootPath) async {
+    final pathProvider = RootedPathProvider(rootPath: absoluteRootPath);
+    final database = await openDatabase(pathProvider.getDatabasePath());
+    try {
+      return await getAllAssetUuids(database);
+    } finally {
+      await database.close();
+    }
+  }
+
+  // Clones the database to and places all new assets in a temp directory
+  static Future<Server> openProjectNoMutate(String rootPath) async {
+    final absoluteRootPath = Directory(rootPath).absolute.path;
+    await Directory(absoluteRootPath).create(recursive: true);
+
+    final persistentUuids = await _getAllAssetUuids(absoluteRootPath);
+
+    final pathProvider = MixedTempPathProvider(
+      rootPath: absoluteRootPath,
+      persistentUuids: persistentUuids,
+    );
+    await pathProvider.clearTemp();
+
+    await File(pathProvider.getTempDatabasePath()).parent.create(recursive: true);
+    await File(pathProvider.getPersistentDatabasePath()).copy(pathProvider.getTempDatabasePath());
+    final database = await openDatabase(pathProvider.getDatabasePath());
+
+    return Server._(pathProvider, database);
   }
 
   Future<void> dispose() async {
     _tickTimer.cancel();
     await _sceneSystem.dispose();
     await _database.close();
+    await pathProvider.dispose();
   }
 
   WebSocketHandler getWebSocketHandler() {
@@ -101,6 +136,11 @@ class Server {
 
     await _sceneSystem.removeClient(client);
     await _assetSystem.removeClient(client);
+
+    if (_clients.isEmpty) {
+      // TODO: close room
+      return;
+    }
 
     _broadcastClientStates();
   }

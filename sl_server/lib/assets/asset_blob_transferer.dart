@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
 import 'package:sl_server/server.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
@@ -113,10 +112,6 @@ class AssetBlobTransferer {
   }) : _server = server,
        _sharedDatabase = sharedDatabase;
 
-  String _getPathOfAssetBlob(UUID uuid) {
-    return p.join(_server.rootPath, 'blobs', uuid);
-  }
-
   void _sendError(Client client, UUID? uuid, String error) {
     _server.send(
       client,
@@ -180,7 +175,7 @@ class AssetBlobTransferer {
         return;
       }
 
-      final file = File(_getPathOfAssetBlob(uuid));
+      final file = File(_server.pathProvider.getAssetBlobPath(uuid));
       if (!await file.exists()) {
         _sendError(
           client,
@@ -273,7 +268,7 @@ class AssetBlobTransferer {
         uuid: uuid,
         offset: offset,
         size: size,
-        path: _getPathOfAssetBlob(uuid),
+        path: _server.pathProvider.getAssetBlobPath(uuid),
       );
       await upload.start();
     } catch (_) {
@@ -348,7 +343,7 @@ class AssetBlobTransferer {
       return false;
     }
 
-    final file = File(_getPathOfAssetBlob(uuid));
+    final file = File(_server.pathProvider.getAssetBlobPath(uuid));
     if (!await file.exists()) return true;
     await file.delete();
     return true;
