@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:shelf/shelf.dart' as shelf;
+import 'package:sl_server/client.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_shared/sl_shared.dart';
 

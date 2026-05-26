@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:sl_server/client.dart';
 import 'package:sl_server/scenes/node.dart';
 import 'package:sl_server/server.dart';
 import 'package:sl_server/validated_property.dart';

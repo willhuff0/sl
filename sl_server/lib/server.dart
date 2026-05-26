@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:sl_server/assets/asset_system.dart';
+import 'package:sl_server/client.dart';
 import 'package:sl_server/globals.dart';
 import 'package:sl_server/path_provider.dart';
 import 'package:sl_server/scenes/scene_system.dart';
@@ -26,21 +27,6 @@ final List<int> _colors = [
   0xffa855f7,
   0xffec4899,
 ];
-
-class Client {
-  final WebSocketChannel socket;
-  ClientState state;
-
-  int get clientId => state.clientId;
-  String get name => state.name;
-  int get color => state.color;
-  UUID? get sceneId => state.sceneId;
-
-  Client({
-    required this.socket,
-    required this.state,
-  });
-}
 
 class Server {
   final String projectId;
@@ -132,11 +118,20 @@ class Server {
     return UnmodifiableMapView(_clients);
   }
 
+  Future<void> addClient(Client client) async {
+    _clients[client.clientId] = client;
+
+    send(client, StcSetSelf(clientId: client.clientId));
+    _broadcastClientStates();
+
+    await _assetSystem.addClient(client);
+  }
+
   Future<void> removeClient(Client client, {int? status, String? reason}) async {
+    if (_clients.remove(client.clientId) == null || client.isClosed) return;
     print('Removing client ${client.clientId}');
 
-    await client.socket.sink.close(status, reason);
-    _clients.remove(client.clientId);
+    await client.close(status, reason);
 
     await _sceneSystem.removeClient(client);
     await _assetSystem.removeClient(client);
@@ -147,27 +142,9 @@ class Server {
     }
 
     _broadcastClientStates();
-  }
-
-  void _onConnection(WebSocketChannel socket, _) async {
-    final clientId = _nextClientId++;
-    final client = Client(
-      socket: socket,
-      state: ClientState(
-        clientId: clientId,
-        name: 'Anonymous $clientId',
-        sceneId: null,
-        color: _getNextClientColor(),
-      ),
-    );
-    _clients[client.clientId] = client;
-    send(client, StcSetSelf(clientId: client.clientId));
-    _broadcastClientStates();
-
-    await _assetSystem.addClient(client);
 
     try {
-      await for (final data in socket.stream) {
+      await for (final data in client.stream) {
         await _onData(client, data);
       }
     } catch (e) {
@@ -175,6 +152,31 @@ class Server {
       await removeClient(client);
     }
     await removeClient(client);
+  }
+
+  ClientState _getNewClientState({String? name}) {
+    final clientId = _nextClientId++;
+    return ClientState(
+      clientId: clientId,
+      name: name ?? 'Anonymous $clientId',
+      sceneId: null,
+      color: _getNextClientColor(),
+    );
+  }
+
+  Future<VirtualClient> addVirtualClient(String name) async {
+    final client = VirtualClient(state: _getNewClientState(name: name));
+    await addClient(client);
+    return client;
+  }
+
+  void _onConnection(WebSocketChannel socket, _) async {
+    final client = HumanClient(
+      socket: socket,
+      state: _getNewClientState(),
+    );
+
+    await addClient(client);
   }
 
   Future<void> _onData(Client client, dynamic data) async {
@@ -235,11 +237,11 @@ class Server {
   }
 
   void sendBinary(Client client, Uint8List bytes) {
-    client.socket.sink.add(bytes);
+    client.send(bytes);
   }
 
   void send(Client client, Message message) {
-    client.socket.sink.add(
+    client.send(
       jsonEncode(
         MessageAndHeader(
           messageClass: message.messageClass,
@@ -266,7 +268,7 @@ class Server {
     );
     for (final client in only ?? _clients.values) {
       if (except?.contains(client) ?? false) continue;
-      client.socket.sink.add(encodedMessage);
+      client.send(encodedMessage);
     }
   }
 }
