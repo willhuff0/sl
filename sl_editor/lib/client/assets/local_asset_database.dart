@@ -1,5 +1,4 @@
 import 'package:sembast_web/sembast_web.dart';
-import 'package:sembast_web/utils/jdb.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 class LocalAssetEntry {
@@ -33,7 +32,7 @@ class LocalAssetEntry {
 
 class LocalAssetDatabase {
   static final _store = stringMapStoreFactory.store();
-  static final _factory = databaseFactoryMemoryJdb;
+  static final _factory = databaseFactoryWeb;
 
   final Database _db;
 
@@ -63,5 +62,9 @@ class LocalAssetDatabase {
       'uuid': uuid,
       'downloadProgress': downloadProgress,
     }, merge: true);
+  }
+
+  Future<void> deleteAsset(UUID uuid) async {
+    await _store.record(uuid).delete(_db);
   }
 }

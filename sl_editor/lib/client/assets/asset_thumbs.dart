@@ -26,7 +26,7 @@ class AssetThumbs {
         .replace(
           path: 'thumbs',
           queryParameters: {
-            'room': Client.get().projectId,
+            'project': Client.get().projectId,
             'uuid': uuid,
           },
         )
@@ -38,7 +38,7 @@ class AssetThumbs {
       Client.get().serverUri.replace(
         path: 'thumbs',
         queryParameters: {
-          'room': Client.get().projectId,
+          'project': Client.get().projectId,
           'uuid': uuid,
         },
       ),

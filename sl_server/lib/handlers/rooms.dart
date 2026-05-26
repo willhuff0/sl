@@ -4,10 +4,13 @@ import 'package:sl_server/globals.dart';
 
 final roomsRouter = Router()..get('/join', _joinHandler);
 
-Response _joinHandler(Request req) {
+Future<Response> _joinHandler(Request req) async {
   final projectId = req.url.queryParameters['project'];
   if (projectId == null) return Response.badRequest(body: 'Query parameter \'project\' must not be null!');
-  final room = ServerGlobalState.rooms[projectId];
-  if (room == null) return Response.notFound('Project not found!');
+  var room = ServerGlobalState.getRoom(projectId);
+  if (room == null) {
+    if (projectId != 'demo') return Response.notFound('Project not found!');
+    room = await ServerGlobalState.openRoom('demo', allowMutation: false);
+  }
   return room.getWebSocketHandler().handle(req);
 }

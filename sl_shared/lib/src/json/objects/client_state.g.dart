@@ -8,6 +8,7 @@ part of 'client_state.dart';
 
 ClientState _$ClientStateFromJson(Map<String, dynamic> json) => ClientState(
   clientId: (json['clientId'] as num).toInt(),
+  name: json['name'] as String,
   color: (json['color'] as num).toInt(),
   sceneId: json['sceneId'] as String?,
 );
@@ -15,6 +16,7 @@ ClientState _$ClientStateFromJson(Map<String, dynamic> json) => ClientState(
 Map<String, dynamic> _$ClientStateToJson(ClientState instance) =>
     <String, dynamic>{
       'clientId': instance.clientId,
+      'name': instance.name,
       'color': instance.color,
       'sceneId': instance.sceneId,
     };
@@ -29,20 +31,20 @@ ClientSceneState _$ClientSceneStateFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ClientSceneStateToJson(ClientSceneState instance) =>
     <String, dynamic>{'viewPosition': instance.viewPosition};
 
-StcSetClientGlobalStates _$StcSetClientGlobalStatesFromJson(
-  Map<String, dynamic> json,
-) => StcSetClientGlobalStates(
-  states: (json['states'] as Map<String, dynamic>).map(
-    (k, e) =>
-        MapEntry(int.parse(k), ClientState.fromJson(e as Map<String, dynamic>)),
-  ),
-);
+StcSetGlobalState _$StcSetGlobalStateFromJson(Map<String, dynamic> json) =>
+    StcSetGlobalState(
+      clients: (json['clients'] as Map<String, dynamic>).map(
+        (k, e) => MapEntry(
+          int.parse(k),
+          ClientState.fromJson(e as Map<String, dynamic>),
+        ),
+      ),
+    );
 
-Map<String, dynamic> _$StcSetClientGlobalStatesToJson(
-  StcSetClientGlobalStates instance,
-) => <String, dynamic>{
-  'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
-};
+Map<String, dynamic> _$StcSetGlobalStateToJson(StcSetGlobalState instance) =>
+    <String, dynamic>{
+      'clients': instance.clients.map((k, e) => MapEntry(k.toString(), e)),
+    };
 
 CtsSetSceneState _$CtsSetSceneStateFromJson(Map<String, dynamic> json) =>
     CtsSetSceneState(

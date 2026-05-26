@@ -7,17 +7,17 @@ final thumbRouter = Router()
   ..post('/', _postHandler);
 
 Future<Response> _getHandler(Request req) async {
-  final roomId = req.url.queryParameters['room'];
-  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
-  final room = ServerGlobalState.rooms[roomId];
+  final projectId = req.url.queryParameters['project'];
+  if (projectId == null) return Response.badRequest(body: 'Query parameter \'project\' must not be null!');
+  final room = ServerGlobalState.getRoom(projectId);
   if (room == null) return Response.notFound('Room not found!');
   return await room.handleGetThumb(req);
 }
 
 Future<Response> _postHandler(Request req) async {
-  final roomId = req.url.queryParameters['room'];
-  if (roomId == null) return Response.badRequest(body: 'Query parameter \'room\' must not be null!');
-  final room = ServerGlobalState.rooms[roomId];
+  final projectId = req.url.queryParameters['project'];
+  if (projectId == null) return Response.badRequest(body: 'Query parameter \'project\' must not be null!');
+  final room = ServerGlobalState.getRoom(projectId);
   if (room == null) return Response.notFound('Room not found!');
   return await room.handlePostThumb(req);
 }

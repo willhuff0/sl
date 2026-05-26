@@ -112,12 +112,10 @@ class AssetSystem {
 
   Completer? _getAssetBlobLock;
   Future<Uint8List?> getAssetBlob(UUID uuid, {bool keepCopyInMemory = true}) async {
-    // Logger.log('Trying to get blob: $uuid');
     while (_getAssetBlobLock != null) {
       await _getAssetBlobLock?.future;
     }
     _getAssetBlobLock = Completer();
-    // Logger.log('Getting blob: $uuid');
 
     // Store the future representing the ongoing request/download
     Future<Uint8List?>? resultFuture;
@@ -160,10 +158,8 @@ class AssetSystem {
             );
 
             if (rows.isEmpty) {
-              Logger.log(
-                'Tried to load the blob for asset $uuid, which does not exist. The asset blob was incorrectly marked as locally available.',
-                .error,
-              );
+              // asset has been deleted or was reverted by the server
+              await _localDatabase.deleteAsset(uuid);
               resultFuture = Future.value(null);
             } else {
               final remoteBlobVersion = rows.first['blob_version'] as int?;
@@ -200,7 +196,6 @@ class AssetSystem {
         resultFuture = download?.onComplete;
       }
     } finally {
-      // Logger.log('Unlocking: $uuid');
       _getAssetBlobLock?.complete();
       _getAssetBlobLock = null;
     }

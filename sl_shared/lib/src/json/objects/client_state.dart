@@ -6,10 +6,11 @@ part 'client_state.g.dart';
 @JsonSerializable()
 class ClientState {
   final ClientId clientId;
+  final String name;
   final int color;
   UUID? sceneId;
 
-  ClientState({required this.clientId, required this.color, this.sceneId});
+  ClientState({required this.clientId, required this.name, required this.color, this.sceneId});
 
   factory ClientState.fromJson(Map<String, dynamic> json) => _$ClientStateFromJson(json);
   Map<String, dynamic> toJson() => _$ClientStateToJson(this);
@@ -26,17 +27,17 @@ class ClientSceneState {
 }
 
 @JsonSerializable()
-class StcSetClientGlobalStates extends Message {
-  final Map<ClientId, ClientState> states;
+class StcSetGlobalState extends Message {
+  final Map<ClientId, ClientState> clients;
 
-  StcSetClientGlobalStates({required this.states});
+  StcSetGlobalState({required this.clients});
 
   @override
-  String get messageClass => 'StcSetClientGlobalStates';
-  static String get messageClassS => 'StcSetClientGlobalStates';
+  String get messageClass => 'StcSetGlobalState';
+  static String get messageClassS => 'StcSetGlobalState';
 
-  factory StcSetClientGlobalStates.fromJson(Map<String, dynamic> json) => _$StcSetClientGlobalStatesFromJson(json);
-  Map<String, dynamic> toJson() => _$StcSetClientGlobalStatesToJson(this);
+  factory StcSetGlobalState.fromJson(Map<String, dynamic> json) => _$StcSetGlobalStateFromJson(json);
+  Map<String, dynamic> toJson() => _$StcSetGlobalStateToJson(this);
 }
 
 @JsonSerializable()

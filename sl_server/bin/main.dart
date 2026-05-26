@@ -1,19 +1,13 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart' hide Server;
 import 'package:shelf/shelf_io.dart';
 import 'package:sl_server/globals.dart';
 import 'package:sl_server/handlers/root.dart';
-import 'package:sl_server/server.dart';
 
 void main(List<String> args) async {
   try {
     var serveStaticEditor = bool.fromEnvironment('dart.vm.product');
-
-    ServerGlobalState.rooms['test-room'] = await Server.openProjectNoMutate(
-      p.join(ServerGlobalConstants.serverRoot, 'test-room'),
-    );
 
     final ip = InternetAddress.anyIPv4;
 

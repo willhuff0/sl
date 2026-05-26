@@ -35,7 +35,7 @@ class Client {
     void Function()? onDisconnected,
     void Function()? onFailedToConnect,
   }) async {
-    final database = await openDatabaseInMemory(); // await openDatabase(p.join(projectId, 'db.sqlite3'));
+    final sharedDatabase = await openDatabaseInMemory(); // await openDatabase(p.join(projectId, 'db.sqlite3'));
     final socket = WebSocketChannel.connect(
       serverUri.replace(
         scheme: kReleaseMode ? 'wss' : 'ws',
@@ -50,7 +50,7 @@ class Client {
       serverUri: serverUri,
       socket: socket,
     );
-    client.assetSystem = await AssetSystem.create(client, database, projectId);
+    client.assetSystem = await AssetSystem.create(client, sharedDatabase, projectId);
     await socket.ready;
     unawaited(client._listen().then((_) => onDisconnected?.call()));
     return client;
@@ -114,8 +114,8 @@ class Client {
       case StcSetSelf setSelf:
         _clientId = setSelf.clientId;
         break;
-      case StcSetClientGlobalStates setClientGlobalStates:
-        _clientStates = setClientGlobalStates.states;
+      case StcSetGlobalState setClientGlobalStates:
+        _clientStates = setClientGlobalStates.clients;
         if (!_clientStates.containsKey(_clientId)) {
           Logger.log('Leaving because StcSetClientGlobalStates did not contain an entry for this client.', .info);
           await _leave();

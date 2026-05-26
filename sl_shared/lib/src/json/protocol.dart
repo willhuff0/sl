@@ -6,7 +6,7 @@ part 'protocol.g.dart';
 typedef MessageFactory = Message Function(Map<String, dynamic> json);
 final Map<String, MessageFactory> _factories = {
   StcSetSelf.messageClassS: StcSetSelf.fromJson,
-  StcSetClientGlobalStates.messageClassS: StcSetClientGlobalStates.fromJson,
+  StcSetGlobalState.messageClassS: StcSetGlobalState.fromJson,
 
   // State Tracking
   StcRemoteChanges.messageClassS: StcRemoteChanges.fromJson,
