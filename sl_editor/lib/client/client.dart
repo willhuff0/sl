@@ -15,6 +15,7 @@ const tickInterval = Duration(milliseconds: 400);
 class Client {
   final String projectId;
   final Uri serverUri;
+  final bool isDemoMode;
 
   late final WebSocketChannel _socket;
   late final ClientId _clientId;
@@ -34,6 +35,7 @@ class Client {
     required Uri serverUri,
     void Function()? onDisconnected,
     void Function()? onFailedToConnect,
+    bool isDemoMode = false,
   }) async {
     final sharedDatabase = await openDatabaseInMemory(); // await openDatabase(p.join(projectId, 'db.sqlite3'));
     final socket = WebSocketChannel.connect(
@@ -49,6 +51,7 @@ class Client {
       projectId: projectId,
       serverUri: serverUri,
       socket: socket,
+      isDemoMode: isDemoMode,
     );
     client.assetSystem = await AssetSystem.create(client, sharedDatabase, projectId);
     await socket.ready;
@@ -65,6 +68,7 @@ class Client {
     required this.projectId,
     required this.serverUri,
     required WebSocketChannel socket,
+    required this.isDemoMode,
   }) : _socket = socket {
     _tickTimer = Timer.periodic(tickInterval, (_) => _tick());
     onClientStatesChanged = _onClientStatesChangedController.stream;

@@ -40,6 +40,7 @@ class _EditorClientLoaderState extends State<EditorClientLoader> {
     _client = await Client.connect(
       projectId: projectId,
       serverUri: serverUri,
+      isDemoMode: projectId == 'demo',
       onDisconnected: () {
         if (!mounted) return;
         ShadToaster.of(context).show(
@@ -114,6 +115,22 @@ class EditorPage extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
+                if (Client.get().isDemoMode)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8.0, right: 4.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                    decoration: BoxDecoration(
+                      color: ShadTheme.of(context).colorScheme.accent,
+                      borderRadius: BorderRadius.circular(4.0),
+                    ),
+                    child: Text(
+                      'Preview',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.0,
+                      ),
+                    ),
+                  ),
                 ShadMenubarItem(
                   items: [
                     ShadContextMenuItem(
