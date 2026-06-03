@@ -8,7 +8,6 @@ import 'package:sl_editor/panels/engine_panel.dart';
 import 'package:sl_editor/panels/node_graph_panel.dart';
 import 'package:sl_editor/panels/properties_panel.dart';
 import 'package:sl_editor/widgets/avatars.dart';
-import 'package:sl_editor/widgets/cursors.dart';
 import 'package:sl_editor/widgets/window_title_bar.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:web/web.dart' as web;
@@ -37,7 +36,7 @@ class _EditorClientLoaderState extends State<EditorClientLoader> {
 
   Future<void> _load() async {
     final serverUri = Uri.base.replace(path: '/', port: kReleaseMode ? 443 : 8080);
-    final projectId = Uri.base.queryParameters['project'] ?? 'test-room';
+    final projectId = Uri.base.queryParameters['project'] ?? 'demo';
     _client = await Client.connect(
       projectId: projectId,
       serverUri: serverUri,
@@ -90,162 +89,156 @@ class EditorPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
       children: [
-        Positioned.fill(
-          child: Column(
-            children: [
-              WindowTitleBar(
-                height: 38.0,
-                leading: [
-                  ShadMenubar(
-                    border: ShadBorder(
-                      left: ShadBorderSide.none,
-                      top: ShadBorderSide.none,
-                      bottom: ShadBorderSide.none,
-                      right: ShadBorderSide(
-                        color: ShadTheme.of(context).colorScheme.border,
-                        width: 2.0,
-                        strokeAlign: BorderSide.strokeAlignOutside,
-                      ),
+        WindowTitleBar(
+          height: 38.0,
+          leading: [
+            ShadMenubar(
+              border: ShadBorder(
+                left: ShadBorderSide.none,
+                top: ShadBorderSide.none,
+                bottom: ShadBorderSide.none,
+                right: ShadBorderSide(
+                  color: ShadTheme.of(context).colorScheme.border,
+                  width: 2.0,
+                  strokeAlign: BorderSide.strokeAlignOutside,
+                ),
+              ),
+              selectOnHover: false,
+              items: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 14.0, right: 8.0),
+                  child: Text(
+                    'SL',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
                     ),
-                    selectOnHover: false,
-                    items: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 14.0, right: 8.0),
-                        child: Text(
-                          'SL',
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                      ShadMenubarItem(
-                        items: [
-                          ShadContextMenuItem(
-                            child: Text('File'),
-                            onPressed: () {},
-                          ),
-                        ],
-                        child: Text('File'),
-                      ),
-                      ShadMenubarItem(
-                        items: [
-                          ShadContextMenuItem(
-                            child: Text('File'),
-                            onPressed: () {},
-                          ),
-                        ],
-                        child: Text('Edit'),
-                      ),
-                      ShadMenubarItem(
-                        items: [
-                          ShadContextMenuItem(
-                            child: Text('File'),
-                            onPressed: () {},
-                          ),
-                        ],
-                        child: Text('View'),
-                      ),
-                    ],
-                  ),
-                ],
-                centered: [
-                  Row(
-                    mainAxisAlignment: .center,
-                    children: [
-                      ShadButton.ghost(
-                        width: 40.0,
-                        height: 40.0,
-                        size: .sm,
-                        child: Icon(LucideIcons.move3d),
-                        onPressed: () {
-                          Selector.setGizmoType(.translation);
-                        },
-                      ),
-                      ShadButton.ghost(
-                        width: 40.0,
-                        height: 40.0,
-                        size: .sm,
-                        child: Icon(LucideIcons.rotate3d),
-                        onPressed: () {
-                          Selector.setGizmoType(.rotation);
-                        },
-                      ),
-                      ShadButton.ghost(
-                        width: 40.0,
-                        height: 40.0,
-                        size: .sm,
-                        child: Icon(LucideIcons.scale3d),
-                        onPressed: () {
-                          Selector.setGizmoType(.scale);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-                trailing: [
-                  AvatarsWidget(),
-                  _ShareButton(),
-                  _AccountButton(),
-                ],
-              ),
-              ShadSeparator.horizontal(
-                margin: EdgeInsets.zero,
-              ),
-              Expanded(
+                  ],
+                  child: Text('File'),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
+                    ),
+                  ],
+                  child: Text('Edit'),
+                ),
+                ShadMenubarItem(
+                  items: [
+                    ShadContextMenuItem(
+                      child: Text('File'),
+                      onPressed: () {},
+                    ),
+                  ],
+                  child: Text('View'),
+                ),
+              ],
+            ),
+          ],
+          centered: [
+            Row(
+              mainAxisAlignment: .center,
+              children: [
+                ShadButton.ghost(
+                  width: 40.0,
+                  height: 40.0,
+                  size: .sm,
+                  child: Icon(LucideIcons.move3d),
+                  onPressed: () {
+                    Selector.setGizmoType(.translation);
+                  },
+                ),
+                ShadButton.ghost(
+                  width: 40.0,
+                  height: 40.0,
+                  size: .sm,
+                  child: Icon(LucideIcons.rotate3d),
+                  onPressed: () {
+                    Selector.setGizmoType(.rotation);
+                  },
+                ),
+                ShadButton.ghost(
+                  width: 40.0,
+                  height: 40.0,
+                  size: .sm,
+                  child: Icon(LucideIcons.scale3d),
+                  onPressed: () {
+                    Selector.setGizmoType(.scale);
+                  },
+                ),
+              ],
+            ),
+          ],
+          trailing: [
+            AvatarsWidget(),
+            _ShareButton(),
+            _AccountButton(),
+          ],
+        ),
+        ShadSeparator.horizontal(
+          margin: EdgeInsets.zero,
+        ),
+        Expanded(
+          child: ShadResizablePanelGroup(
+            axis: Axis.horizontal,
+            children: [
+              ShadResizablePanel(
+                id: 0,
+                defaultSize: 0.175,
                 child: ShadResizablePanelGroup(
-                  axis: Axis.horizontal,
+                  axis: Axis.vertical,
                   children: [
                     ShadResizablePanel(
-                      id: 0,
-                      defaultSize: 0.175,
-                      child: ShadResizablePanelGroup(
-                        axis: Axis.vertical,
-                        children: [
-                          ShadResizablePanel(
-                            id: 'node-graph',
-                            defaultSize: 0.5,
-                            child: NodeGraphPanel(),
-                          ),
-                          ShadResizablePanel(
-                            id: 'asset',
-                            defaultSize: 0.5,
-                            child: AssetPanel(),
-                          ),
-                        ],
-                      ),
+                      id: 'node-graph',
+                      defaultSize: 0.5,
+                      child: NodeGraphPanel(),
                     ),
                     ShadResizablePanel(
-                      id: 1,
-                      defaultSize: 0.625,
-                      child: ShadResizablePanelGroup(
-                        axis: Axis.vertical,
-                        children: [
-                          ShadResizablePanel(
-                            id: 'engine',
-                            defaultSize: 0.652,
-                            child: EnginePanel(),
-                          ),
-                          ShadResizablePanel(
-                            id: 'console',
-                            defaultSize: 0.375,
-                            child: ConsolePanel(),
-                          ),
-                        ],
-                      ),
+                      id: 'asset',
+                      defaultSize: 0.5,
+                      child: AssetPanel(),
+                    ),
+                  ],
+                ),
+              ),
+              ShadResizablePanel(
+                id: 1,
+                defaultSize: 0.625,
+                child: ShadResizablePanelGroup(
+                  axis: Axis.vertical,
+                  children: [
+                    ShadResizablePanel(
+                      id: 'engine',
+                      defaultSize: 0.652,
+                      child: EnginePanel(),
                     ),
                     ShadResizablePanel(
-                      id: 2,
-                      defaultSize: 0.2,
-                      child: ShadResizablePanelGroup(
-                        axis: Axis.vertical,
-                        children: [
-                          ShadResizablePanel(
-                            id: 'properties',
-                            defaultSize: 1.0,
-                            child: PropertiesPanel(),
-                          ),
-                        ],
-                      ),
+                      id: 'console',
+                      defaultSize: 0.375,
+                      child: ConsolePanel(),
+                    ),
+                  ],
+                ),
+              ),
+              ShadResizablePanel(
+                id: 2,
+                defaultSize: 0.2,
+                child: ShadResizablePanelGroup(
+                  axis: Axis.vertical,
+                  children: [
+                    ShadResizablePanel(
+                      id: 'properties',
+                      defaultSize: 1.0,
+                      child: PropertiesPanel(),
                     ),
                   ],
                 ),
@@ -253,7 +246,6 @@ class EditorPage extends StatelessWidget {
             ],
           ),
         ),
-        Positioned.fill(child: CursorsWidget()),
       ],
     );
   }

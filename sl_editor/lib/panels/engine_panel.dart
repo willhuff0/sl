@@ -3,6 +3,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/name_tags.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
 import 'package:vector_math/vector_math.dart';
@@ -46,9 +47,16 @@ class _EngineViewState extends State<EnginePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(
-      key: _canvasKey,
-      viewType: 'sl-engine-view',
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: HtmlElementView(
+            key: _canvasKey,
+            viewType: 'sl-engine-view',
+          ),
+        ),
+        Positioned.fill(child: NameTagsWidget()),
+      ],
     );
   }
 }

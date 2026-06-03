@@ -142,16 +142,6 @@ class Server {
     }
 
     _broadcastClientStates();
-
-    try {
-      await for (final data in client.stream) {
-        await _onData(client, data);
-      }
-    } catch (e) {
-      print('Error occurred while handling message for client ${client.clientId}: $e');
-      await removeClient(client);
-    }
-    await removeClient(client);
   }
 
   ClientState _getNewClientState({String? name}) {
@@ -177,6 +167,16 @@ class Server {
     );
 
     await addClient(client);
+
+    try {
+      await for (final data in client.stream) {
+        await _onData(client, data);
+      }
+    } catch (e) {
+      print('Error occurred while handling message for client ${client.clientId}: $e');
+      await removeClient(client);
+    }
+    await removeClient(client);
   }
 
   Future<void> _onData(Client client, dynamic data) async {

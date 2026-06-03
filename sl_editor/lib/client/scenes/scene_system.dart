@@ -213,7 +213,7 @@ class SceneSystem {
         stateTracker!,
         Map.fromEntries(
           _scene!.states.entries
-              .where((entry) => entry.value.viewPosition != null)
+              .where((entry) => client.getClientStates().containsKey(entry.key) && entry.value.viewPosition != null)
               .map(
                 (entry) => MapEntry(entry.key, (
                   _intToVec4Color(client.getClientStates()[entry.key]!.color),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:sl_engine/components/mesh_component.dart';
 import 'package:sl_engine/gl/gltf.dart';
@@ -19,6 +20,9 @@ class _AvatarState {
 }
 
 class Avatars {
+  static final _onAvatarsMovedController = StreamController.broadcast();
+  static final onAvatarsMoved = _onAvatarsMovedController.stream;
+
   static late final Node _avatarNode;
   static const double smoothTime = 0.4;
   static const double maxSpeed = double.infinity;
@@ -29,6 +33,10 @@ class Avatars {
 
   static var _targetViews = <int, (Vector3 position, Quaternion orientation, Vector4 color)>{};
   static final _currentViews = <int, _AvatarState>{};
+
+  static Map<int, Vector3> getCurrentRemoteAvatarPositions() {
+    return _currentViews.map((clientId, state) => MapEntry(clientId, state.position));
+  }
 
   static void setRemoteViews(Map<int, (Vector3 position, Quaternion orientation, Vector4 color)> remoteViews) {
     _targetViews = remoteViews;
@@ -88,6 +96,8 @@ class Avatars {
 
       current.color.setFrom(target.$3);
     }
+
+    _onAvatarsMovedController.add(null);
   }
 
   static void draw() {
