@@ -31,10 +31,11 @@ class PropertiesFieldWithLabel extends StatelessWidget {
           Expanded(
             child: CustomPropertiesField(
               type: double,
+              typeName: 'float',
               tracked: tracked,
               property: property,
               boxValue: (c, unboxed) => Vector3(box(double, unboxed) ?? c.x, c.y, c.z),
-              unboxValue: (boxed) => unbox(boxed.x),
+              unboxValue: (boxed) => unboxFloat32(boxed.x),
               onChanged: onChanged,
             ),
           ),
@@ -42,10 +43,11 @@ class PropertiesFieldWithLabel extends StatelessWidget {
           Expanded(
             child: CustomPropertiesField(
               type: double,
+              typeName: 'float',
               tracked: tracked,
               property: property,
               boxValue: (c, unboxed) => Vector3(c.x, box(double, unboxed) ?? c.y, c.z),
-              unboxValue: (boxed) => unbox(boxed.y),
+              unboxValue: (boxed) => unboxFloat32(boxed.y),
               onChanged: onChanged,
             ),
           ),
@@ -53,10 +55,11 @@ class PropertiesFieldWithLabel extends StatelessWidget {
           Expanded(
             child: CustomPropertiesField(
               type: double,
+              typeName: 'float',
               tracked: tracked,
               property: property,
               boxValue: (c, unboxed) => Vector3(c.x, c.y, box(double, unboxed) ?? c.z),
-              unboxValue: (boxed) => unbox(boxed.z),
+              unboxValue: (boxed) => unboxFloat32(boxed.z),
               onChanged: onChanged,
             ),
           ),
@@ -88,21 +91,23 @@ class PropertiesFieldWithLabel extends StatelessWidget {
 
 class CustomPropertiesField extends StatefulWidget {
   final Type type;
+  final String typeName;
   final StateTracked tracked;
   final TrackedProperty property;
   final dynamic Function(dynamic current, String unboxed)? boxValue;
   final String Function(dynamic boxed)? unboxValue;
   final void Function()? onChanged;
 
-  const CustomPropertiesField({
+  CustomPropertiesField({
     super.key,
     required this.type,
+    String? typeName,
     required this.tracked,
     required this.property,
     this.boxValue,
     this.unboxValue,
     this.onChanged,
-  });
+  }) : typeName = typeName ?? type.toString();
 
   @override
   State<CustomPropertiesField> createState() => _CustomPropertiesFieldState();
@@ -114,7 +119,7 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
   late final StreamSubscription _onChangedSubscription;
 
   String getValueTypeName() {
-    return widget.type.toString();
+    return widget.typeName;
   }
 
   String getValue() {
@@ -204,7 +209,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
   Vector3? _current;
 
   String getValueTypeName() {
-    return 'double';
+    return 'float';
   }
 
   @override
@@ -241,9 +246,9 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     final yaw = degrees(-math.asin(rotationMatrix[2]));
     final roll = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));
     _textEditingControllers = [
-      TextEditingController(text: pitch.toString()),
-      TextEditingController(text: yaw.toString()),
-      TextEditingController(text: roll.toString()),
+      TextEditingController(text: unboxFloat32(pitch)),
+      TextEditingController(text: unboxFloat32(yaw)),
+      TextEditingController(text: unboxFloat32(roll)),
     ];
     _current = Vector3(pitch, yaw, roll);
   }
@@ -255,9 +260,9 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     final pitch = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
     final yaw = degrees(-math.asin(rotationMatrix[2]));
     final roll = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));
-    _textEditingControllers[0].text = pitch.toString();
-    _textEditingControllers[1].text = yaw.toString();
-    _textEditingControllers[2].text = roll.toString();
+    _textEditingControllers[0].text = unboxFloat32(pitch);
+    _textEditingControllers[1].text = unboxFloat32(yaw);
+    _textEditingControllers[2].text = unboxFloat32(roll);
     _current = Vector3(pitch, yaw, roll);
   }
 

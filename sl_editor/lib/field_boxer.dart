@@ -1,41 +1,19 @@
-// String propertyToFieldString<T>(T value) {
-//   switch (value) {
-//     case String stringValue:
-//       return stringValue;
-//     case num numValue:
-//       return numValue.toString();
-//     default:
-//       return '';
-//   }
-// }
-
-// dynamic propertyFromFieldString<T>(String value) {
-//   switch (T) {
-//     case const (String):
-//       return value;
-//     case const (num):
-//       return num.parse(value);
-//     default:
-//       return null;
-//   }
-// }
-
-// String propertyToFieldTypeName<T>() {
-//   return T.toString();
-// }
-
-String unbox(dynamic unboxed) {
-  return unboxed.toString();
+String unbox(dynamic boxed) {
+  return boxed.toString();
 }
 
-dynamic box(Type type, String boxed) {
+String unboxFloat32(dynamic boxed) {
+  return (double.parse(boxed.toStringAsFixed(5)) + 0.0).toString();
+}
+
+dynamic box(Type type, String unboxed) {
   switch (type) {
     case const (String):
-      return boxed;
+      return unboxed;
     case const (double):
-      return double.tryParse(boxed);
+      return double.tryParse(unboxed);
     case const (int):
-      return int.tryParse(boxed);
+      return int.tryParse(unboxed);
     default:
       return null;
   }
