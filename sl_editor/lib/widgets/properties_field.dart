@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/state_tracker.dart';
@@ -83,7 +84,14 @@ class PropertiesFieldWithLabel extends StatelessWidget {
       children: [
         Text(label),
         SizedBox(height: 4.0),
-        field,
+        Shortcuts(
+          shortcuts: const <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
+            SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
+            SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
+          },
+          child: field,
+        ),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/importers/importers.dart';
 import 'package:sl_editor/pages/editor.dart';
+import 'package:sl_engine/editor/selector.dart';
 
 void main() async {
   registerImporters();
@@ -16,19 +17,26 @@ class EditorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadApp(
-      debugShowCheckedModeBanner: false,
-      theme: ShadThemeData(
-        colorScheme: ShadVioletColorScheme.dark(),
-        brightness: Brightness.dark,
-        ghostButtonTheme: ShadButtonTheme(
-          foregroundColor: ShadVioletColorScheme.dark().foreground,
+    return CallbackShortcuts(
+      bindings: {
+        SingleActivator(LogicalKeyboardKey.keyW): () => Selector.setGizmoType(.translation),
+        SingleActivator(LogicalKeyboardKey.keyE): () => Selector.setGizmoType(.rotation),
+        SingleActivator(LogicalKeyboardKey.keyR): () => Selector.setGizmoType(.scale),
+      },
+      child: ShadApp(
+        debugShowCheckedModeBanner: false,
+        theme: ShadThemeData(
+          colorScheme: ShadVioletColorScheme.dark(),
+          brightness: Brightness.dark,
+          ghostButtonTheme: ShadButtonTheme(
+            foregroundColor: ShadVioletColorScheme.dark().foreground,
+          ),
+          outlineButtonTheme: ShadButtonTheme(
+            foregroundColor: ShadVioletColorScheme.dark().foreground,
+          ),
         ),
-        outlineButtonTheme: ShadButtonTheme(
-          foregroundColor: ShadVioletColorScheme.dark().foreground,
-        ),
+        home: EditorClientLoader(),
       ),
-      home: EditorClientLoader(),
     );
   }
 }

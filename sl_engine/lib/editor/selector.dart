@@ -38,6 +38,9 @@ class Selector {
   static final _onSelectionTransformedController = StreamController<Set<Node>>.broadcast();
   static final onSelectionTransformed = _onSelectionTransformedController.stream;
 
+  static final _onGizmoChangedController = StreamController<GizmoType>.broadcast();
+  static final onGizmoChanged = _onGizmoChangedController.stream;
+
   static Vector2Int? _boxSelectStart;
   static Vector2Int? _boxSelectCurrent;
 
@@ -165,6 +168,7 @@ class Selector {
 
   static void setGizmoType(GizmoType gizmoType) {
     try {
+      _onGizmoChangedController.add(gizmoType);
       switch (gizmoType) {
         case .translation:
           _handles.activeGizmo = _handles.translationGizmo;

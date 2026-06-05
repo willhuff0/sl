@@ -44,7 +44,7 @@ class Handles {
     handles.translationGizmo = TranslationGizmo()..init(handles._root);
     handles.rotationGizmo = RotationGizmo()..init(handles._root);
     handles.scaleGizmo = ScaleGizmo()..init(handles._root);
-    handles.activeGizmo = handles.rotationGizmo;
+    handles.activeGizmo = handles.translationGizmo;
 
     handles._blitShader.bind();
     handles._blitShader.setUniform('u_texture', 0);
