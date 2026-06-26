@@ -14,11 +14,10 @@ abstract class StateTracked {
   final UUID uuid;
 
   final ValidatedProperty<bool> doesExist = ValidatedProperty(
-    true,
-    key: 'doesExist',
-    validator: (receiver, v) {
-      if (v is! bool) return false;
-      if (!receiver.doesExist.value && v) return false;
+    doesExistSchema,
+    receiverValidator: (receiver, value) {
+      if (value is! bool) return false;
+      if (!receiver.doesExist.value && value) return false;
       return true;
     },
   );

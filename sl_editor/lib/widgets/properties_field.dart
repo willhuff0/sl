@@ -25,7 +25,7 @@ class PropertiesFieldWithLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = property.get();
+    final value = property.value;
     final field = switch (value) {
       Vector3 _ => Row(
         children: [
@@ -131,13 +131,13 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
   }
 
   String getValue() {
-    final boxedValue = widget.property.get();
+    final boxedValue = widget.property.value;
     final value = widget.unboxValue?.call(boxedValue) ?? unbox(boxedValue);
     return value;
   }
 
   void setValue(String value) {
-    final boxedValue = widget.boxValue?.call(widget.property.get(), value) ?? box(widget.type, value);
+    final boxedValue = widget.boxValue?.call(widget.property.value, value) ?? box(widget.type, value);
     if (boxedValue == null) return;
     widget.tracked.modifyLocal((builder) {
       widget.property.set(widget.tracked, builder, boxedValue);
@@ -249,7 +249,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
   }
 
   void _init() {
-    final rotationMatrix = (widget.property.get() as Quaternion).asRotationMatrix();
+    final rotationMatrix = (widget.property.value as Quaternion).asRotationMatrix();
     final pitch = degrees(math.atan2(rotationMatrix[5], rotationMatrix[8]));
     final yaw = degrees(-math.asin(rotationMatrix[2]));
     final roll = degrees(math.atan2(rotationMatrix[1], rotationMatrix[0]));

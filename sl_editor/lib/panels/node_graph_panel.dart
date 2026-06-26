@@ -263,7 +263,7 @@ class _NodeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remoteSelectionColor = _vec4ToColor(Selector.getRemoteSelectionColor(node.engineNode));
-    final isSelectableAndDraggable = node.parent.get() != null && remoteSelectionColor == null;
+    final isSelectableAndDraggable = node.parent.value != null && remoteSelectionColor == null;
 
     final dragTarget = DragTarget(
       onAcceptWithDetails: (details) {
@@ -286,7 +286,7 @@ class _NodeWidget extends StatelessWidget {
             : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
         padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
         onPressed: isSelectableAndDraggable ? onSelect : null,
-        child: Text(node.name.get()),
+        child: Text(node.name.value),
       ),
     );
 
@@ -312,12 +312,12 @@ class _NodeWidget extends StatelessWidget {
                   color: ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(4.0),
                 ),
-                child: Text(node.name.get()),
+                child: Text(node.name.value),
               ),
               childWhenDragging: ShadButton.ghost(
                 enabled: false,
                 padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                child: Text(node.name.get()),
+                child: Text(node.name.value),
               ),
               child: dragTarget,
             )

@@ -12,51 +12,38 @@ import 'package:vector_math/vector_math.dart';
 
 class Node extends SceneStateTracked {
   final TrackedProperty<String> name = TrackedProperty(
-    path: 'name',
-    value: 'New Node',
+    NodeSchema.name,
     effect: (node, newName) {
       (node as Node).engineNode.name = newName;
       Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
     },
   );
   final TrackedProperty<ParentAndOrder?> parent = TrackedProperty(
-    path: 'parent',
-    value: null,
+    NodeSchema.parent,
     effect: _parentEffect,
-    fromJson: (v) => v == null ? null : ParentAndOrder.fromJson(v),
   );
   final SplayTreeMap<Fraction, Node> children = SplayTreeMap();
   final TrackedProperty<Vector3> lPos = TrackedProperty(
-    path: 'lPos',
-    value: Vector3.zero(),
+    NodeSchema.lPos,
     effect: (node, newLPos) => (node as Node).engineNode.lPos = newLPos,
-    toJson: vec3ToJson,
-    fromJson: vec3FromJson,
   );
   final TrackedProperty<Quaternion> lRot = TrackedProperty(
-    path: 'lRot',
-    value: Quaternion.identity(),
+    NodeSchema.lRot,
     effect: (node, newLRot) => (node as Node).engineNode.lRot = newLRot,
-    toJson: quatToJson,
-    fromJson: quatFromJson,
   );
   final TrackedProperty<Vector3> lScale = TrackedProperty(
-    path: 'lScale',
-    value: Vector3(1.0, 1.0, 1.0),
+    NodeSchema.lScale,
     effect: (node, newLScale) => (node as Node).engineNode.lScale = newLScale,
-    toJson: vec3ToJson,
-    fromJson: vec3FromJson,
   );
   final TrackedProperty<UUID?> asset = TrackedProperty(
-    path: 'asset',
-    value: null,
+    NodeSchema.asset,
     effect: _assetEffect,
   );
   engine.Node? assetNode;
 
   final engine.Node engineNode;
 
-  static ObjectClass get objectClass => 'node';
+  static ObjectClass get objectClass => NodeSchema.objectClass;
 
   static Node create(StateTracker<SceneStateTracked> tracker, UUID parent, String name) {
     final parentNode = tracker.getObject(parent) as Node;
@@ -101,6 +88,9 @@ class Node extends SceneStateTracked {
 
   /// Moves this node to a new parent, and optionally positions it between `before` and `after`.
   void moveTo(Node newParent, {Node? before, Node? after}) {
+    // Cannot reparent root
+    if (parent.value == null) return;
+
     Fraction newOrder;
 
     if (before == null && after == null) {
@@ -113,13 +103,13 @@ class Node extends SceneStateTracked {
       }
     } else if (before != null && after == null) {
       // Place after the chosen 'before' node (at the new end)
-      newOrder = before.parent.get()!.order + Fraction.one;
+      newOrder = before.parent.value!.order + Fraction.one;
     } else if (before == null && after != null) {
       // Place before the chosen 'after' node (at the new beginning)
-      newOrder = after.parent.get()!.order - Fraction.one;
+      newOrder = after.parent.value!.order - Fraction.one;
     } else {
       // Place exactly between the two sibling nodes
-      newOrder = Fraction.midpoint(before!.parent.get()!.order, after!.parent.get()!.order);
+      newOrder = Fraction.midpoint(before!.parent.value!.order, after!.parent.value!.order);
     }
 
     final realWPos = engineNode.wPos.clone();
@@ -156,9 +146,9 @@ class Node extends SceneStateTracked {
 
   static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
     final node = (receiver as Node);
-    if (node.parent.get() != null) {
-      final parentNode = receiver.tracker.getObject<Node>(node.parent.get()!.uuid)!;
-      parentNode.children.remove(node.parent.get()!.order);
+    if (node.parent.value != null) {
+      final parentNode = receiver.tracker.getObject<Node>(node.parent.value!.uuid)!;
+      parentNode.children.remove(node.parent.value!.order);
       parentNode.engineNode.removeChild(node.engineNode);
     }
     if (newParent != null) {

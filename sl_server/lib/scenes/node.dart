@@ -6,20 +6,10 @@ import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
 class Node extends StateTracked {
-  final ValidatedProperty<String> name = ValidatedProperty(
-    'New Node',
-    key: 'name',
-    validator: (_, v) {
-      if (v is! String) return false;
-      if (v != v.trim()) return false;
-      if (v.isEmpty || v.length > 128) return false;
-      return true;
-    },
-  );
+  final ValidatedProperty<String> name = ValidatedProperty(NodeSchema.name);
   final ValidatedProperty<ParentAndOrder?> parent = ValidatedProperty(
-    null,
-    key: 'parent',
-    validator: (receiver, v) {
+    NodeSchema.parent,
+    receiverValidator: (receiver, v) {
       // client cannot create root node
       if (v == null) return false;
 
@@ -52,46 +42,28 @@ class Node extends StateTracked {
         property.value = null;
       }
     },
-    fromJson: (v) => v == null ? null : ParentAndOrder.fromJson(v),
   );
   final SplayTreeMap<Fraction, UUID> children = SplayTreeMap();
 
-  final ValidatedProperty<Vector3> lPos = ValidatedProperty(
-    Vector3.zero(),
-    key: 'lPos',
-    validator: vector3Validator,
-    setter: vector3Setter,
-    toJson: vec3ToJson,
-    fromJson: vec3FromJson,
-  );
-  final ValidatedProperty<Quaternion> lRot = ValidatedProperty(
-    Quaternion.identity(),
-    key: 'lRot',
-    validator: quaternionValidator,
-    setter: quaternionSetter,
-    toJson: quatToJson,
-    fromJson: quatFromJson,
-  );
-  final ValidatedProperty<Vector3> lScale = ValidatedProperty(
-    Vector3(1.0, 1.0, 1.0),
-    key: 'lScale',
-    validator: vector3Validator,
-    setter: vector3Setter,
-    toJson: vec3ToJson,
-    fromJson: vec3FromJson,
-  );
-  final ValidatedProperty<UUID?> asset = ValidatedProperty(
-    null,
-    key: 'asset',
-    validator: (_, _) => true,
-  );
+  final ValidatedProperty<Vector3> lPos = ValidatedProperty(NodeSchema.lPos, setter: _vector3Setter);
+  final ValidatedProperty<Quaternion> lRot = ValidatedProperty(NodeSchema.lRot, setter: _quaternionSetter);
+  final ValidatedProperty<Vector3> lScale = ValidatedProperty(NodeSchema.lScale, setter: _vector3Setter);
+  final ValidatedProperty<UUID?> asset = ValidatedProperty(NodeSchema.asset);
 
   Node(super.tracker, super.uuid);
 
   @override
-  ObjectClass get objectClass => 'node';
-  static ObjectClass get objectClassS => 'node';
+  ObjectClass get objectClass => NodeSchema.objectClass;
+  static ObjectClass get objectClassS => NodeSchema.objectClass;
 
   @override
   List<ValidatedProperty> get properties => [name, parent, lPos, lRot, lScale, asset];
+}
+
+void _vector3Setter(_, ValidatedProperty o, dynamic v) {
+  o.value = Vector3(v[0].toDouble(), v[1].toDouble(), v[2].toDouble());
+}
+
+void _quaternionSetter(_, ValidatedProperty o, dynamic v) {
+  o.value = Quaternion(v[0].toDouble(), v[1].toDouble(), v[2].toDouble(), v[3].toDouble());
 }

@@ -12,7 +12,7 @@ abstract class StateTracked {
   final TrackedProperty<bool> doesExist;
 
   StateTracked(this.tracker, this.uuid, {void Function(StateTracked self, bool doesExist)? doesExistEffect})
-    : doesExist = TrackedProperty(path: 'doesExist', value: true, effect: doesExistEffect);
+    : doesExist = TrackedProperty(doesExistSchema, effect: doesExistEffect);
 
   @protected
   @nonVirtual
@@ -59,7 +59,7 @@ abstract class StateTracked {
       property.getDeltaFromNullRelToObject(builder);
     }
     // doesExist is only included when false; a newly created object exists by default.
-    if (!doesExist.get()) doesExist.getDeltaFromNullRelToObject(builder);
+    if (!doesExist.value) doesExist.getDeltaFromNullRelToObject(builder);
   }
 
   @nonVirtual
@@ -182,7 +182,7 @@ class StateTracker<T extends StateTracked> {
     }
 
     trackedObject.applyDelta(stateChange.delta);
-    if (onObjectRemoved != null && !trackedObject.doesExist.get()) {
+    if (onObjectRemoved != null && !trackedObject.doesExist.value) {
       onObjectRemoved!(trackedObject);
     } else if (wasObjectedAdded) {
       registerObject(trackedObject);

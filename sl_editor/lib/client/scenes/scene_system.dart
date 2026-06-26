@@ -106,9 +106,9 @@ class SceneSystem {
     for (final node in nodes) {
       final trackedNode = getTrackedFromEngineNode(node);
       trackedNode.modifyLocal((builder) {
-        if (trackedNode.lPos.get() != node.lPos) trackedNode.lPos.set(trackedNode, builder, node.lPos);
-        if (trackedNode.lRot.get() != node.lRot) trackedNode.lRot.set(trackedNode, builder, node.lRot);
-        if (trackedNode.lScale.get() != node.lScale) trackedNode.lScale.set(trackedNode, builder, node.lScale);
+        if (trackedNode.lPos.value != node.lPos) trackedNode.lPos.set(trackedNode, builder, node.lPos);
+        if (trackedNode.lRot.value != node.lRot) trackedNode.lRot.set(trackedNode, builder, node.lRot);
+        if (trackedNode.lScale.value != node.lScale) trackedNode.lScale.set(trackedNode, builder, node.lScale);
       });
     }
   }
@@ -118,7 +118,7 @@ class SceneSystem {
 
     _onRootChangedController.add(node);
     if (node != null && _scene != null) {
-      if (node.name.get() != _scene!.name) {
+      if (node.name.value != _scene!.name) {
         node.modifyLocal((builder) {
           node.name.set(node, builder, _scene!.name);
         });

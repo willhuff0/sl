@@ -4,7 +4,8 @@ export 'src/json/objects.dart';
 export 'src/json/protocol.dart';
 export 'src/config.dart';
 
-export 'src/vector_serializers.dart';
+export 'src/state_tracking/property_schema.dart';
+export 'src/state_tracking/node_schema.dart';
 
 export 'src/database/database.dart';
 

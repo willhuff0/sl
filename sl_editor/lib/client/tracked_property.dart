@@ -22,36 +22,34 @@ class StateChangesBuilder {
 }
 
 class TrackedProperty<T> {
-  final String path;
+  final PropertySchema<T> schema;
   T _value;
-  final T Function(dynamic)? _fromJson;
-  final dynamic Function(T)? _toJson;
+
+  /// Side effect run when the value changes, used to push state into the engine.
   final void Function(StateTracked, T)? _effect;
   final _onChangedController = StreamController<T>.broadcast();
   late final Stream<T> onChanged;
 
-  TrackedProperty({
-    required this.path,
-    required T value,
-    T Function(dynamic)? fromJson,
-    dynamic Function(T)? toJson,
+  TrackedProperty(
+    this.schema, {
     void Function(StateTracked, T)? effect,
-  }) : _value = value,
-       _fromJson = fromJson,
-       _toJson = toJson,
+  }) : _value = schema.createDefault(),
        _effect = effect {
     onChanged = _onChangedController.stream;
   }
 
-  T get() {
-    return _value;
-  }
+  String get key => schema.key;
+  T get value => _value;
+
+  // T get() {
+  //   return _value;
+  // }
 
   void set(StateTracked effectReceiver, BiDeltaBuilder builder, T newValue) {
     builder.setProperty(
-      path,
-      _toJson == null ? _value : _toJson(_value),
-      _toJson == null ? newValue : _toJson(newValue),
+      key,
+      schema.encode(_value),
+      schema.encode(newValue),
     );
     _effect?.call(effectReceiver, newValue);
     _value = newValue;
@@ -59,17 +57,12 @@ class TrackedProperty<T> {
   }
 
   void getDeltaFromNullRelToObject(Delta builder) {
-    builder[path] = _toJson == null ? _value : _toJson(_value);
+    builder[key] = schema.encode(_value);
   }
 
   void applyDeltaRelToObject(StateTracked effectReceiver, Delta delta) {
-    if (!delta.containsKey(path)) return;
-    T newValue;
-    if (_fromJson != null) {
-      newValue = _fromJson(delta[path]);
-    } else {
-      newValue = delta[path] as T;
-    }
+    if (!delta.containsKey(key)) return;
+    final newValue = schema.decode(delta[key]);
     _effect?.call(effectReceiver, newValue);
     _value = newValue;
     _onChangedController.add(_value);
