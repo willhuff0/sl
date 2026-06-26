@@ -46,16 +46,27 @@ abstract class StateTracked {
     );
   }
 
-  @mustCallSuper
-  @mustBeOverridden
+  /// The properties declared by this object, in delta order. Excludes [doesExist],
+  /// which the base class handles specially.
+  List<TrackedProperty> get properties;
+
+  /// [properties] plus [doesExist] (last), used for applying deltas.
+  late final List<TrackedProperty> _allProperties = [...properties, doesExist];
+
+  @nonVirtual
   void getDeltaFromNull(Delta builder) {
+    for (final property in properties) {
+      property.getDeltaFromNullRelToObject(builder);
+    }
+    // doesExist is only included when false; a newly created object exists by default.
     if (!doesExist.get()) doesExist.getDeltaFromNullRelToObject(builder);
   }
 
-  @mustCallSuper
-  @mustBeOverridden
+  @nonVirtual
   void applyDelta(Delta delta) {
-    doesExist.applyDeltaRelToObject(this, delta);
+    for (final property in _allProperties) {
+      property.applyDeltaRelToObject(this, delta);
+    }
   }
 }
 

@@ -93,50 +93,5 @@ class Node extends StateTracked {
   static ObjectClass get objectClassS => 'node';
 
   @override
-  bool isValid(Delta delta) {
-    if (!super.isValid(delta)) return false;
-    try {
-      if (!name.validate(this, delta)) return false;
-      if (!parent.validate(this, delta)) return false;
-      if (!lPos.validate(this, delta)) return false;
-      if (!lRot.validate(this, delta)) return false;
-      if (!lScale.validate(this, delta)) return false;
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  @override
-  void applyDelta(Delta delta) {
-    name.set(this, delta);
-    parent.set(this, delta);
-    lPos.set(this, delta);
-    lRot.set(this, delta);
-    lScale.set(this, delta);
-    asset.set(this, delta);
-    super.applyDelta(delta);
-  }
-
-  @override
-  void getJson(Map<String, dynamic> builder) {
-    name.getJson(builder);
-    parent.getJson(builder);
-    lPos.getJson(builder);
-    lRot.getJson(builder);
-    lScale.getJson(builder);
-    asset.getJson(builder);
-    super.getJson(builder);
-  }
-
-  @override
-  void setJson(Map<String, dynamic> json) {
-    name.setJson(json);
-    parent.setJson(json);
-    lPos.setJson(json);
-    lRot.setJson(json);
-    lScale.setJson(json);
-    asset.setJson(json);
-    super.setJson(json);
-  }
+  List<ValidatedProperty> get properties => [name, parent, lPos, lRot, lScale, asset];
 }

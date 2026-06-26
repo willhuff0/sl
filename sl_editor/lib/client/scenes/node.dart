@@ -152,26 +152,7 @@ class Node extends SceneStateTracked {
   }
 
   @override
-  void getDeltaFromNull(Delta builder) {
-    name.getDeltaFromNullRelToObject(builder);
-    parent.getDeltaFromNullRelToObject(builder);
-    lPos.getDeltaFromNullRelToObject(builder);
-    lRot.getDeltaFromNullRelToObject(builder);
-    lScale.getDeltaFromNullRelToObject(builder);
-    asset.getDeltaFromNullRelToObject(builder);
-    super.getDeltaFromNull(builder);
-  }
-
-  @override
-  void applyDelta(Delta delta) {
-    name.applyDeltaRelToObject(this, delta);
-    parent.applyDeltaRelToObject(this, delta);
-    lPos.applyDeltaRelToObject(this, delta);
-    lRot.applyDeltaRelToObject(this, delta);
-    lScale.applyDeltaRelToObject(this, delta);
-    asset.applyDeltaRelToObject(this, delta);
-    super.applyDelta(delta);
-  }
+  List<TrackedProperty> get properties => [name, parent, lPos, lRot, lScale, asset];
 
   static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
     final node = (receiver as Node);

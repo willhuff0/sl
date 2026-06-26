@@ -27,33 +27,47 @@ abstract class StateTracked {
 
   ObjectClass get objectClass;
 
-  @mustCallSuper
-  @mustBeOverridden
+  /// The properties declared by this object, in serialization order. Excludes [doesExist],
+  /// which the base class handles specially.
+  List<ValidatedProperty> get properties;
+
+  /// [properties] plus [doesExist] (last), used for validation and applying deltas.
+  late final List<ValidatedProperty> _allProperties = [...properties, doesExist];
+
+  @nonVirtual
   bool isValid(Delta delta) {
     try {
       if (!doesExist.value) return false;
-      if (!doesExist.validate(this, delta)) return false;
-      return true;
+      return _allProperties.every((property) => property.validate(this, delta));
     } catch (_) {
       return false;
     }
   }
 
-  @mustCallSuper
-  @mustBeOverridden
+  @nonVirtual
   void applyDelta(Delta delta) {
-    doesExist.set(this, delta);
+    for (final property in _allProperties) {
+      property.set(this, delta);
+    }
   }
 
-  @mustCallSuper
-  @mustBeOverridden
+  @nonVirtual
   void getJson(Map<String, dynamic> builder) {
+    for (final property in properties) {
+      property.getJson(builder);
+    }
+    // doesExist is only serialized when false; existing objects omit it (default is true).
     if (!doesExist.value) doesExist.getJson(builder);
   }
 
-  @mustCallSuper
-  @mustBeOverridden
-  void setJson(Map<String, dynamic> json) {}
+  @nonVirtual
+  void setJson(Map<String, dynamic> json) {
+    // doesExist is intentionally not restored: only existing objects are persisted, so it
+    // stays at its default of true.
+    for (final property in properties) {
+      property.setJson(json);
+    }
+  }
 
   @nonVirtual
   Map<String, dynamic> toJson() {
