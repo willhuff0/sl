@@ -6,6 +6,7 @@ import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/client/scenes/scene_system.dart';
 import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_engine/node.dart' as engine;
+import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -195,6 +196,7 @@ class Node extends SceneStateTracked {
 
     if (newAsset == null) {
       if (node.assetNode != null) {
+        Selector.removeRealNode(node.assetNode!);
         node.engineNode.removeChild(node.assetNode!);
         node.assetNode!.exitScene();
         node.assetNode = null;
@@ -204,6 +206,7 @@ class Node extends SceneStateTracked {
     final asset = await getAssetByUuid(Client.get().assetSystem.sharedDatabase, newAsset);
     if (asset == null) {
       if (node.assetNode != null) {
+        Selector.removeRealNode(node.assetNode!);
         node.engineNode.removeChild(node.assetNode!);
         node.assetNode!.exitScene();
         node.assetNode = null;

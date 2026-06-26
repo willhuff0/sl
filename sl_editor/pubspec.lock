@@ -755,14 +755,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
-  webgpu_interop:
-    dependency: transitive
-    description:
-      name: webgpu_interop
-      sha256: "810e9879d7b822cdf5120621890f71921c57d93609d28790ad3e399d215090ed"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1"
   webxr:
     dependency: transitive
     description:

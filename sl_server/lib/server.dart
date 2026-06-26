@@ -16,8 +16,6 @@ import 'package:sl_shared/sl_shared.dart';
 import 'package:sqlite_crdt/sqlite_crdt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const tickInterval = Duration(milliseconds: 400);
-
 final _random = Random();
 final List<int> _colors = [
   0xffef4444,

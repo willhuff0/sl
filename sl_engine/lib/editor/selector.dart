@@ -46,6 +46,30 @@ class Selector {
 
   static Node? _draggedHandle;
 
+  static final Map<Node, Node> _realNodeMap = {};
+
+  static void setRealNode(Node gltfRoot, Node realNode) {
+    _realNodeMap[gltfRoot] = realNode;
+    for (final child in gltfRoot.children) {
+      setRealNode(child, realNode);
+    }
+  }
+
+  static void removeRealNode(Node gltfRoot) {
+    _realNodeMap.remove(gltfRoot);
+    for (final child in gltfRoot.children) {
+      removeRealNode(child);
+    }
+  }
+
+  static Node? getRealNode(Node node) {
+    return _realNodeMap[node];
+  }
+
+  static void clearRealNodes() {
+    _realNodeMap.clear();
+  }
+
   static void _clearDragState() {
     _boxSelectStart = null;
     _boxSelectCurrent = null;
@@ -125,8 +149,8 @@ class Selector {
           // click
 
           var node = _clicker.click(x, canvas.height - y);
-          if (node?.realNode != null) {
-            node = node?.realNode;
+          if (node != null) {
+            node = getRealNode(node) ?? node;
           }
 
           if (event.ctrlKey) {
@@ -151,7 +175,7 @@ class Selector {
           final nodes = <Node>{};
           final fakeNodes = _clicker.overlap(startX, startY, width, height);
           for (final fakeNode in fakeNodes) {
-            nodes.add(fakeNode.realNode ?? fakeNode);
+            nodes.add(getRealNode(fakeNode) ?? fakeNode);
           }
 
           if (event.ctrlKey) {

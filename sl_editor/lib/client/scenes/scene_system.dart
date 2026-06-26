@@ -89,6 +89,7 @@ class SceneSystem {
     setRoot(null);
 
     _gltfCache.clear();
+    Selector.clearRealNodes();
 
     Client.get().send(
       CtsSetSceneState(
@@ -150,11 +151,12 @@ class SceneSystem {
     if (gltf == null) return;
 
     final gltfEngineNode = gltf.root.clone();
-    gltfEngineNode.setRealNode(realNode.engineNode);
+    Selector.setRealNode(gltfEngineNode, realNode.engineNode);
     realNode.engineNode.addChild(gltfEngineNode);
     gltfEngineNode.enterScene();
 
     if (realNode.assetNode != null) {
+      Selector.removeRealNode(realNode.assetNode!);
       realNode.engineNode.removeChild(realNode.assetNode!);
       realNode.assetNode!.exitScene();
     }

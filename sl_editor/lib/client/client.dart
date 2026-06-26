@@ -10,8 +10,6 @@ import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const tickInterval = Duration(milliseconds: 400);
-
 class Client {
   final String projectId;
   final Uri serverUri;
@@ -130,7 +128,7 @@ class Client {
       default:
         if (await sceneSystem.handleMessage(message)) break;
         if (await assetSystem.handleMessage(message)) break;
-        print('Client has no handler for message with class ${message.messageClass}');
+        Logger.log('Client has no handler for message with class ${message.messageClass}', LogSeverity.warning);
         break;
     }
   }

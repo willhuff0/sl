@@ -42,15 +42,6 @@ class Node {
   final List<Node> _children = [];
   final List<Component> _components = [];
 
-  Node? realNode;
-
-  void setRealNode(Node? newRealNode) {
-    realNode = newRealNode;
-    for (final child in children) {
-      child.setRealNode(newRealNode);
-    }
-  }
-
   Vector3 _lPos = Vector3.zero();
   Quaternion _lRot = Quaternion.identity();
   Vector3 _lScale = Vector3(1.0, 1.0, 1.0);
