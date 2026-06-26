@@ -32,6 +32,9 @@ class Selector {
   static Map<int, (Vector4, Set<Node>)> _remoteSelected = {};
   static var _color = Vector4(1.0, 0.7, 0.0, 1.0);
 
+  static final _onRemoteSelectionChangedController = StreamController.broadcast();
+  static final onRemoteSelectionChanged = _onRemoteSelectionChangedController.stream;
+
   static final _onSelectionChangedController = StreamController<Set<Node>>.broadcast();
   static final onSelectionChanged = _onSelectionChangedController.stream;
 
@@ -237,6 +240,16 @@ class Selector {
     _color = color;
   }
 
+  static Vector4? getRemoteSelectionColor(Node node) {
+    if (node.parent == null) return null;
+    for (final remoteSelections in _remoteSelected.values) {
+      for (final remoteSelected in remoteSelections.$2) {
+        if (node == remoteSelected) return remoteSelections.$1;
+      }
+    }
+    return null;
+  }
+
   static bool _isSelectable(Node node) {
     if (node.parent == null) return false;
     for (final remoteSelections in _remoteSelected.values) {
@@ -331,5 +344,6 @@ class Selector {
 
   static void setRemoteSelected(Map<int, (Vector4, Set<Node>)> remoteSelection) {
     _remoteSelected = remoteSelection;
+    _onRemoteSelectionChangedController.add(null);
   }
 }
