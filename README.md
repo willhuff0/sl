@@ -4,14 +4,10 @@ SL is a real-time, collaborative game engine and editor.
 
 Ensure Flutter (>= 3.41.7) and Dart (>= 3.11.5) is installed. https://docs.flutter.dev/install
 
-The url the client connects to is currently hard coded. For running locally:
-- `sl_editor/lib/pages/editor.dart` line `41`, replace the url with `localhost:8080`.
-- `sl_editor/lib/client/client.dart` line `42`, replace `wss` with `ws`.
-
 Build the editor by running:
 ```sh
 cd sl_editor
-flutter build web --no-wasm-dry-run --base-href /live/
+flutter build web --no-wasm-dry-run --base-href /editor/
 ```
 
 You can build the server using:
