@@ -82,7 +82,11 @@ class StateTracker {
   final Server _server;
   final UUID _sceneId;
   final Map<UUID, StateTracked> _trackedObjects = {};
-  final Map<ClientId, ClientChangeId> _latestAcknowledgedChangeIds = {};
+
+  /// Monotonic total-order sequence assigned to every applied change in this scene. The authoritative
+  /// ordering clients use to advance their confirmed layer. `-1` means nothing has been applied yet.
+  ServerSeq _nextServerSeq = 0;
+  ServerSeq get _latestSeq => _nextServerSeq - 1;
 
   final Set<Client> Function()? _getInterestedClients;
   final Future<StateTracked?> Function(UUID uuid)? _loadObjectFromDisk;
@@ -120,14 +124,15 @@ class StateTracker {
     void Function(StateTracked)? insertBuilder,
     void Function(Delta, StateTracked)? updateBuilder,
   }) async {
-    final Map<ClientChangeId, bool> changeDecisions = {};
-    final List<StateChange> approvedChanges = [];
+    // Approved changes, paired with the authoring client's change id so we can stamp `originChangeId`
+    // on the author's copy of the log (and leave it null for everyone else).
+    final List<(ClientChangeId, AppliedChange)> approved = [];
+    final List<ClientChangeId> rejectedLocalChanges = [];
 
     for (final entry in stateChanges.stateChanges.entries) {
       final clientChangeId = entry.key;
       final stateChange = entry.value;
 
-      _latestAcknowledgedChangeIds[client.clientId] = clientChangeId;
       var trackedObject = _trackedObjects[stateChange.objectId];
 
       var wasObjectJustAdded = false;
@@ -136,9 +141,9 @@ class StateTracker {
         trackedObject = await _loadObjectFromDisk?.call(stateChange.objectId);
         if (trackedObject == null) {
           if (stateChange.objectClass == null) {
-            changeDecisions[clientChangeId] = false;
+            rejectedLocalChanges.add(clientChangeId);
             print('Object ${stateChange.objectId} is not registered on the server!');
-            return;
+            continue;
           }
           trackedObject = _createObject(stateChange.objectClass!, stateChange.objectId);
         } else {
@@ -149,14 +154,16 @@ class StateTracker {
 
       if (trackedObject.isValid(stateChange.delta)) {
         trackedObject.applyDelta(stateChange.delta);
-        changeDecisions[clientChangeId] = true;
-        approvedChanges.add(
-          StateChange(
+        final serverSeq = _nextServerSeq++;
+        approved.add((
+          clientChangeId,
+          AppliedChange(
+            serverSeq: serverSeq,
             objectClass: stateChange.objectClass,
             objectId: stateChange.objectId,
             delta: stateChange.delta,
           ),
-        );
+        ));
         if (wasObjectJustAdded) {
           _trackedObjects[stateChange.objectId] = trackedObject;
         }
@@ -166,40 +173,40 @@ class StateTracker {
           updateBuilder?.call(stateChange.delta, trackedObject);
         }
       } else {
-        changeDecisions[clientChangeId] = false;
+        rejectedLocalChanges.add(clientChangeId);
       }
     }
 
-    _server.send(
-      client,
-      StcLocalChangeDecisions(
+    if (approved.isEmpty && rejectedLocalChanges.isEmpty) return;
+
+    final firstSeq = approved.isEmpty ? -1 : approved.first.$2.serverSeq;
+    final interestedClients = _getInterestedClients?.call();
+
+    _server.sendToEach((otherClient) {
+      final isAuthor = otherClient == client;
+      if (!isAuthor && interestedClients != null && !interestedClients.contains(otherClient)) return null;
+      // The author always gets a message (it carries its acks/rejections); peers only when something
+      // was actually applied.
+      if (!isAuthor && approved.isEmpty) return null;
+
+      final changes = [
+        for (final (changeId, change) in approved)
+          AppliedChange(
+            serverSeq: change.serverSeq,
+            originChangeId: isAuthor ? changeId : null,
+            objectClass: change.objectClass,
+            objectId: change.objectId,
+            delta: change.delta,
+          ),
+      ];
+
+      return StcStateLog(
         sceneId: _sceneId,
-        localChangeDecisions: changeDecisions,
-      ),
-    );
-    if (approvedChanges.isNotEmpty) {
-      if (_getInterestedClients != null) {
-        final interestedClients = _getInterestedClients();
-        _server.sendToEach((otherClient) {
-          if (otherClient == client) return null;
-          if (!interestedClients.contains(otherClient)) return null;
-          return StcRemoteChanges(
-            sceneId: _sceneId,
-            remoteChanges: approvedChanges,
-            latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
-          );
-        });
-      } else {
-        _server.sendToEach((otherClient) {
-          if (otherClient == client) return null;
-          return StcRemoteChanges(
-            sceneId: _sceneId,
-            remoteChanges: approvedChanges,
-            latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[otherClient.clientId] ?? 0,
-          );
-        });
-      }
-    }
+        firstSeq: firstSeq,
+        changes: changes,
+        rejectedLocalChanges: isAuthor ? rejectedLocalChanges : const [],
+      );
+    });
   }
 
   StateTracked _createObject(ObjectClass objectClass, UUID uuid) {
@@ -207,7 +214,7 @@ class StateTracker {
   }
 
   void sendAllToClient(Client client, String rootUuid) {
-    final changes = <StateChange>[];
+    final objects = <StateChange>[];
     void addObject(Node object) {
       _trackedObjects[object.uuid] = object;
 
@@ -215,7 +222,7 @@ class StateTracker {
       object.getJson(
         builder,
       ); // TODO: should use a different method (potentially different representation for saving on server vs client)
-      changes.add(
+      objects.add(
         StateChange(
           objectClass: object.objectClass,
           objectId: object.uuid,
@@ -228,15 +235,15 @@ class StateTracker {
       }
     }
 
-    // add in-order for loading
+    // add in-order for loading (parents before children)
     addObject(getObjectInMemory(rootUuid) as Node);
 
     _server.send(
       client,
-      StcRemoteChanges(
+      StcStateSnapshot(
         sceneId: _sceneId,
-        remoteChanges: changes,
-        latestAcknowledgedChangeId: _latestAcknowledgedChangeIds[client.clientId] ?? 0,
+        baseServerSeq: _latestSeq,
+        objects: objects,
       ),
     );
   }

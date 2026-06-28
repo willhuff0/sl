@@ -33,7 +33,7 @@ class Scene {
 }
 
 abstract class SceneStateTracked extends StateTracked {
-  SceneStateTracked(super.tracker, super.uuid, {super.doesExistEffect});
+  SceneStateTracked(super.tracker, super.uuid);
 }
 
 class SceneSystem {
@@ -81,7 +81,6 @@ class SceneSystem {
       constructors: {
         Node.objectClass: Node.new,
       },
-      onObjectAdded: _registerObject,
     );
 
     _engineNodeToTracked.clear();
@@ -106,9 +105,10 @@ class SceneSystem {
     for (final node in nodes) {
       final trackedNode = getTrackedFromEngineNode(node);
       trackedNode.modifyLocal((builder) {
-        if (trackedNode.lPos.value != node.lPos) trackedNode.lPos.set(trackedNode, builder, node.lPos);
-        if (trackedNode.lRot.value != node.lRot) trackedNode.lRot.set(trackedNode, builder, node.lRot);
-        if (trackedNode.lScale.value != node.lScale) trackedNode.lScale.set(trackedNode, builder, node.lScale);
+        // stage() is a no-op when the value is unchanged, so it doubles as the dirty check.
+        trackedNode.lPos.stage(builder, node.lPos);
+        trackedNode.lRot.stage(builder, node.lRot);
+        trackedNode.lScale.stage(builder, node.lScale);
       });
     }
   }
@@ -120,7 +120,7 @@ class SceneSystem {
     if (node != null && _scene != null) {
       if (node.name.value != _scene!.name) {
         node.modifyLocal((builder) {
-          node.name.set(node, builder, _scene!.name);
+          node.name.stage(builder, _scene!.name);
         });
       }
     }
@@ -130,7 +130,7 @@ class SceneSystem {
     final node = Node.create(Client.get().sceneSystem.stateTracker!, parent.uuid, asset.name);
 
     node.modifyLocal((builder) {
-      node.asset.set(node, builder, asset.uuid);
+      node.asset.stage(builder, asset.uuid);
     });
   }
 
@@ -167,25 +167,25 @@ class SceneSystem {
     return _engineNodeToTracked[node]!;
   }
 
-  void _registerObject(SceneStateTracked object) {
-    switch (object) {
-      case Node node:
-        _engineNodeToTracked[node.engineNode] = node;
-        node.engineNode.enterScene();
-        onNodeAddedOrRemovedController.add(node);
-        break;
-    }
+  /// Maps a node's engine node to its tracked node. Called by [Node.realizeCreate]; entering the
+  /// scene and notifying listeners is handled by the node's lifecycle.
+  void registerEngineNode(Node node) {
+    _engineNodeToTracked[node.engineNode] = node;
+  }
+
+  void unregisterEngineNode(Node node) {
+    _engineNodeToTracked.remove(node.engineNode);
   }
 
   Future<bool> handleMessage(Message message) async {
     switch (message) {
-      case StcLocalChangeDecisions localChangeDecisions:
-        if (stateTracker == null || localChangeDecisions.sceneId != stateTracker!.sceneId) break;
-        stateTracker!.handleChangeDecisions(localChangeDecisions);
+      case StcStateLog stateLog:
+        if (stateTracker == null || stateLog.sceneId != stateTracker!.sceneId) break;
+        stateTracker!.handleStateLog(stateLog);
         break;
-      case StcRemoteChanges remoteChanges:
-        if (stateTracker == null || remoteChanges.sceneId != stateTracker!.sceneId) break;
-        stateTracker!.handleRemoteChanges(remoteChanges);
+      case StcStateSnapshot stateSnapshot:
+        if (stateTracker == null || stateSnapshot.sceneId != stateTracker!.sceneId) break;
+        stateTracker!.handleSnapshot(stateSnapshot);
         break;
       case StcSetClientSceneStates setClientSceneStates:
         _setClientSceneStates(setClientSceneStates.sceneId, setClientSceneStates.states);

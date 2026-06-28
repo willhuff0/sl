@@ -1,6 +1,5 @@
 import 'dart:collection';
 
-import 'package:sl_editor/client/bi_delta.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/client/scenes/scene_system.dart';
@@ -13,33 +12,40 @@ import 'package:vector_math/vector_math.dart';
 class Node extends SceneStateTracked {
   final TrackedProperty<String> name = TrackedProperty(
     NodeSchema.name,
-    effect: (node, newName) {
-      (node as Node).engineNode.name = newName;
+    reconcile: (node, from, to) {
+      (node as Node).engineNode.name = to;
       Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
     },
   );
   final TrackedProperty<ParentAndOrder?> parent = TrackedProperty(
     NodeSchema.parent,
-    effect: _parentEffect,
+    reconcile: (node, from, to) {
+      (node as Node)._detachFromParent(from);
+      node._attachToParent(to);
+      Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+    },
   );
   final SplayTreeMap<Fraction, Node> children = SplayTreeMap();
   final TrackedProperty<Vector3> lPos = TrackedProperty(
     NodeSchema.lPos,
-    effect: (node, newLPos) => (node as Node).engineNode.lPos = newLPos,
+    reconcile: (node, from, to) => (node as Node).engineNode.lPos = to,
   );
   final TrackedProperty<Quaternion> lRot = TrackedProperty(
     NodeSchema.lRot,
-    effect: (node, newLRot) => (node as Node).engineNode.lRot = newLRot,
+    reconcile: (node, from, to) => (node as Node).engineNode.lRot = to,
   );
   final TrackedProperty<Vector3> lScale = TrackedProperty(
     NodeSchema.lScale,
-    effect: (node, newLScale) => (node as Node).engineNode.lScale = newLScale,
+    reconcile: (node, from, to) => (node as Node).engineNode.lScale = to,
   );
   final TrackedProperty<UUID?> asset = TrackedProperty(
     NodeSchema.asset,
-    effect: _assetEffect,
+    reconcile: (node, from, to) => (node as Node)._applyAsset(to),
   );
   engine.Node? assetNode;
+
+  /// Guards async asset loads: a stale load whose token no longer matches is discarded.
+  int _assetToken = 0;
 
   final engine.Node engineNode;
 
@@ -56,23 +62,96 @@ class Node extends SceneStateTracked {
     }
 
     final node = Node(tracker, generateUuid());
-    node.parent.set(node, BiDeltaBuilder(), ParentAndOrder(uuid: parent, order: order));
-    node.name.set(node, BiDeltaBuilder(), name);
-    node.createThis(objectClass);
+    node.createThis(objectClass, (builder) {
+      node.name.stage(builder, name);
+      node.parent.stage(builder, ParentAndOrder(uuid: parent, order: order));
+    });
     return node;
   }
 
-  Node(super.tracker, super.uuid)
-    : engineNode = engine.Node(name: 'New Node'),
-      super(
-        doesExistEffect: (node, newDoesExist) {
-          if (!newDoesExist) {
-            Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
-            (node as Node).engineNode.parent!.removeChild(node.engineNode);
-            node.engineNode.exitScene();
-          }
-        },
-      );
+  Node(super.tracker, super.uuid) : engineNode = engine.Node(name: 'New Node');
+
+  @override
+  List<TrackedProperty> get properties => [name, parent, lPos, lRot, lScale, asset];
+
+  // --- lifecycle -------------------------------------------------------------------------------
+
+  @override
+  void realizeCreate() {
+    engineNode.name = name.value;
+    engineNode.lPos = lPos.value;
+    engineNode.lRot = lRot.value;
+    engineNode.lScale = lScale.value;
+
+    // Attach to the parent before entering the scene so world transforms and component enable state
+    // are computed against the correct ancestry.
+    _attachToParent(parent.value);
+
+    Client.get().sceneSystem.registerEngineNode(this);
+    engineNode.enterScene();
+    Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+
+    if (asset.value != null) _applyAsset(asset.value);
+  }
+
+  @override
+  void realizeDestroy() {
+    Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+    _clearAssetNode();
+    _detachFromParent(parent.value);
+    engineNode.exitScene();
+    Client.get().sceneSystem.unregisterEngineNode(this);
+  }
+
+  // --- structural helpers (shared by realize* and the parent reconcile) ------------------------
+
+  void _attachToParent(ParentAndOrder? to) {
+    if (to != null) {
+      final toParent = tracker.getObject<Node>(to.uuid);
+      if (toParent != null) {
+        toParent.children[to.order] = this;
+        toParent.engineNode.addChild(engineNode);
+      }
+    } else {
+      Client.get().sceneSystem.setRoot(this);
+    }
+  }
+
+  void _detachFromParent(ParentAndOrder? from) {
+    if (from == null) return;
+    final fromParent = tracker.getObject<Node>(from.uuid);
+    fromParent?.children.remove(from.order);
+    fromParent?.engineNode.removeChild(engineNode);
+  }
+
+  void _clearAssetNode() {
+    if (assetNode != null) {
+      Selector.removeRealNode(assetNode!);
+      engineNode.removeChild(assetNode!);
+      assetNode!.exitScene();
+      assetNode = null;
+    }
+  }
+
+  void _applyAsset(UUID? newAsset) async {
+    final token = ++_assetToken;
+
+    if (newAsset == null) {
+      _clearAssetNode();
+      return;
+    }
+
+    final asset = await getAssetByUuid(Client.get().assetSystem.sharedDatabase, newAsset);
+    if (token != _assetToken) return; // superseded by a newer asset value
+    if (asset == null) {
+      _clearAssetNode();
+      return;
+    }
+
+    await Client.get().sceneSystem.addGltfToRealNode(asset, this);
+  }
+
+  // --- editor operations -----------------------------------------------------------------------
 
   void delete() {
     // Make a copy of the values before iterating, since deleting children removes them from the map.
@@ -82,7 +161,7 @@ class Node extends SceneStateTracked {
     }
 
     modifyLocal((builder) {
-      doesExist.set(this, builder, false);
+      doesExist.stage(builder, false);
     });
   }
 
@@ -134,57 +213,10 @@ class Node extends SceneStateTracked {
     }
 
     modifyLocal((builder) {
-      parent.set(this, builder, ParentAndOrder(uuid: newParent.uuid, order: newOrder));
-      lPos.set(this, builder, newLPos);
-      lRot.set(this, builder, newLRot);
-      lScale.set(this, builder, newLScale);
+      parent.stage(builder, ParentAndOrder(uuid: newParent.uuid, order: newOrder));
+      lPos.stage(builder, newLPos);
+      lRot.stage(builder, newLRot);
+      lScale.stage(builder, newLScale);
     });
-  }
-
-  @override
-  List<TrackedProperty> get properties => [name, parent, lPos, lRot, lScale, asset];
-
-  static void _parentEffect(StateTracked receiver, ParentAndOrder? newParent) {
-    final node = (receiver as Node);
-    if (node.parent.value != null) {
-      final parentNode = receiver.tracker.getObject<Node>(node.parent.value!.uuid)!;
-      parentNode.children.remove(node.parent.value!.order);
-      parentNode.engineNode.removeChild(node.engineNode);
-    }
-    if (newParent != null) {
-      final newParentNode = receiver.tracker.getObject<Node>(newParent.uuid)!;
-      newParentNode.children[newParent.order] = node;
-      newParentNode.engineNode.addChild(node.engineNode);
-    } else {
-      Client.get().sceneSystem.setRoot(node);
-    }
-
-    Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
-  }
-
-  static void _assetEffect(StateTracked receiver, UUID? newAsset) async {
-    final node = (receiver as Node);
-
-    if (newAsset == null) {
-      if (node.assetNode != null) {
-        Selector.removeRealNode(node.assetNode!);
-        node.engineNode.removeChild(node.assetNode!);
-        node.assetNode!.exitScene();
-        node.assetNode = null;
-      }
-      return;
-    }
-    final asset = await getAssetByUuid(Client.get().assetSystem.sharedDatabase, newAsset);
-    if (asset == null) {
-      if (node.assetNode != null) {
-        Selector.removeRealNode(node.assetNode!);
-        node.engineNode.removeChild(node.assetNode!);
-        node.assetNode!.exitScene();
-        node.assetNode = null;
-      }
-      return;
-    }
-
-    await Client.get().sceneSystem.addGltfToRealNode(asset, node);
   }
 }

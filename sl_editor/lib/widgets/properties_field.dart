@@ -140,7 +140,7 @@ class _CustomPropertiesFieldState extends State<CustomPropertiesField> {
     final boxedValue = widget.boxValue?.call(widget.property.value, value) ?? box(widget.type, value);
     if (boxedValue == null) return;
     widget.tracked.modifyLocal((builder) {
-      widget.property.set(widget.tracked, builder, boxedValue);
+      widget.property.stage(builder, boxedValue);
     });
     widget.onChanged?.call();
   }
@@ -280,7 +280,7 @@ class _QuaternionPropertyFieldState extends State<QuaternionPropertyField> {
     final roll = radians(double.tryParse(_textEditingControllers[2].text) ?? _current?.z ?? 0.0);
     final value = Quaternion.euler(pitch, yaw, roll);
     widget.tracked.modifyLocal((builder) {
-      widget.property.set(widget.tracked, builder, value);
+      widget.property.stage(builder, value);
     });
     widget.onChanged?.call();
   }

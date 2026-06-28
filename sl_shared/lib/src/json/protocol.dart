@@ -9,9 +9,10 @@ final Map<String, MessageFactory> _factories = {
   StcSetGlobalState.messageClassS: StcSetGlobalState.fromJson,
 
   // State Tracking
-  StcRemoteChanges.messageClassS: StcRemoteChanges.fromJson,
-  StcLocalChangeDecisions.messageClassS: StcLocalChangeDecisions.fromJson,
+  StcStateLog.messageClassS: StcStateLog.fromJson,
+  StcStateSnapshot.messageClassS: StcStateSnapshot.fromJson,
   CtsStateChanges.messageClassS: CtsStateChanges.fromJson,
+  CtsRequestResync.messageClassS: CtsRequestResync.fromJson,
 
   // Scenes
   CtsSetSceneState.messageClassS: CtsSetSceneState.fromJson,

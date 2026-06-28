@@ -18,12 +18,20 @@ abstract class NodeSchema {
     },
   );
 
-  // No `toJson`: the stored value is a `ParentAndOrder`, which is itself JSON-encodable.
-  // Receiver-dependent validation (parent must exist, order must be free) lives on the server.
+  // `toJson` keeps the encoded delta value JSON-primitive (a Map) even in memory, so the client can
+  // decode it when replaying its own pending changes. Receiver-dependent validation (parent must
+  // exist, order must be free) lives on the server.
   static final PropertySchema<ParentAndOrder?> parent = PropertySchema<ParentAndOrder?>(
     key: 'parent',
     createDefault: () => null,
+    toJson: (value) => value?.toJson(),
     fromJson: (json) => json == null ? null : ParentAndOrder.fromJson(json),
+    // ParentAndOrder/Fraction have no value `==`, so define equality explicitly to avoid spurious
+    // reparent effects in the client's diff-based reconciliation.
+    equality: (a, b) {
+      if (a == null || b == null) return a == b;
+      return a.uuid == b.uuid && a.order.compareTo(b.order) == 0;
+    },
   );
 
   static final PropertySchema<Vector3> lPos = PropertySchema<Vector3>(

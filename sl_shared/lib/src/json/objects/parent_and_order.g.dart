@@ -13,4 +13,4 @@ ParentAndOrder _$ParentAndOrderFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$ParentAndOrderToJson(ParentAndOrder instance) =>
-    <String, dynamic>{'uuid': instance.uuid, 'order': instance.order};
+    <String, dynamic>{'uuid': instance.uuid, 'order': instance.order.toJson()};

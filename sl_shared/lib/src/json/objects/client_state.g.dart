@@ -29,7 +29,7 @@ ClientSceneState _$ClientSceneStateFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$ClientSceneStateToJson(ClientSceneState instance) =>
-    <String, dynamic>{'viewPosition': instance.viewPosition};
+    <String, dynamic>{'viewPosition': instance.viewPosition?.toJson()};
 
 StcSetGlobalState _$StcSetGlobalStateFromJson(Map<String, dynamic> json) =>
     StcSetGlobalState(
@@ -41,10 +41,11 @@ StcSetGlobalState _$StcSetGlobalStateFromJson(Map<String, dynamic> json) =>
       ),
     );
 
-Map<String, dynamic> _$StcSetGlobalStateToJson(StcSetGlobalState instance) =>
-    <String, dynamic>{
-      'clients': instance.clients.map((k, e) => MapEntry(k.toString(), e)),
-    };
+Map<String, dynamic> _$StcSetGlobalStateToJson(
+  StcSetGlobalState instance,
+) => <String, dynamic>{
+  'clients': instance.clients.map((k, e) => MapEntry(k.toString(), e.toJson())),
+};
 
 CtsSetSceneState _$CtsSetSceneStateFromJson(Map<String, dynamic> json) =>
     CtsSetSceneState(
@@ -55,7 +56,10 @@ CtsSetSceneState _$CtsSetSceneStateFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$CtsSetSceneStateToJson(CtsSetSceneState instance) =>
-    <String, dynamic>{'sceneId': instance.sceneId, 'state': instance.state};
+    <String, dynamic>{
+      'sceneId': instance.sceneId,
+      'state': instance.state?.toJson(),
+    };
 
 StcSetClientSceneStates _$StcSetClientSceneStatesFromJson(
   Map<String, dynamic> json,
@@ -73,5 +77,5 @@ Map<String, dynamic> _$StcSetClientSceneStatesToJson(
   StcSetClientSceneStates instance,
 ) => <String, dynamic>{
   'sceneId': instance.sceneId,
-  'states': instance.states.map((k, e) => MapEntry(k.toString(), e)),
+  'states': instance.states.map((k, e) => MapEntry(k.toString(), e.toJson())),
 };

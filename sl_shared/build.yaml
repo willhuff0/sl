@@ -1,0 +1,13 @@
+# Global json_serializable configuration.
+#
+# explicit_to_json: generated `toJson()` recurses into nested @JsonSerializable fields (calling their
+# `toJson()`) instead of leaving live instances in the map and relying on `jsonEncode` to recurse at
+# string-encode time. Required because the client's state tracker caches encoded deltas in memory and
+# later decodes them when replaying pending changes, so `decode(encode(x))` must round-trip through
+# fully-primitive JSON (e.g. a ParentAndOrder's nested Fraction).
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          explicit_to_json: true

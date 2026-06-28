@@ -23,6 +23,11 @@ class PropertySchema<T> {
   /// When true, the property must be present in a delta for that delta to be valid.
   final bool required;
 
+  /// Optional value-equality override. When null, equality is computed by deep-comparing the
+  /// encoded (JSON) forms, which gives correct value semantics for types without a meaningful
+  /// `==` (e.g. `Vector3`/`Quaternion`, whose `==` is identity).
+  final bool Function(T a, T b)? equality;
+
   PropertySchema({
     required this.key,
     required this.createDefault,
@@ -30,10 +35,35 @@ class PropertySchema<T> {
     this.fromJson,
     this.validateValue,
     this.required = false,
+    this.equality,
   });
 
   dynamic encode(T value) => toJson == null ? value : toJson!(value);
   T decode(dynamic json) => fromJson == null ? json as T : fromJson!(json);
+
+  /// Value equality used by the client's diff-based effect system to decide whether a property
+  /// actually changed. Avoids spurious effect churn from identity-based `==` and float re-encodes.
+  bool equals(T a, T b) => equality != null ? equality!(a, b) : jsonEquals(encode(a), encode(b));
+}
+
+/// Deep structural equality for decoded JSON (scalars, lists, maps) used by [PropertySchema.equals].
+bool jsonEquals(dynamic a, dynamic b) {
+  if (identical(a, b)) return true;
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!jsonEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || !jsonEquals(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  return a == b;
 }
 
 /// Shared schema for the `doesExist` property present on every state-tracked object.

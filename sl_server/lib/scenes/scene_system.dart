@@ -139,6 +139,12 @@ class SceneSystem {
 
         await scene.stateTracker.handleClientChanges(client, stateChanges);
         break;
+      case CtsRequestResync requestResync:
+        final scene = _scenes[requestResync.sceneId];
+        // Only resync clients that are actually in the scene.
+        if (scene == null || !scene.clients.containsKey(client)) break;
+        scene.stateTracker.sendAllToClient(client, scene.root);
+        break;
       case CtsSetSceneState setSceneState:
         await _setClientSceneState(client, setSceneState.sceneId, setSceneState.state);
         break;
