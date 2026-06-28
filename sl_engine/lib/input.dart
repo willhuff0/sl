@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:sl_engine/gl/gl.dart';
 import 'package:sl_engine/logger.dart';
@@ -20,6 +21,14 @@ class Input {
   static late bool _hasFocus;
   static final _onFocusChangedController = StreamController<bool>.broadcast();
   static final onFocusChanged = _onFocusChangedController.stream;
+
+  // Raw mouse input is only supported on recent browsers.
+  // When a request fails, permanently fall back to adjusted pointer-lock input.
+  static bool _useUnadjustedMovement = true;
+
+  // Some browsers emit a huge movement delta right around pointer-lock.
+  // Drop the first move after locking so the camera doesn't snap around wildly.
+  static bool _ignoreNextMouseMove = false;
 
   static void init({bool editorMode = false}) {
     _codeToKey = Map.fromEntries(Key.values.map((key) => MapEntry(key.code, key)));
@@ -91,34 +100,54 @@ class Input {
     _up.add(key);
   }
 
-  static void _onClick(web.PointerEvent event) async {
-    await canvas
-        .requestPointerLock(
-          web.PointerLockOptions(
-            unadjustedMovement: true,
-          ),
-        )
-        .toDart;
+  static void _onClick(web.PointerEvent event) {
+    _requestPointerLock();
   }
 
-  static void _editorMouseDown(web.MouseEvent event) async {
+  static void _editorMouseDown(web.MouseEvent event) {
     if (event.button != 2) return;
-    await canvas
-        .requestPointerLock(
-          web.PointerLockOptions(
-            unadjustedMovement: true,
-          ),
-        )
-        .toDart;
+    _requestPointerLock();
   }
 
-  static void _editorMouseUp(web.MouseEvent event) async {
+  static void _editorMouseUp(web.MouseEvent event) {
     if (event.button != 2) return;
+    _hasFocus = false;
     web.document.exitPointerLock();
+  }
+
+  static void _requestPointerLock() {
+    // package:web types requestPointerLock() as returning a non-null Promise,
+    // but legacy browsers return `undefined`, toDart and awaiting which errors.
+    // Call via callMethod so the return is nullable and the null check isn't optimized out.
+    final promise = _useUnadjustedMovement ? canvas.callMethod<JSPromise<JSAny?>?>('requestPointerLock'.toJS, web.PointerLockOptions(unadjustedMovement: true)) : canvas.callMethod<JSPromise<JSAny?>?>('requestPointerLock'.toJS);
+
+    // the request was still issued (in adjusted mode), nothing to await.
+    if (promise == null) return;
+
+    unawaited(
+      promise.toDart.catchError((Object error) {
+        if (_useUnadjustedMovement && _isNotSupportedError(error)) {
+          // Raw input isn't supported. Fall back to adjusted input and retry.
+          _useUnadjustedMovement = false;
+          _requestPointerLock();
+        } else {
+          Logger.log('Pointer lock request was denied: $error');
+        }
+        return null;
+      }),
+    );
+  }
+
+  static bool _isNotSupportedError(Object error) {
+    final js = error as JSAny?;
+    if (js == null || !js.isA<JSObject>()) return false;
+    final name = (js as JSObject).getProperty('name'.toJS);
+    return name.isA<JSString>() && (name as JSString).toDart == 'NotSupportedError';
   }
 
   static void _onPointerLockChange() {
     if (web.document.pointerLockElement == canvas) {
+      _ignoreNextMouseMove = true;
       _hasFocus = true;
       _onFocusChangedController.add(_hasFocus);
     } else {
@@ -136,6 +165,11 @@ class Input {
 
   static void _onMouseMove(web.MouseEvent event) {
     if (!_hasFocus) return;
+
+    if (_ignoreNextMouseMove) {
+      _ignoreNextMouseMove = false;
+      return;
+    }
 
     _mouseDelta += Vector2(event.movementX, event.movementY);
   }
