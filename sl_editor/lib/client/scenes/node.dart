@@ -141,7 +141,7 @@ class Node extends SceneStateTracked {
       return;
     }
 
-    final asset = await getAssetByUuid(Client.get().assetSystem.sharedDatabase, newAsset);
+    final asset = await Client.get().assetSystem.sharedDatabase.getAsset(newAsset);
     if (token != _assetToken) return; // superseded by a newer asset value
     if (asset == null) {
       _clearAssetNode();

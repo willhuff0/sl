@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cross_file/cross_file.dart';
 import 'package:sl_editor/client/assets/asset_blob_filesystem.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
+import 'package:sl_editor/client/assets/shared_database.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/client/assets/local_asset_database.dart';
 import 'package:sl_engine/logger.dart';
@@ -12,14 +13,14 @@ import 'package:sqlite_crdt/sqlite_crdt.dart';
 
 class AssetSystem {
   final CrdtSync _crdtSync;
-  final SqliteCrdt _sharedDatabase;
+  final SharedDatabase _sharedDatabase;
   final LocalAssetDatabase _localDatabase;
   final AssetBlobFilesystem _blobFilesystem;
   final AssetBlobTransferer _blobTransferer;
 
   AssetSystem._({
     required CrdtSync crdtSync,
-    required SqliteCrdt sharedDatabase,
+    required SharedDatabase sharedDatabase,
     required LocalAssetDatabase localDatabase,
     required AssetBlobFilesystem blobFilesystem,
     required AssetBlobTransferer blobTransferer,
@@ -44,14 +45,14 @@ class AssetSystem {
     );
     return AssetSystem._(
       crdtSync: crdtSync,
-      sharedDatabase: sharedDatabase,
+      sharedDatabase: SharedDatabase(sharedDatabase),
       localDatabase: localDatabase,
       blobFilesystem: blobFilesystem,
       blobTransferer: blobTransferer,
     );
   }
 
-  SqliteCrdt get sharedDatabase => _sharedDatabase;
+  SharedDatabase get sharedDatabase => _sharedDatabase;
 
   Future<bool> handleMessage(Message message) async {
     switch (message) {
@@ -80,6 +81,10 @@ class AssetSystem {
   }
 
   Future<void> upload(UUID uuid, XFile file, {int offset = 0}) async {
+    if (_sharedDatabase.isBuiltinAsset(uuid)) {
+      Logger.log('Tried to upload to a built-in asset $uuid', .warning);
+      return;
+    }
     return _blobTransferer.upload(uuid, file, offset: offset);
   }
 
@@ -87,31 +92,20 @@ class AssetSystem {
     await Future.wait(uuids.map((uuid) => getAssetBlob(uuid, keepCopyInMemory: false)));
   }
 
-  Stream<Uint8List?> watchAssetBlob(UUID uuid) {
-    int? lastBlobVersion;
-    return _sharedDatabase
-        .watch('SELECT uuid, blob_size, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0', () => [uuid])
-        .asyncMap((rows) async {
-          if (rows.isEmpty) return null;
-
-          final blobSize = rows.first['blob_size'] as int?;
-          if (blobSize == null) return null;
-
-          final blobVersion = rows.first['blob_version'] as int?;
-          if (blobVersion == null) return null;
-
-          if (lastBlobVersion == null || blobVersion > lastBlobVersion!) {
-            lastBlobVersion = blobVersion;
-            return await getAssetBlob(uuid);
-          }
-
-          return Uint8List(0);
-        })
-        .where((bytes) => bytes?.isNotEmpty ?? true);
-  }
-
   Completer? _getAssetBlobLock;
   Future<Uint8List?> getAssetBlob(UUID uuid, {bool keepCopyInMemory = true}) async {
+    if (_sharedDatabase.isBuiltinAsset(uuid)) {
+      final (exists, bytes) = await _sharedDatabase.getBuiltinAssetBlob(uuid);
+      if (exists == false) {
+        Logger.log(
+          'Tried to get the blob for a builtin asset $uuid which does not exist.',
+          .warning,
+        );
+        return null;
+      }
+      return bytes;
+    }
+
     while (_getAssetBlobLock != null) {
       await _getAssetBlobLock?.future;
     }
@@ -152,17 +146,13 @@ class AssetSystem {
             final download = await _blobTransferer.requestDownload(uuid, keepCopyInMemory: keepCopyInMemory);
             resultFuture = download?.onComplete;
           } else {
-            final rows = await _sharedDatabase.query(
-              'SELECT uuid, blob_version FROM assets WHERE uuid = ?1 AND is_deleted = 0',
-              [uuid],
-            );
+            final (exists, remoteBlobVersion) = await _sharedDatabase.getAssetBlobVersion(uuid);
 
-            if (rows.isEmpty) {
+            if (exists) {
               // asset has been deleted or was reverted by the server
               await _localDatabase.deleteAsset(uuid);
               resultFuture = Future.value(null);
             } else {
-              final remoteBlobVersion = rows.first['blob_version'] as int?;
               if (remoteBlobVersion == null) {
                 Logger.log(
                   'Tried to load the blob for asset $uuid which has not been uploaded yet. The asset blob was incorrectly marked as locally available.',

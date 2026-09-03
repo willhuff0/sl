@@ -104,7 +104,7 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
 
   @override
   void initState() {
-    _subscription = watchAssetsInDirectory(Client.get().assetSystem.sharedDatabase, widget.directory).listen((event) {
+    _subscription = Client.get().assetSystem.sharedDatabase.watchAssetsInDirectory(widget.directory).listen((event) {
       setState(() {
         _assets = event.$1;
         _foldedAssets = event.$2;
@@ -383,6 +383,7 @@ class _AssetThumbWidgetState extends State<_AssetThumbWidget> {
       .unsupported => Icon(LucideIcons.fileQuestionMark, size: size, color: color),
       .propertiesOnly => Icon(LucideIcons.braces, size: size, color: color),
       .texture => Icon(LucideIcons.image, size: size, color: color),
+      .hdri => Icon(LucideIcons.cloudSun, size: size, color: color),
       .mesh => Icon(LucideIcons.pyramid, size: size, color: color),
       .model => Icon(LucideIcons.box, size: size, color: color),
       .shader => Icon(LucideIcons.code, size: size, color: color),

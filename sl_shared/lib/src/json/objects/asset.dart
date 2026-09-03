@@ -12,6 +12,7 @@ enum AssetType {
   unsupported,
   propertiesOnly,
   texture,
+  hdri,
   mesh,
   model,
   shader,
