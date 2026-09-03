@@ -1,22 +1,31 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
 import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({super.key});
 
-  void _onDropFiles(DropDoneDetails details) async {
-    await Assets.import(null, details.files);
+  void _onDropFiles(List<XFile> files) async {
+    await Assets.import(null, files);
   }
 
-  // void _onPickFiles() async {}
+  void _onPickFiles() async {
+    final platformFiles = await FilePicker.pickFiles();
+    final xFiles = platformFiles.map((platformFile) => platformFile.xFile).toList();
+    await Assets.import(null, xFiles);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +46,21 @@ class AssetPanel extends StatelessWidget {
               SizedBox(width: 8.0),
               Text('Assets'),
               Expanded(child: Container()),
-              ShadBreadcrumbDropdown(
+              MyShadDropdown(
                 items: [
+                  ShadBreadcrumbDropMenuItem(
+                    onPressed: _onPickFiles,
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.upload),
+                        SizedBox(width: 8.0),
+                        Text('Upload'),
+                      ],
+                    ),
+                  ),
+                  ShadSeparator.horizontal(
+                    margin: EdgeInsets.symmetric(vertical: 4.0),
+                  ),
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Scene'),
                     onPressed: () async {
@@ -58,32 +80,89 @@ class AssetPanel extends StatelessWidget {
                   size: 22.0,
                 ),
               ),
-              // SizedBox(width: 8.0),
-              // ShadIconButton.ghost(
-              //   backgroundColor: Color(0x00000000),
-              //   hoverBackgroundColor: Color(0x00000000),
-              //   pressedBackgroundColor: Color(0x00000000),
-              //   padding: EdgeInsets.zero,
-              //   width: 22.0,
-              //   height: 22.0,
-              //   onPressed: () {
-              //     _onPickFiles();
-              //   },
-              //   iconSize: 18.0,
-              //   icon: Icon(LucideIcons.download),
-              // ),
               SizedBox(width: 8.0),
             ],
           ),
         ),
         SizedBox(height: 4.0),
         Expanded(
-          child: DropTarget(
-            onDragDone: _onDropFiles,
+          child: _AssetPanelDropZone(
+            onDrop: _onDropFiles,
             child: _AssetDirectoryViewer(directory: null),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AssetPanelDropZone extends StatefulWidget {
+  final void Function(List<XFile> files) onDrop;
+  final Widget child;
+
+  const _AssetPanelDropZone({
+    super.key,
+    required this.onDrop,
+    required this.child,
+  });
+
+  @override
+  State<_AssetPanelDropZone> createState() => __AssetPanelDropZoneState();
+}
+
+class __AssetPanelDropZoneState extends State<_AssetPanelDropZone> {
+  var _isHovered = false;
+
+  void _onDropHoverEnter(DropEventDetails details) {
+    setState(() => _isHovered = true);
+  }
+
+  void _onDropHoverExit(DropEventDetails details) {
+    setState(() => _isHovered = false);
+  }
+
+  void _onDropFiles(DropDoneDetails details) {
+    widget.onDrop(details.files);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DropTarget(
+      onDragEntered: _onDropHoverEnter,
+      onDragExited: _onDropHoverExit,
+      onDragDone: _onDropFiles,
+      child: Stack(
+        fit: .expand,
+        children: [
+          widget.child,
+          AnimatedOpacity(
+            duration: Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            opacity: _isHovered ? 1.0 : 0.0,
+            child: Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: ShadTheme.of(context).colorScheme.background,
+                      blurRadius: 24.0,
+                      spreadRadius: 14.0,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.upload, size: 24.0),
+                    SizedBox(height: 14.0),
+                    Text('Drop to upload assets'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -134,7 +213,7 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
                 (foldedAsset) {
                   final asset = _assets![foldedAsset.uuid]!;
                   return _AssetEntryWidget(
-                    key: ValueKey(asset.updatedAt),
+                    key: ValueKey(asset.uuid),
                     asset: asset,
                     assets: _assets!,
                     folded: foldedAsset,
@@ -222,6 +301,9 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
     super.dispose();
   }
 
+  static const _openableAssetTypes = <AssetType>{
+    .nodeTree,
+  };
   void _openAsset() {
     switch (widget.asset.type) {
       case .nodeTree:
@@ -230,6 +312,24 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
       default:
         break;
     }
+  }
+
+  void _showAssetDetails() {
+    showShadDialog(
+      context: context,
+      builder: (context) => _AssetDetailsDialog(
+        asset: widget.asset,
+      ),
+    );
+  }
+
+  void _showAssetDelete() {
+    showShadDialog(
+      context: context,
+      builder: (context) => _AssetDeleteDialog(
+        asset: widget.asset,
+      ),
+    );
   }
 
   @override
@@ -275,26 +375,28 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
                 return Text(widget.asset.uuid);
               },
               child: ShadContextMenuItem(
-                enabled: true,
+                onPressed: _showAssetDetails,
                 child: Text(widget.asset.name),
               ),
             ),
-            ShadContextMenuItem(
-              onPressed: _openAsset,
-              child: Text('Open'),
-            ),
+            if (_openableAssetTypes.contains(widget.asset.type))
+              ShadContextMenuItem(
+                onPressed: _openAsset,
+                child: Text('Open'),
+              ),
             ShadContextMenuItem(
               child: Text('Rename'),
             ),
             ShadSeparator.horizontal(
-              margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+              margin: EdgeInsets.only(bottom: 4.0, top: 6.0, left: 4.0, right: 4.0),
             ),
-            ShadContextMenuItem(
-              buttonVariant: ShadButtonVariant.destructive,
-              child: Text('Delete'),
-              onPressed: () {
-                Assets.tryDeleteAssets({widget.asset.uuid});
-              },
+            Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: ShadContextMenuItem(
+                buttonVariant: ShadButtonVariant.destructive,
+                onPressed: _showAssetDelete,
+                child: Text('Delete'),
+              ),
             ),
           ],
           child: getEntryVisual(_cardKey),
@@ -407,6 +509,128 @@ class _AssetThumbWidgetState extends State<_AssetThumbWidget> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+String _formatBlobSize(int bytes, {int decimals = 2}) {
+  if (bytes <= 0) return "0 B";
+
+  const suffixes = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
+
+  // Calculate the exponent base 1024
+  var i = (log(bytes) / log(1024)).floor();
+
+  // Ensure we don't exceed the bounds of the suffix array
+  i = min(i, suffixes.length - 1);
+
+  // Calculate the final readable size
+  var size = bytes / pow(1024, i);
+
+  return "${size.toStringAsFixed(decimals)} ${suffixes[i]}";
+}
+
+class _AssetDetailsDialog extends StatelessWidget {
+  final Asset asset;
+
+  const _AssetDetailsDialog({
+    super.key,
+    required this.asset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    final textStyle = TextStyle(color: theme.colorScheme.foreground);
+
+    return ShadDialog(
+      title: SelectableText(asset.name),
+      description: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('UUID'),
+                  Text('Type'),
+                  if (asset.blobSize != null) Text('Size'),
+                  if (asset.blobVersion != null) Text('Version'),
+                  Text('Updated'),
+                ],
+              ),
+              SizedBox(width: 8.0),
+              SelectableRegion(
+                selectionControls: emptyTextSelectionControls,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(asset.uuid, style: textStyle),
+                    Text(asset.type.name, style: textStyle),
+                    if (asset.blobSize != null) Text(_formatBlobSize(asset.blobSize!), style: textStyle),
+                    if (asset.blobVersion != null) Text(asset.blobVersion.toString(), style: textStyle),
+                    Text(DateFormat('h:mm a, MMM d, y').format(asset.updatedAt), style: textStyle),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssetDeleteDialog extends StatelessWidget {
+  final Asset asset;
+
+  const _AssetDeleteDialog({
+    super.key,
+    required this.asset,
+  });
+
+  void _confirm(BuildContext context) {
+    Assets.tryDeleteAssets({asset.uuid});
+    Navigator.pop(context);
+  }
+
+  void _cancel(BuildContext context) {
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadDialog.alert(
+      title: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Delete ',
+              style: TextStyle(fontWeight: .normal),
+            ),
+            TextSpan(
+              text: asset.name,
+              style: TextStyle(fontWeight: .bold),
+            ),
+            TextSpan(
+              text: '?',
+              style: TextStyle(fontWeight: .normal),
+            ),
+          ],
+        ),
+      ),
+      gap: 24.0,
+      actions: [
+        ShadButton.outline(
+          onPressed: () => _cancel(context),
+          child: Text('Back'),
+        ),
+        ShadButton.destructive(
+          onPressed: () => _confirm(context),
+          child: Text('Delete'),
+        ),
+      ],
     );
   }
 }
