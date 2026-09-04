@@ -1,7 +1,48 @@
+import 'dart:typed_data';
+
 import 'package:archive/archive.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/assets.dart';
+
+final class _ArchiveUploadFile implements UploadFile {
+  final Uint8List _bytes;
+
+  @override
+  final String path;
+  @override
+  final String name;
+  @override
+  final String extension;
+
+  @override
+  final int size;
+
+  _ArchiveUploadFile({
+    required Uint8List bytes,
+    required this.path,
+  }) : _bytes = bytes,
+       name = p.basenameWithoutExtension(path),
+       extension = p.extension(path).toLowerCase(),
+       size = bytes.length;
+
+  @override
+  Uint8List readAsBytes() {
+    return _bytes;
+  }
+
+  @override
+  Stream<Uint8List> openRead(int offset, int chunkSize) async* {
+    var currentOffset = offset;
+
+    while (currentOffset < size) {
+      final end = (currentOffset + chunkSize < size) ? currentOffset + chunkSize : size;
+
+      yield Uint8List.sublistView(_bytes, currentOffset, end);
+
+      currentOffset += chunkSize;
+    }
+  }
+}
 
 class ArchiveImporter {
   static final registration = AssetImporter(
@@ -11,8 +52,8 @@ class ArchiveImporter {
     inferAssetType: null,
   );
 
-  static Archive Function(List<int>)? _getDecoder(String name) {
-    return switch (p.extension(name).toLowerCase()) {
+  static Archive Function(List<int>)? _getDecoder(String extension) {
+    return switch (extension) {
       '.zip' => ZipDecoder().decodeBytes,
       '.tar' => TarDecoder().decodeBytes,
       '.gz' => (bytes) => TarDecoder().decodeBytes(GZipDecoder().decodeBytes(bytes)),
@@ -26,28 +67,23 @@ class ArchiveImporter {
     };
   }
 
-  static Future<AssetImportResult> import(XFile file, AssetImportContext ctx) async {
-    final decoder = _getDecoder(file.name)!;
+  static Future<AssetImportResult> import(UploadFile file, AssetImportContext ctx) async {
+    final decoder = _getDecoder(file.extension)!;
     final bytes = await file.readAsBytes();
     final archive = decoder(bytes);
 
-    final files = <XFile>[];
+    final files = <_ArchiveUploadFile>[];
     for (final entry in archive) {
       if (!entry.isFile) continue;
 
-      final name = entry.name;
-      final length = entry.size;
       final bytes = entry.readBytes();
       if (bytes == null) continue;
-      final lastModified = entry.lastModDateTime;
+      final path = entry.name;
 
       files.add(
-        XFile(
-          name,
-          name: name,
-          length: length,
+        _ArchiveUploadFile(
           bytes: bytes,
-          lastModified: lastModified,
+          path: path,
         ),
       );
     }

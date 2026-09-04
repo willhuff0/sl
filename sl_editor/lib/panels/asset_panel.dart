@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:cross_file/cross_file.dart';
-import 'package:desktop_drop/desktop_drop.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -12,20 +9,21 @@ import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
+import 'package:sl_editor/widgets/upload_zone.dart';
 import 'package:sl_shared/sl_shared.dart';
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({super.key});
 
-  void _onDropFiles(List<XFile> files) async {
+  void _onDropFiles(List<UploadFile> files) async {
     await Assets.import(null, files);
   }
 
-  void _onPickFiles() async {
-    final platformFiles = await FilePicker.pickFiles();
-    final xFiles = platformFiles.map((platformFile) => platformFile.xFile).toList();
-    await Assets.import(null, xFiles);
-  }
+  // void _onPickFiles() async {
+  //   final platformFiles = await FilePicker.pickFiles();
+  //   final xFiles = platformFiles.map((platformFile) => platformFile.xFile).toList();
+  //   await Assets.import(null, xFiles);
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -48,19 +46,19 @@ class AssetPanel extends StatelessWidget {
               Expanded(child: Container()),
               MyShadDropdown(
                 items: [
-                  ShadBreadcrumbDropMenuItem(
-                    onPressed: _onPickFiles,
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.upload),
-                        SizedBox(width: 8.0),
-                        Text('Upload'),
-                      ],
-                    ),
-                  ),
-                  ShadSeparator.horizontal(
-                    margin: EdgeInsets.symmetric(vertical: 4.0),
-                  ),
+                  // ShadBreadcrumbDropMenuItem(
+                  //   onPressed: _onPickFiles,
+                  //   child: Row(
+                  //     children: [
+                  //       Icon(LucideIcons.upload),
+                  //       SizedBox(width: 8.0),
+                  //       Text('Upload'),
+                  //     ],
+                  //   ),
+                  // ),
+                  // ShadSeparator.horizontal(
+                  //   margin: EdgeInsets.symmetric(vertical: 4.0),
+                  // ),
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Scene'),
                     onPressed: () async {
@@ -86,83 +84,12 @@ class AssetPanel extends StatelessWidget {
         ),
         SizedBox(height: 4.0),
         Expanded(
-          child: _AssetPanelDropZone(
+          child: UploadZoneWidget(
             onDrop: _onDropFiles,
             child: _AssetDirectoryViewer(directory: null),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _AssetPanelDropZone extends StatefulWidget {
-  final void Function(List<XFile> files) onDrop;
-  final Widget child;
-
-  const _AssetPanelDropZone({
-    super.key,
-    required this.onDrop,
-    required this.child,
-  });
-
-  @override
-  State<_AssetPanelDropZone> createState() => __AssetPanelDropZoneState();
-}
-
-class __AssetPanelDropZoneState extends State<_AssetPanelDropZone> {
-  var _isHovered = false;
-
-  void _onDropHoverEnter(DropEventDetails details) {
-    setState(() => _isHovered = true);
-  }
-
-  void _onDropHoverExit(DropEventDetails details) {
-    setState(() => _isHovered = false);
-  }
-
-  void _onDropFiles(DropDoneDetails details) {
-    widget.onDrop(details.files);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DropTarget(
-      onDragEntered: _onDropHoverEnter,
-      onDragExited: _onDropHoverExit,
-      onDragDone: _onDropFiles,
-      child: Stack(
-        fit: .expand,
-        children: [
-          widget.child,
-          AnimatedOpacity(
-            duration: Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            opacity: _isHovered ? 1.0 : 0.0,
-            child: Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: ShadTheme.of(context).colorScheme.background,
-                      blurRadius: 24.0,
-                      spreadRadius: 14.0,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(LucideIcons.upload, size: 24.0),
-                    SizedBox(height: 14.0),
-                    Text('Drop to upload assets'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

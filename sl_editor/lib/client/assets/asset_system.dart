@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
+import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/assets/asset_blob_filesystem.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
 import 'package:sl_editor/client/assets/shared_database.dart';
@@ -80,7 +80,7 @@ class AssetSystem {
     return _blobTransferer.handleBinary(bytes);
   }
 
-  Future<void> upload(UUID uuid, XFile file, {int offset = 0}) async {
+  Future<void> upload(UUID uuid, UploadFile file, {int offset = 0}) async {
     if (_sharedDatabase.isBuiltinAsset(uuid)) {
       Logger.log('Tried to upload to a built-in asset $uuid', .warning);
       return;

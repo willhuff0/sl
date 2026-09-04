@@ -2,7 +2,6 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/client.dart';
@@ -36,9 +35,13 @@ class GLTFAssetResourceLoader implements ResourceLoader {
 }
 
 class _GLTFImporterResourceLoader implements ResourceLoader {
+  final String gltfRootDirectory;
   final AssetImportContext ctx;
 
-  _GLTFImporterResourceLoader({required this.ctx});
+  _GLTFImporterResourceLoader({
+    required this.gltfRootDirectory,
+    required this.ctx,
+  });
 
   final _loadedPaths = <String>{};
 
@@ -49,7 +52,8 @@ class _GLTFImporterResourceLoader implements ResourceLoader {
   @override
   Future<Uint8List?> loadBytes(String path) async {
     final normalizedPath = p.normalize(path);
-    final bytes = await ctx.pathToFile[normalizedPath]?.readAsBytes();
+    final assetPath = p.normalize(p.join(gltfRootDirectory, normalizedPath));
+    final bytes = await ctx.pathToFile[assetPath]?.readAsBytes();
     if (bytes != null) _loadedPaths.add(normalizedPath);
     return bytes;
   }
@@ -73,12 +77,16 @@ class GLTFImporter {
     inferAssetType: (_, _) => .model,
   );
 
-  static Future<AssetImportResult> import(XFile file, AssetImportContext ctx) async {
-    final gltfNormalizedPath = p.normalize(file.name);
-    final extension = p.extension(file.name);
-    final resourceLoader = _GLTFImporterResourceLoader(ctx: ctx);
+  static Future<AssetImportResult> import(UploadFile file, AssetImportContext ctx) async {
+    final gltfRootDirectory = p.dirname(p.normalize(file.path));
+    final gltfName = p.basename(file.path);
+    final extension = file.extension;
+    final resourceLoader = _GLTFImporterResourceLoader(
+      gltfRootDirectory: gltfRootDirectory,
+      ctx: ctx,
+    );
 
-    final gltf = await GLTF.load(gltfNormalizedPath, resourceLoader: resourceLoader);
+    final gltf = await GLTF.load(gltfName, resourceLoader: resourceLoader);
     if (gltf == null) return AssetImportResult.empty();
 
     while (SLEditor.modelPreviewGenerator == null) {
@@ -89,12 +97,13 @@ class GLTFImporter {
     final gltfUuid = Uuid().v4();
     final createInfos = <AssetCreateInfo>[];
 
-    final consumed = <XFile>{};
+    final consumed = <UploadFile>{};
     final redirects = <String, UUID>{};
     for (final loadedPath in resourceLoader.getLoadedPaths()) {
-      if (loadedPath == gltfNormalizedPath) continue;
+      if (loadedPath == gltfName) continue;
 
-      final subFile = ctx.pathToFile[loadedPath]!;
+      final assetPath = p.normalize(p.join(gltfRootDirectory, loadedPath));
+      final subFile = ctx.pathToFile[assetPath]!;
       consumed.add(subFile);
 
       final uuid = Uuid().v4();
@@ -104,7 +113,7 @@ class GLTFImporter {
         AssetCreateInfo(
           uuid: uuid,
           parent: gltfUuid,
-          name: p.basenameWithoutExtension(subFile.name),
+          name: subFile.name,
           type: await Assets.inferAssetType(file, ctx),
           uploadFile: subFile,
         ),
@@ -115,7 +124,7 @@ class GLTFImporter {
       AssetCreateInfo(
         uuid: gltfUuid,
         parent: ctx.directory,
-        name: p.basenameWithoutExtension(file.name),
+        name: file.name,
         type: .model,
         properties: {
           'extension': extension,

@@ -27,7 +27,10 @@ Future<WebGLShader?> _loadShader(String path, [GLenum? type]) async {
   if (shader == null) return null;
 
   final source = await BuiltInResourceLoader.get().loadString(path);
-  if (source == null) return null;
+  if (source == null) {
+    Logger.log('Failed to get shader source \'$path\'.', .warning);
+    return null;
+  }
   gl.shaderSource(shader, source);
 
   gl.compileShader(shader);

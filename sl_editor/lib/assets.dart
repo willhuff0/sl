@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
@@ -10,10 +9,21 @@ import 'package:sl_editor/importers/unsupported.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:uuid/uuid.dart';
 
+abstract interface class UploadFile {
+  String get path;
+  String get name;
+  String get extension;
+
+  int get size;
+
+  FutureOr<Uint8List> readAsBytes();
+  Stream<Uint8List> openRead(int offset, int chunkSize);
+}
+
 class AssetImportContext {
   final UUID? directory;
-  final List<XFile> files;
-  final Map<String, XFile> pathToFile;
+  final List<UploadFile> files;
+  final Map<String, UploadFile> pathToFile;
 
   AssetImportContext({
     required this.directory,
@@ -38,7 +48,7 @@ class AssetCreateInfo {
   final String name;
   final AssetType type;
   final dynamic properties;
-  final XFile? uploadFile;
+  final UploadFile? uploadFile;
   final AssetThumbCreateInfo? uploadThumb;
 
   AssetCreateInfo({
@@ -53,7 +63,7 @@ class AssetCreateInfo {
 }
 
 class AssetImportResult {
-  final Set<XFile> consumed;
+  final Set<UploadFile> consumed;
   final List<AssetCreateInfo> createInfos;
 
   AssetImportResult({
@@ -72,8 +82,8 @@ class AssetImportResult {
 class AssetImporter {
   final List<String> extensions;
   final int priority;
-  final FutureOr<AssetImportResult> Function(XFile file, AssetImportContext ctx) import;
-  final FutureOr<AssetType> Function(XFile file, AssetImportContext ctx)? inferAssetType;
+  final FutureOr<AssetImportResult> Function(UploadFile file, AssetImportContext ctx) import;
+  final FutureOr<AssetType> Function(UploadFile file, AssetImportContext ctx)? inferAssetType;
 
   AssetImporter({
     required this.extensions,
@@ -110,9 +120,9 @@ class Assets {
     );
   }
 
-  static Future<void> import(UUID? directory, List<XFile> files) async {
-    files.sort((a, b) => _getImportPriority(b.name).compareTo(_getImportPriority(a.name)));
-    final pathToFile = Map.fromEntries(files.map((file) => MapEntry(p.normalize(file.name), file)));
+  static Future<void> import(UUID? directory, List<UploadFile> files) async {
+    files.sort((a, b) => _getImportPriority(b.path).compareTo(_getImportPriority(a.path)));
+    final pathToFile = Map.fromEntries(files.map((file) => MapEntry(p.normalize(file.path), file)));
 
     final ctx = AssetImportContext(
       directory: directory,
@@ -122,15 +132,15 @@ class Assets {
 
     final timestamp = DateTime.now().toIso8601String();
 
-    final consumed = <XFile>{};
+    final consumed = <UploadFile>{};
     final arguments = <List>[];
-    final toUpload = <UUID, XFile>{};
+    final toUpload = <UUID, UploadFile>{};
     final toUploadThumbs = <UUID, AssetThumbCreateInfo>{};
 
     for (final file in files) {
       if (consumed.contains(file)) continue;
 
-      final extension = p.extension(file.name).toLowerCase();
+      final extension = p.extension(file.path).toLowerCase();
       final importer = _extensionToImporter[extension];
       final importFunc = importer?.import ?? UnsupportedImporter.import;
 
@@ -180,8 +190,8 @@ class Assets {
     }
   }
 
-  static FutureOr<AssetType> inferAssetType(XFile file, AssetImportContext ctx) async {
-    final importer = _extensionToImporter[p.extension(file.name).toLowerCase()];
+  static FutureOr<AssetType> inferAssetType(UploadFile file, AssetImportContext ctx) async {
+    final importer = _extensionToImporter[p.extension(file.path).toLowerCase()];
     return (await importer?.inferAssetType?.call(file, ctx)) ?? .unsupported;
   }
 

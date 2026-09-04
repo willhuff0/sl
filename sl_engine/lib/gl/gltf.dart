@@ -122,7 +122,6 @@ class GLTF {
   }
 
   static Future<GLTF?> load(String path, {String? sceneName, ResourceLoader? resourceLoader}) async {
-    // Logger.log('loading gltf: $path');
     resourceLoader ??= BuiltInResourceLoader.get();
     _shader ??= await _loadShader();
     _brdfLut ??= await BrdfLut.generate();
@@ -136,7 +135,10 @@ class GLTF {
     switch (extension) {
       case '.glb':
         final response = await resourceLoader.loadBytes(path);
-        if (response == null) return null;
+        if (response == null) {
+          Logger.log('Failed to get main binary while loading GLTF \'$path\'.', .warning);
+          return null;
+        }
         final buffer = response.buffer;
         final bytes = buffer.asByteData(response.offsetInBytes, response.lengthInBytes);
 
@@ -186,7 +188,10 @@ class GLTF {
         break;
       case '.gltf':
         final response = await resourceLoader.loadString(path);
-        if (response == null) return null;
+        if (response == null) {
+          Logger.log('Failed to get main json while loading GLTF \'$path\'.', .warning);
+          return null;
+        }
         json = jsonDecode(response);
         break;
       default:
@@ -263,7 +268,10 @@ class GLTF {
           } else {
             final resolved = p.join(directory, uri.path);
             final bytes = await resourceLoader!.loadBytes(resolved);
-            if (bytes == null) return null;
+            if (bytes == null) {
+              Logger.log('Failed to get buffer data from relative path \'$resolved\' while loading a GLTF \'$path\'.', .warning);
+              return null;
+            }
             cache = bufferIndexToBytes[index] = bytes;
           }
         }
@@ -322,10 +330,13 @@ class GLTF {
           } else {
             final resolved = p.join(directory, uri.path);
             final bytes = await resourceLoader!.loadBytes(resolved);
-            if (bytes == null) return null;
+            if (bytes == null) {
+              Logger.log('Failed to get image data from relative path \'$resolved\' while loading a GLTF \'$path\'.', .warning);
+              return null;
+            }
             final result = await Image.loadFromMemory(bytes);
             if (result == null) {
-              Logger.log('Failed to load an image from relative path while loading a GLTF \'$path\'.', .warning);
+              Logger.log('Failed to load an image from relative path \'$resolved\' while loading a GLTF \'$path\'.', .warning);
               return null;
             }
             cache = imageIndexToGpuImage[index] = result;
@@ -646,7 +657,6 @@ class GLTF {
       nodeIndexToNode[parent]!.addChild(result);
     }
 
-    // Logger.log('finished loading gltf: $path');
     return GLTF(
       root: rootNode,
       copyright: copyright,

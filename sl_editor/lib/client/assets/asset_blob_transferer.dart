@@ -3,7 +3,7 @@ import 'dart:js_interop';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
+import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/assets/asset_blob_filesystem.dart';
 import 'package:sl_editor/client/assets/local_asset_database.dart';
 import 'package:sl_editor/client/client.dart';
@@ -211,8 +211,8 @@ class AssetBlobTransferer {
        _localDatabase = localDatabase,
        _blobFilesystem = blobFilesystem;
 
-  Future<void> upload(UUID uuid, XFile file, {int offset = 0}) async {
-    final size = await file.length();
+  Future<void> upload(UUID uuid, UploadFile file, {int offset = 0}) async {
+    final size = file.size;
 
     if (_uploads.containsKey(uuid)) {
       Logger.log(
@@ -265,7 +265,7 @@ class AssetBlobTransferer {
         await cacheSink.truncate(size).toDart;
         await cacheSink.seek(offset).toDart;
 
-        await for (final fileChunk in file.openRead(offset)) {
+        await for (final fileChunk in file.openRead(offset, assetBlobChunkSize)) {
           await cacheSink.write(fileChunk.toJS).toDart;
 
           for (var i = 0; i < fileChunk.length;) {
