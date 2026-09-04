@@ -518,14 +518,14 @@ String _formatBlobSize(int bytes, {int decimals = 2}) {
 
   const suffixes = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
 
-  // Calculate the exponent base 1024
-  var i = (log(bytes) / log(1024)).floor();
+  // Calculate the exponent base 1000
+  var i = (log(bytes) / log(1000)).floor();
 
   // Ensure we don't exceed the bounds of the suffix array
   i = min(i, suffixes.length - 1);
 
   // Calculate the final readable size
-  var size = bytes / pow(1024, i);
+  var size = bytes / pow(1000, i);
 
   return "${size.toStringAsFixed(decimals)} ${suffixes[i]}";
 }

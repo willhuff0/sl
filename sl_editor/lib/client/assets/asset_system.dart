@@ -149,10 +149,6 @@ class AssetSystem {
             final (exists, remoteBlobVersion) = await _sharedDatabase.getAssetBlobVersion(uuid);
 
             if (exists) {
-              // asset has been deleted or was reverted by the server
-              await _localDatabase.deleteAsset(uuid);
-              resultFuture = Future.value(null);
-            } else {
               if (remoteBlobVersion == null) {
                 Logger.log(
                   'Tried to load the blob for asset $uuid which has not been uploaded yet. The asset blob was incorrectly marked as locally available.',
@@ -177,6 +173,14 @@ class AssetSystem {
                   return download?.onComplete;
                 });
               }
+            } else {
+              // asset has been deleted or was reverted by the server
+              Logger.log(
+                'Tried to load the blob for an asset \'$uuid\' which does not exist on the server.',
+                .warning,
+              );
+              await _localDatabase.deleteAsset(uuid);
+              resultFuture = Future.value(null);
             }
           }
         }
