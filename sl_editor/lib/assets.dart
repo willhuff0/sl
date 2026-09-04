@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
 import 'package:sl_editor/importers/unsupported.dart';
+import 'package:sl_engine/logger.dart';
 import 'package:sl_shared/sl_shared.dart';
 import 'package:uuid/uuid.dart';
 
@@ -112,11 +113,7 @@ class Assets {
     final type = AssetType.nodeTree.name;
     final updatedAt = DateTime.now().toIso8601String();
 
-    final database = Client.get().assetSystem.sharedDatabase;
-    await database.execute(
-      'INSERT INTO assets (uuid, parent, name, type, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [uuid, parent, name, type, updatedAt],
-    );
+    await _insert(uuid, parent, name, type, updatedAt);
   }
 
   static Future<void> createDirectory(UUID? directory, String name) async {
@@ -125,14 +122,35 @@ class Assets {
     final type = AssetType.directory.name;
     final updatedAt = DateTime.now().toIso8601String();
 
+    await _insert(uuid, parent, name, type, updatedAt);
+  }
+
+  static Future<void> _insert(UUID uuid, UUID? parent, String name, String type, String updatedAt) async {
     final database = Client.get().assetSystem.sharedDatabase;
-    await database.execute(
-      'INSERT INTO assets (uuid, parent, name, type, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [uuid, parent, name, type, updatedAt],
-    );
+    await database.transaction((txn) async {
+      if (parent != null) {
+        final parentRows = await txn.query('SELECT 1 FROM assets WHERE uuid = ? AND is_deleted = 0', [parent]);
+        if (parentRows.isEmpty) {
+          Logger.log('Tried to create an asset with a parent \'$parent\' which does not exist.', .warning);
+          return;
+        }
+      }
+      await txn.execute(
+        'INSERT INTO assets (uuid, parent, name, type, updated_at) VALUES (?, ?, ?, ?, ?)',
+        [uuid, parent, name, type, updatedAt],
+      );
+    });
   }
 
   static Future<void> import(UUID? directory, List<UploadFile> files) async {
+    final database = Client.get().assetSystem.sharedDatabase;
+
+    // TODO: make transactional with the inserts, another user could delete the directory during an import
+    if (directory != null && !await database.doesAssetExist(directory)) {
+      Logger.log('Tried to import assets to a directory \'$directory\' which does not exist.', .warning);
+      return;
+    }
+
     files.sort((a, b) => _getImportPriority(b.path).compareTo(_getImportPriority(a.path)));
     final pathToFile = Map.fromEntries(files.map((file) => MapEntry(p.normalize(file.path), file)));
 
@@ -185,7 +203,6 @@ class Assets {
       await AssetThumbs.upload(uuid, thumbCreateInfo.bytes);
     }
 
-    final database = Client.get().assetSystem.sharedDatabase;
     final batch = database.batch();
     for (final argumentList in arguments) {
       await batch.execute(

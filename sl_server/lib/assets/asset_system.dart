@@ -83,7 +83,6 @@ class AssetSystem {
 
   Future<void> _deleteAssets(Client client, Set<UUID> uuids) async {
     // TODO: in between deleting blobs and deleting rows, client could try to pull asset blob
-    // TODO: does not recurse beyond one level deep of subassets
 
     final toDelete = <UUID>[];
     await Future.wait(
@@ -93,11 +92,6 @@ class AssetSystem {
         toDelete.add(uuid);
       }),
     );
-    await _sharedDatabase.execute('''
-DELETE FROM assets WHERE (
-  uuid IN (${List.generate(toDelete.length, (i) => '?${i + 1}').join(',')}) OR
-  parent IN (${List.generate(toDelete.length, (i) => '?${i + 1}').join(',')})
-) AND is_deleted = 0;
-''', toDelete);
+    await deleteAssets(_sharedDatabase, toDelete);
   }
 }

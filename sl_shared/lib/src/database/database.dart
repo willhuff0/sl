@@ -37,8 +37,29 @@ Future<SqliteCrdt> openDatabaseInMemory() async {
   );
 }
 
-const _getAllAssetUuids = 'SELECT uuid FROM assets WHERE is_deleted = 0;';
+const _getAllAssetUuidsSql = 'SELECT uuid FROM assets WHERE is_deleted = 0;';
 Future<Set<UUID>> getAllAssetUuids(SqliteCrdt db) async {
-  final results = await db.query(_getAllAssetUuids);
+  final results = await db.query(_getAllAssetUuidsSql);
   return results.map((row) => row['uuid'] as String).toSet();
+}
+
+Future<void> deleteAssets(SqliteCrdt db, List<UUID> toDelete) async {
+  await db.execute('''
+WITH RECURSIVE 
+roots(uuid) AS (
+  VALUES ${List.generate(toDelete.length, (i) => '(?${i + 1})').join(',')}
+),
+subtree(uuid) AS (
+  SELECT uuid
+  FROM roots
+
+  UNION ALL
+
+  SELECT a.uuid
+  FROM assets AS a
+  JOIN subtree AS s ON a.parent = s.uuid
+)
+DELETE FROM assets
+WHERE uuid IN (SELECT uuid FROM subtree) AND is_deleted = 0;
+''', toDelete);
 }

@@ -32,6 +32,15 @@ class SharedDatabase {
     return (true, bytes);
   }
 
+  Future<bool> doesAssetExist(UUID uuid) async {
+    if (isBuiltinAsset(uuid)) {
+      return _getBuiltinAsset(uuid) != null;
+    }
+
+    final rows = await _db.query('SELECT 1 FROM assets WHERE uuid = ? AND is_deleted = 0', [uuid]);
+    return rows.isNotEmpty;
+  }
+
   Future<Asset?> getAsset(UUID uuid) async {
     if (isBuiltinAsset(uuid)) {
       return _getBuiltinAsset(uuid)?.mockDatabaseAsset;
@@ -181,6 +190,10 @@ WITH RECURSIVE
           )
           .toString(),
     );
+  }
+
+  Future<void> transaction(Future<void> Function(CrdtExecutor txn) action) {
+    return _db.transaction(action);
   }
 
   Future<void> execute(String sql, [List<Object?>? args]) {
