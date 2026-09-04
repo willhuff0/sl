@@ -106,11 +106,23 @@ class Assets {
     return _extensionToImporter[p.extension(name).toLowerCase()]?.priority ?? 0;
   }
 
-  static Future<void> createScene(UUID? directory) async {
+  static Future<void> createScene(UUID? directory, String name) async {
     final uuid = Uuid().v4();
     final parent = directory;
-    final name = 'New Scene';
     final type = AssetType.nodeTree.name;
+    final updatedAt = DateTime.now().toIso8601String();
+
+    final database = Client.get().assetSystem.sharedDatabase;
+    await database.execute(
+      'INSERT INTO assets (uuid, parent, name, type, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [uuid, parent, name, type, updatedAt],
+    );
+  }
+
+  static Future<void> createDirectory(UUID? directory, String name) async {
+    final uuid = Uuid().v4();
+    final parent = directory;
+    final type = AssetType.directory.name;
     final updatedAt = DateTime.now().toIso8601String();
 
     final database = Client.get().assetSystem.sharedDatabase;

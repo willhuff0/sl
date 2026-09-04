@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart' show SelectableText;
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
@@ -12,18 +13,64 @@ import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_editor/widgets/upload_zone.dart';
 import 'package:sl_shared/sl_shared.dart';
 
-class AssetPanel extends StatelessWidget {
+class AssetPanel extends StatefulWidget {
   const AssetPanel({super.key});
 
+  @override
+  State<AssetPanel> createState() => _AssetPanelState();
+}
+
+class _AssetPanelState extends State<AssetPanel> {
+  final _directories = <(UUID, String)>[];
+
   void _onDropFiles(List<UploadFile> files) async {
-    await Assets.import(null, files);
+    await Assets.import(_directories.lastOrNull?.$1, files);
   }
 
-  // void _onPickFiles() async {
-  //   final platformFiles = await FilePicker.pickFiles();
-  //   final xFiles = platformFiles.map((platformFile) => platformFile.xFile).toList();
-  //   await Assets.import(null, xFiles);
-  // }
+  void _onCreateFolder(BuildContext context) {
+    showShadDialog(
+      context: context,
+      builder: (context) => _CreateAssetDialog(
+        typeDisplayName: 'Folder',
+        defaultName: 'New Folder',
+        defaultNameIsAn: false,
+        createAsset: (name) async {
+          await Assets.createDirectory(_directories.lastOrNull?.$1, name);
+        },
+      ),
+    );
+  }
+
+  void _onCreateScene(BuildContext context) {
+    showShadDialog(
+      context: context,
+      builder: (context) => _CreateAssetDialog(
+        typeDisplayName: 'Scene',
+        defaultName: 'New Scene',
+        defaultNameIsAn: false,
+        createAsset: (name) async {
+          await Assets.createScene(_directories.lastOrNull?.$1, name);
+        },
+      ),
+    );
+  }
+
+  void _pushDirectory(UUID directory, String name) {
+    setState(() => _directories.add((directory, name)));
+  }
+
+  void _jumpToDirectory(UUID? directory) {
+    if (directory == _directories.lastOrNull?.$1) return;
+    if (directory == null) {
+      setState(() => _directories.clear());
+      return;
+    }
+
+    while (_directories.isNotEmpty && _directories.last.$1 != directory) {
+      _directories.removeLast();
+    }
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,28 +89,38 @@ class AssetPanel extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(width: 8.0),
-              Text('Assets'),
-              Expanded(child: Container()),
+              ShadButton.ghost(
+                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                height: 22.0,
+                child: Text('Assets'),
+                onPressed: () => _jumpToDirectory(null),
+              ),
+              Expanded(
+                child: _directories.isEmpty
+                    ? Container()
+                    : Row(
+                        children: [
+                          for (final (directory, name) in _directories) ...[
+                            Icon(LucideIcons.chevronRight),
+                            ShadButton.ghost(
+                              padding: EdgeInsets.symmetric(horizontal: 4.0),
+                              height: 22.0,
+                              child: Text(name),
+                              onPressed: () => _jumpToDirectory(directory),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
               MyShadDropdown(
                 items: [
-                  // ShadBreadcrumbDropMenuItem(
-                  //   onPressed: _onPickFiles,
-                  //   child: Row(
-                  //     children: [
-                  //       Icon(LucideIcons.upload),
-                  //       SizedBox(width: 8.0),
-                  //       Text('Upload'),
-                  //     ],
-                  //   ),
-                  // ),
-                  // ShadSeparator.horizontal(
-                  //   margin: EdgeInsets.symmetric(vertical: 4.0),
-                  // ),
+                  ShadBreadcrumbDropMenuItem(
+                    child: Text('Folder'),
+                    onPressed: () => _onCreateFolder(context),
+                  ),
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Scene'),
-                    onPressed: () async {
-                      await Assets.createScene(null);
-                    },
+                    onPressed: () => _onCreateScene(context),
                   ),
                 ],
                 showDropdownArrow: true,
@@ -86,7 +143,11 @@ class AssetPanel extends StatelessWidget {
         Expanded(
           child: UploadZoneWidget(
             onDrop: _onDropFiles,
-            child: _AssetDirectoryViewer(directory: null),
+            child: _AssetDirectoryViewer(
+              key: ValueKey(_directories.lastOrNull?.$1),
+              directory: _directories.lastOrNull?.$1,
+              pushDirectory: _pushDirectory,
+            ),
           ),
         ),
       ],
@@ -96,8 +157,13 @@ class AssetPanel extends StatelessWidget {
 
 class _AssetDirectoryViewer extends StatefulWidget {
   final UUID? directory;
+  final void Function(UUID directory, String name) pushDirectory;
 
-  const _AssetDirectoryViewer({super.key, required this.directory});
+  const _AssetDirectoryViewer({
+    super.key,
+    required this.directory,
+    required this.pushDirectory,
+  });
 
   @override
   State<_AssetDirectoryViewer> createState() => __AssetDirectoryViewerState();
@@ -129,7 +195,14 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
   Widget build(BuildContext context) {
     return _assets == null
         ? Center(
-            child: ShadProgress(),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: SizedBox(
+                width: 96.0,
+                height: 4.0,
+                child: ShadProgress(),
+              ),
+            ),
           )
         : SingleChildScrollView(
             padding: EdgeInsets.all(8.0),
@@ -144,6 +217,7 @@ class __AssetDirectoryViewerState extends State<_AssetDirectoryViewer> {
                     asset: asset,
                     assets: _assets!,
                     folded: foldedAsset,
+                    pushDirectory: widget.pushDirectory,
                   );
                 },
               ).toList(),
@@ -158,11 +232,14 @@ class _AssetEntryWidget extends StatefulWidget {
   final Map<UUID, Asset> assets;
   final FoldedAsset folded;
 
+  final void Function(UUID directory, String name) pushDirectory;
+
   const _AssetEntryWidget({
     super.key,
     required this.asset,
     required this.assets,
     required this.folded,
+    required this.pushDirectory,
   });
 
   @override
@@ -229,10 +306,14 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
   }
 
   static const _openableAssetTypes = <AssetType>{
+    .directory,
     .nodeTree,
   };
   void _openAsset() {
     switch (widget.asset.type) {
+      case .directory:
+        widget.pushDirectory(widget.asset.uuid, widget.asset.name);
+        break;
       case .nodeTree:
         Client.get().sceneSystem.loadScene(widget.asset.uuid, widget.asset.name);
         break;
@@ -245,6 +326,15 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
     showShadDialog(
       context: context,
       builder: (context) => _AssetDetailsDialog(
+        asset: widget.asset,
+      ),
+    );
+  }
+
+  void _showAssetRename() {
+    showShadDialog(
+      context: context,
+      builder: (context) => _AssetRenameDialog(
         asset: widget.asset,
       ),
     );
@@ -312,6 +402,7 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
                 child: Text('Open'),
               ),
             ShadContextMenuItem(
+              onPressed: _showAssetRename,
               child: Text('Rename'),
             ),
             ShadSeparator.horizontal(
@@ -556,6 +647,223 @@ class _AssetDeleteDialog extends StatelessWidget {
         ShadButton.destructive(
           onPressed: () => _confirm(context),
           child: Text('Delete'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AssetRenameDialog extends StatefulWidget {
+  final Asset asset;
+
+  const _AssetRenameDialog({
+    super.key,
+    required this.asset,
+  });
+
+  @override
+  State<_AssetRenameDialog> createState() => _AssetRenameDialogState();
+}
+
+class _AssetRenameDialogState extends State<_AssetRenameDialog> {
+  final _formKey = GlobalKey();
+  late final TextEditingController _textEditingController;
+
+  @override
+  void initState() {
+    _textEditingController = TextEditingController(text: widget.asset.name);
+    super.initState();
+  }
+
+  void _confirm(BuildContext context) {
+    if (_formKey.currentContext == null) return;
+    final formState = _formKey.currentState as FormState;
+
+    if (!formState.validate()) return;
+    formState.save();
+
+    Navigator.pop(context);
+  }
+
+  void _cancel(BuildContext context) {
+    Navigator.pop(context);
+  }
+
+  String? _validate(String value) {
+    value = value.trim();
+    if (value.isEmpty) return 'You can\'t name an asset nothing';
+    if (value.length > 128) return 'Must be < 128 characters';
+    return null;
+  }
+
+  void _onSave(String? value) async {
+    value = value!.trim();
+
+    final db = Client.get().assetSystem.sharedDatabase;
+    await db.execute(
+      'UPDATE assets SET name = ? WHERE uuid = ?',
+      [value, widget.asset.uuid],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadDialog.alert(
+      title: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Rename ',
+              style: TextStyle(fontWeight: .normal),
+            ),
+            TextSpan(
+              text: widget.asset.name,
+              style: TextStyle(fontWeight: .bold),
+            ),
+            TextSpan(
+              text: '.',
+              style: TextStyle(fontWeight: .normal),
+            ),
+          ],
+        ),
+      ),
+      description: Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
+          SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
+          SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
+        },
+        child: Form(
+          key: _formKey,
+          child: ShadInputFormField(
+            controller: _textEditingController,
+            autofocus: true,
+            maxLength: 128,
+            validator: _validate,
+            onSaved: _onSave,
+            onEditingComplete: () => _confirm(context),
+          ),
+        ),
+      ),
+      gap: 24.0,
+      actions: [
+        ShadButton.outline(
+          onPressed: () => _cancel(context),
+          child: Text('Back'),
+        ),
+        ShadButton(
+          onPressed: () => _confirm(context),
+          child: Text('Rename'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CreateAssetDialog extends StatefulWidget {
+  final String typeDisplayName;
+  final String defaultName;
+  final bool defaultNameIsAn;
+  final void Function(String name) createAsset;
+
+  const _CreateAssetDialog({
+    super.key,
+    required this.typeDisplayName,
+    required this.defaultName,
+    this.defaultNameIsAn = false,
+    required this.createAsset,
+  });
+
+  @override
+  State<_CreateAssetDialog> createState() => _CreateAssetDialogState();
+}
+
+class _CreateAssetDialogState extends State<_CreateAssetDialog> {
+  final _formKey = GlobalKey();
+  late final TextEditingController _textEditingController;
+
+  @override
+  void initState() {
+    _textEditingController = TextEditingController(text: widget.defaultName);
+    super.initState();
+  }
+
+  void _confirm(BuildContext context) {
+    if (_formKey.currentContext == null) return;
+    final formState = _formKey.currentState as FormState;
+
+    if (!formState.validate()) return;
+    formState.save();
+
+    Navigator.pop(context);
+  }
+
+  void _cancel(BuildContext context) {
+    Navigator.pop(context);
+  }
+
+  String? _validate(String value) {
+    value = value.trim();
+    if (value.isEmpty) {
+      return 'You can\'t name ${widget.defaultNameIsAn ? 'an' : 'a'} ${widget.typeDisplayName} nothing';
+    }
+    if (value.length > 128) return 'Must be < 128 characters';
+    return null;
+  }
+
+  void _onSave(String? value) {
+    value = value!.trim();
+    widget.createAsset(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadDialog.alert(
+      title: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Create a new ',
+              style: TextStyle(fontWeight: .normal),
+            ),
+            TextSpan(
+              text: widget.typeDisplayName,
+              style: TextStyle(fontWeight: .bold),
+            ),
+            TextSpan(
+              text: '.',
+              style: TextStyle(fontWeight: .normal),
+            ),
+          ],
+        ),
+      ),
+      description: Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
+          SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
+          SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
+        },
+        child: Form(
+          key: _formKey,
+          child: ShadInputFormField(
+            controller: _textEditingController,
+            autofocus: true,
+            maxLength: 128,
+            validator: _validate,
+            onSaved: _onSave,
+            onEditingComplete: () => _confirm(context),
+          ),
+        ),
+      ),
+      gap: 24.0,
+      actions: [
+        ShadButton.outline(
+          onPressed: () => _cancel(context),
+          child: Text('Back'),
+        ),
+        ShadButton(
+          onPressed: () => _confirm(context),
+          child: Text('Create'),
         ),
       ],
     );

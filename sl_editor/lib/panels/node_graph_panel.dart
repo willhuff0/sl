@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_editor/client/scenes/node.dart' as editor;
 import 'package:sl_shared/sl_shared.dart';
@@ -80,7 +81,8 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
               SizedBox(width: 8.0),
               Text('Node Hierarchy'),
               Expanded(child: Container()),
-              ShadBreadcrumbDropdown(
+              MyShadDropdown(
+                enabled: _root != null,
                 items: [
                   ShadBreadcrumbDropMenuItem(
                     child: Text('Add Empty Node'),
@@ -98,7 +100,9 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
                 ),
                 child: Icon(
                   LucideIcons.plus,
-                  color: ShadTheme.of(context).colorScheme.foreground,
+                  color: _root != null
+                      ? ShadTheme.of(context).colorScheme.foreground
+                      : ShadTheme.of(context).colorScheme.foreground.withValues(alpha: 0.6),
                   size: 22.0,
                 ),
               ),
@@ -111,10 +115,55 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
             padding: const EdgeInsets.all(4.0),
             child: _root == null
                 ? Align(
-                    alignment: Alignment.topCenter,
+                    alignment: Alignment.center,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24.0),
-                      child: Text('Nothing open.'),
+                      padding: EdgeInsets.symmetric(vertical: 24.0, horizontal: 14.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Open a ',
+                                ),
+                                WidgetSpan(
+                                  alignment: .baseline,
+                                  baseline: TextBaseline.alphabetic,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 2.0),
+                                    child: Icon(
+                                      LucideIcons.globe500,
+                                      size: 14.0,
+                                    ),
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: 'Scene',
+                                  style: TextStyle(fontWeight: .bold),
+                                ),
+                                TextSpan(
+                                  text: ' in the ',
+                                ),
+                                TextSpan(
+                                  text: 'Assets',
+                                  style: TextStyle(fontWeight: .bold),
+                                ),
+                                TextSpan(
+                                  text: ' panel.',
+                                ),
+                              ],
+                            ),
+                            textAlign: .center,
+                          ),
+                          SizedBox(height: 14.0),
+
+                          Icon(
+                            LucideIcons.arrowBigDown300,
+                            size: 24.0,
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : _NodeTreeWidget(

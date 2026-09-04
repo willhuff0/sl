@@ -21,6 +21,7 @@ class MyShadDropdown extends StatefulWidget {
     this.normalTextColor,
     this.hoverTextColor,
     this.showDropdownArrow,
+    this.enabled = true,
   });
 
   /// The widget that triggers the dropdown.
@@ -77,6 +78,8 @@ class MyShadDropdown extends StatefulWidget {
   /// Defaults to true.
   /// {@endtemplate}
   final bool? showDropdownArrow;
+
+  final bool enabled;
 
   @override
   State<MyShadDropdown> createState() => _ShadBreadcrumbDropdownState();
@@ -139,8 +142,8 @@ class _ShadBreadcrumbDropdownState extends State<MyShadDropdown> {
       ),
       child: ShadBreadcrumbLink(
         normalColor: effectiveTextColor,
-        onHoverChange: (isHovered) => setState(() => this.isHovered = isHovered),
-        onPressed: controller.toggle,
+        onHoverChange: (isHovered) => setState(() => this.isHovered = isHovered && widget.enabled),
+        onPressed: widget.enabled ? controller.toggle : null,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           spacing: effectiveArrowGap,
