@@ -114,6 +114,9 @@ class GLTF {
     shader.setUniform('u_brdfLut', 5);
 
     shader.setUniform('u_ambientIntensity', 1.0);
+    shader.setUniform('u_alphaMode', 0);
+    shader.setUniform('u_alphaCutoff', 0.5);
+    shader.setUniform('u_doubleSided', false);
 
     return shader;
   }
@@ -394,6 +397,28 @@ class GLTF {
         final occlusionStrength = material['occlusionTexture']?['strength'] as double? ?? 1.0;
         final emissiveFactor = _listToVector3(material['emissiveFactor'] as List<dynamic>? ?? [0.0, 0.0, 0.0]);
 
+        final alphaModeStr = material['alphaMode'] as String? ?? 'OPAQUE';
+        final alphaCutoff = (material['alphaCutoff'] as num?)?.toDouble() ?? 0.5;
+        final doubleSided = material['doubleSided'] as bool? ?? false;
+
+        final AlphaMode alphaMode;
+        final int alphaModeInt;
+        switch (alphaModeStr) {
+          case 'MASK':
+            alphaMode = AlphaMode.mask;
+            alphaModeInt = 1;
+            break;
+          case 'BLEND':
+            alphaMode = AlphaMode.blend;
+            alphaModeInt = 2;
+            break;
+          case 'OPAQUE':
+          default:
+            alphaMode = AlphaMode.opaque;
+            alphaModeInt = 0;
+            break;
+        }
+
         final Map<int, Texture> textures = {};
         final Map<int, int> texCoords = {};
         Future<bool> addTexture(int slot, Map<String, dynamic>? textureInfo) async {
@@ -424,6 +449,9 @@ class GLTF {
 
         cache = materialIndexToGpuMaterial[index] = Material(
           shader: _shader!,
+          doubleSided: doubleSided,
+          alphaMode: alphaMode,
+          alphaCutoff: alphaCutoff,
           uniforms: {
             'u_baseColorFactor': baseColorFactor,
             'u_metallicFactor': metallicFactor,
@@ -441,6 +469,9 @@ class GLTF {
             'u_occlusionTexCoord': texCoords[3] ?? 0,
             'u_hasEmissiveTexture': textures.containsKey(4),
             'u_emissiveTexCoord': texCoords[4] ?? 0,
+            'u_alphaMode': alphaModeInt,
+            'u_alphaCutoff': alphaCutoff,
+            'u_doubleSided': doubleSided,
           },
           textures: textures,
         );

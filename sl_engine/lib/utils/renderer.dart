@@ -50,15 +50,27 @@ class RendererUniforms {
   }
 }
 
+enum AlphaMode {
+  opaque,
+  mask,
+  blend,
+}
+
 class Material {
   Shader shader;
   final Map<String, dynamic> uniforms;
   final Map<int, Texture> textures;
+  final bool doubleSided;
+  final AlphaMode alphaMode;
+  final double alphaCutoff;
 
   Material({
     required this.shader,
     required this.uniforms,
     required this.textures,
+    this.doubleSided = false,
+    this.alphaMode = AlphaMode.opaque,
+    this.alphaCutoff = 0.5,
   });
 
   void bind() {
@@ -69,6 +81,21 @@ class Material {
     textures.forEach((slot, texture) {
       texture.bind(slot);
     });
+
+    if (doubleSided) {
+      gl.disable(GL.CULL_FACE);
+    } else {
+      gl.enable(GL.CULL_FACE);
+      gl.cullFace(GL.BACK);
+    }
+
+    if (alphaMode == AlphaMode.blend) {
+      gl.enable(GL.BLEND);
+      gl.depthMask(false);
+    } else {
+      gl.disable(GL.BLEND);
+      gl.depthMask(true);
+    }
   }
 }
 
@@ -164,17 +191,24 @@ class Renderer {
   }
 
   static void renderUnregisteredNode(Node node) {
-    _renderUnregisteredNode(node);
+    _renderUnregisteredNode(node, transparentPass: false);
+    _renderUnregisteredNode(node, transparentPass: true);
     gl.bindVertexArray(null);
+    gl.enable(GL.BLEND);
+    gl.depthMask(true);
+    gl.disable(GL.CULL_FACE);
   }
 
-  static void _renderUnregisteredNode(Node node) {
+  static void _renderUnregisteredNode(Node node, {required bool transparentPass}) {
     for (final child in node.children) {
-      _renderUnregisteredNode(child);
+      _renderUnregisteredNode(child, transparentPass: transparentPass);
     }
 
     final meshComponents = node.components.whereType<MeshComponent>();
     for (final meshComponent in meshComponents) {
+      final isBlend = meshComponent.material.alphaMode == AlphaMode.blend;
+      if (isBlend != transparentPass) continue;
+
       meshComponent.material.bind();
       meshComponent.mesh.bind();
       _setUboForNode(node);
@@ -183,7 +217,9 @@ class Renderer {
   }
 
   static void renderAll() {
+    // Render opaque and alpha-clipped materials
     _materials.forEach((material, meshes) {
+      if (material.alphaMode == AlphaMode.blend) return;
       material.bind();
       meshes.forEach((mesh, nodes) {
         mesh.bind();
@@ -193,7 +229,24 @@ class Renderer {
         }
       });
     });
+
+    // Render blended materials
+    _materials.forEach((material, meshes) {
+      if (material.alphaMode != AlphaMode.blend) return;
+      material.bind();
+      meshes.forEach((mesh, nodes) {
+        mesh.bind();
+        for (final node in nodes) {
+          _setUboForNode(node);
+          mesh.draw();
+        }
+      });
+    });
+
     gl.bindVertexArray(null);
+    gl.enable(GL.BLEND);
+    gl.depthMask(true);
+    gl.disable(GL.CULL_FACE);
   }
 
   static void drawAllBounds(Matrix4 viewMat) {

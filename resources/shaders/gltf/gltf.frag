@@ -73,6 +73,10 @@ uniform bool u_hasEmissiveTexture;
 uniform vec3 u_emissiveFactor;
 uniform int u_emissiveTexCoord;
 
+uniform int u_alphaMode;
+uniform float u_alphaCutoff;
+uniform bool u_doubleSided;
+
 const float PI = 3.14159265359;
 
 // Fresnel Schlick approximation
@@ -184,6 +188,15 @@ void main() {
         baseColor *= texColor;
     }
 
+    if (u_alphaMode == 0) {
+        baseColor.a = 1.0;
+    } else if (u_alphaMode == 1) {
+        if (baseColor.a < u_alphaCutoff) {
+            discard;
+        }
+        baseColor.a = 1.0;
+    }
+
     float metallic = u_metallicFactor == 0.0 && u_roughnessFactor == 0.0 ? 0.0 : u_metallicFactor;
     float roughness = u_metallicFactor == 0.0 && u_roughnessFactor == 0.0 ? 0.4 : u_roughnessFactor;
     
@@ -195,12 +208,19 @@ void main() {
     }
     
     vec3 N = normalize(v_normal);
+    if (u_doubleSided && !gl_FrontFacing) {
+        N = -N;
+    }
     if (u_hasNormalTexture) {
         vec2 normalUV = getUV(u_normalTexCoord);
         mat3 tbn;
         if (length(v_tangent) > 0.001) {
             vec3 t = normalize(v_tangent);
             vec3 b = normalize(v_bitangent);
+            if (u_doubleSided && !gl_FrontFacing) {
+                t = -t;
+                b = -b;
+            }
             tbn = mat3(t, b, N);
         } else {
             tbn = getTangentFrame(N, v_position, normalUV);
