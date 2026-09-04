@@ -52,6 +52,7 @@ void initGl(Canvas canvas_, {bool vr = false}) {
 
   gl.enable(GL.DEPTH_TEST);
   gl.enable(GL.BLEND);
+  gl.enable(GL.SAMPLE_ALPHA_TO_COVERAGE);
   gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
 }
 

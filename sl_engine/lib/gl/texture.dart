@@ -50,7 +50,15 @@ class Image {
   static Future<Image?> loadFromMemory(Uint8List bytes, {String? name}) async {
     try {
       final blob = web.Blob([bytes.toJS].toJS);
-      final bitmap = await web.window.createImageBitmap(blob).toDart;
+      final bitmap = await web.window
+          .createImageBitmap(
+            blob,
+            web.ImageBitmapOptions(
+              premultiplyAlpha: 'none',
+              colorSpaceConversion: 'none',
+            ),
+          )
+          .toDart;
       final result = Image();
       result.writeBitmap(bitmap);
       return result;
@@ -67,12 +75,16 @@ class Image {
 
   void write(JSAny data, int format, int width, int height) {
     gl.bindTexture(GL.TEXTURE_2D, _texture);
+    gl.pixelStorei(GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+    gl.pixelStorei(GL.UNPACK_COLORSPACE_CONVERSION_WEBGL, GL.NONE);
     gl.texImage2D(GL.TEXTURE_2D, 0, format, width.toJS, height.toJS, 0.toJS, format, GL.UNSIGNED_BYTE, data);
     gl.generateMipmap(GL.TEXTURE_2D);
   }
 
   void writeBitmap(web.ImageBitmap bitmap) {
     gl.bindTexture(GL.TEXTURE_2D, _texture);
+    gl.pixelStorei(GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+    gl.pixelStorei(GL.UNPACK_COLORSPACE_CONVERSION_WEBGL, GL.NONE);
     gl.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, GL.RGBA.toJS, GL.UNSIGNED_BYTE.toJS, bitmap);
     gl.generateMipmap(GL.TEXTURE_2D);
   }
