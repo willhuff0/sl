@@ -1,18 +1,15 @@
 name: Build (Linux arm64)
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 jobs:
   build:
-    # arm64 Linux runner
     runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter (clone SDK from GitHub)
         run: |
@@ -43,7 +40,7 @@ jobs:
           cp -r sl_editor/build/web/. sl_server/build/cli/linux_arm64/bundle/root/public/
 
       - name: Upload bundle archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sl-server-linux-arm64
           path: sl_server/build/cli/linux_arm64/bundle/
