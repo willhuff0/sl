@@ -131,33 +131,33 @@ class EditorPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                ShadMenubarItem(
-                  items: [
-                    ShadContextMenuItem(
-                      child: Text('File'),
-                      onPressed: () {},
-                    ),
-                  ],
-                  child: Text('File'),
-                ),
-                ShadMenubarItem(
-                  items: [
-                    ShadContextMenuItem(
-                      child: Text('File'),
-                      onPressed: () {},
-                    ),
-                  ],
-                  child: Text('Edit'),
-                ),
-                ShadMenubarItem(
-                  items: [
-                    ShadContextMenuItem(
-                      child: Text('File'),
-                      onPressed: () {},
-                    ),
-                  ],
-                  child: Text('View'),
-                ),
+                // ShadMenubarItem(
+                //   items: [
+                //     ShadContextMenuItem(
+                //       child: Text('File'),
+                //       onPressed: () {},
+                //     ),
+                //   ],
+                //   child: Text('File'),
+                // ),
+                // ShadMenubarItem(
+                //   items: [
+                //     ShadContextMenuItem(
+                //       child: Text('File'),
+                //       onPressed: () {},
+                //     ),
+                //   ],
+                //   child: Text('Edit'),
+                // ),
+                // ShadMenubarItem(
+                //   items: [
+                //     ShadContextMenuItem(
+                //       child: Text('File'),
+                //       onPressed: () {},
+                //     ),
+                //   ],
+                //   child: Text('View'),
+                // ),
               ],
             ),
           ],
@@ -166,8 +166,8 @@ class EditorPage extends StatelessWidget {
           ],
           trailing: [
             AvatarsWidget(),
-            _ShareButton(),
-            _AccountButton(),
+            // _ShareButton(),
+            // _AccountButton(),
           ],
         ),
         ShadSeparator.horizontal(
@@ -237,41 +237,41 @@ class EditorPage extends StatelessWidget {
   }
 }
 
-class _ShareButton extends StatelessWidget {
-  const _ShareButton({super.key});
+// class _ShareButton extends StatelessWidget {
+//   const _ShareButton({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
-      child: ShadIconButton.ghost(
-        decoration: ShadDecoration(
-          shape: BoxShape.circle,
-        ),
-        onPressed: () async {},
-        icon: Icon(LucideIcons.users, size: 14.0),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
+//       child: ShadIconButton.ghost(
+//         decoration: ShadDecoration(
+//           shape: BoxShape.circle,
+//         ),
+//         onPressed: () async {},
+//         icon: Icon(LucideIcons.users, size: 14.0),
+//       ),
+//     );
+//   }
+// }
 
-class _AccountButton extends StatelessWidget {
-  const _AccountButton({super.key});
+// class _AccountButton extends StatelessWidget {
+//   const _AccountButton({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
-      child: ShadIconButton.ghost(
-        decoration: ShadDecoration(
-          shape: BoxShape.circle,
-        ),
-        onPressed: () {},
-        icon: ShadAvatar(
-          null,
-          placeholder: Text('W'),
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
+//       child: ShadIconButton.ghost(
+//         decoration: ShadDecoration(
+//           shape: BoxShape.circle,
+//         ),
+//         onPressed: () {},
+//         icon: ShadAvatar(
+//           null,
+//           placeholder: Text('W'),
+//         ),
+//       ),
+//     );
+//   }
+// }

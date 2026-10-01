@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart' show SelectableText;
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/assets/asset_blob_transferer.dart';
 import 'package:sl_editor/assets.dart';
 import 'package:sl_editor/client/assets/asset_thumbs.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/delete_dialog.dart';
+import 'package:sl_editor/widgets/disable_shortcuts.dart';
+import 'package:sl_editor/widgets/rename_dialog.dart';
 import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_editor/widgets/upload_zone.dart';
 import 'package:sl_shared/sl_shared.dart';
@@ -331,11 +333,39 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
     );
   }
 
+  final _random = Random();
+  String _getRandomNeedNameQuip() {
+    const quips = [
+      'Your asset needs a name',
+      'Assets cannot live without names',
+      'Assets can\'t stand being nameless',
+      'Your asset won\'t survive without a name',
+      '"Please name me!" -The Asset',
+      'This asset isn\'t leaving without a name',
+    ];
+    return quips[_random.nextInt(quips.length)];
+  }
+
   void _showAssetRename() {
     showShadDialog(
       context: context,
-      builder: (context) => _AssetRenameDialog(
-        asset: widget.asset,
+      builder: (context) => RenameDialog(
+        name: widget.asset.name,
+        validate: (value) {
+          value = value.trim();
+          if (value.isEmpty) return _getRandomNeedNameQuip();
+          if (value.length > 128) return 'Must be < 128 characters';
+          return null;
+        },
+        onSave: (value) async {
+          value = value.trim();
+
+          final db = Client.get().assetSystem.sharedDatabase;
+          await db.execute(
+            'UPDATE assets SET name = ? WHERE uuid = ?',
+            [value, widget.asset.uuid],
+          );
+        },
       ),
     );
   }
@@ -343,8 +373,11 @@ class _AssetEntryWidgetState extends State<_AssetEntryWidget> {
   void _showAssetDelete() {
     showShadDialog(
       context: context,
-      builder: (context) => _AssetDeleteDialog(
-        asset: widget.asset,
+      builder: (context) => DeleteDialog(
+        name: widget.asset.name,
+        onDelete: () {
+          Assets.tryDeleteAssets({widget.asset.uuid});
+        },
       ),
     );
   }
@@ -600,166 +633,6 @@ class _AssetDetailsDialog extends StatelessWidget {
   }
 }
 
-class _AssetDeleteDialog extends StatelessWidget {
-  final Asset asset;
-
-  const _AssetDeleteDialog({
-    super.key,
-    required this.asset,
-  });
-
-  void _confirm(BuildContext context) {
-    Assets.tryDeleteAssets({asset.uuid});
-    Navigator.pop(context);
-  }
-
-  void _cancel(BuildContext context) {
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ShadDialog.alert(
-      title: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: 'Delete ',
-              style: TextStyle(fontWeight: .normal),
-            ),
-            TextSpan(
-              text: asset.name,
-              style: TextStyle(fontWeight: .bold),
-            ),
-            TextSpan(
-              text: '?',
-              style: TextStyle(fontWeight: .normal),
-            ),
-          ],
-        ),
-      ),
-      gap: 24.0,
-      actions: [
-        ShadButton.outline(
-          onPressed: () => _cancel(context),
-          child: Text('Back'),
-        ),
-        ShadButton.destructive(
-          onPressed: () => _confirm(context),
-          child: Text('Delete'),
-        ),
-      ],
-    );
-  }
-}
-
-class _AssetRenameDialog extends StatefulWidget {
-  final Asset asset;
-
-  const _AssetRenameDialog({
-    super.key,
-    required this.asset,
-  });
-
-  @override
-  State<_AssetRenameDialog> createState() => _AssetRenameDialogState();
-}
-
-class _AssetRenameDialogState extends State<_AssetRenameDialog> {
-  final _formKey = GlobalKey();
-  late final TextEditingController _textEditingController;
-
-  @override
-  void initState() {
-    _textEditingController = TextEditingController(text: widget.asset.name);
-    super.initState();
-  }
-
-  void _confirm(BuildContext context) {
-    if (_formKey.currentContext == null) return;
-    final formState = _formKey.currentState as FormState;
-
-    if (!formState.validate()) return;
-    formState.save();
-
-    Navigator.pop(context);
-  }
-
-  void _cancel(BuildContext context) {
-    Navigator.pop(context);
-  }
-
-  String? _validate(String value) {
-    value = value.trim();
-    if (value.isEmpty) return 'You can\'t name an asset nothing';
-    if (value.length > 128) return 'Must be < 128 characters';
-    return null;
-  }
-
-  void _onSave(String? value) async {
-    value = value!.trim();
-
-    final db = Client.get().assetSystem.sharedDatabase;
-    await db.execute(
-      'UPDATE assets SET name = ? WHERE uuid = ?',
-      [value, widget.asset.uuid],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ShadDialog.alert(
-      title: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: 'Rename ',
-              style: TextStyle(fontWeight: .normal),
-            ),
-            TextSpan(
-              text: widget.asset.name,
-              style: TextStyle(fontWeight: .bold),
-            ),
-            TextSpan(
-              text: '.',
-              style: TextStyle(fontWeight: .normal),
-            ),
-          ],
-        ),
-      ),
-      description: Shortcuts(
-        shortcuts: const <ShortcutActivator, Intent>{
-          SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
-          SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
-          SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
-        },
-        child: Form(
-          key: _formKey,
-          child: ShadInputFormField(
-            controller: _textEditingController,
-            autofocus: true,
-            maxLength: 128,
-            validator: _validate,
-            onSaved: _onSave,
-            onEditingComplete: () => _confirm(context),
-          ),
-        ),
-      ),
-      gap: 24.0,
-      actions: [
-        ShadButton.outline(
-          onPressed: () => _cancel(context),
-          child: Text('Back'),
-        ),
-        ShadButton(
-          onPressed: () => _confirm(context),
-          child: Text('Rename'),
-        ),
-      ],
-    );
-  }
-}
-
 class _CreateAssetDialog extends StatefulWidget {
   final String typeDisplayName;
   final String defaultName;
@@ -837,12 +710,7 @@ class _CreateAssetDialogState extends State<_CreateAssetDialog> {
           ],
         ),
       ),
-      description: Shortcuts(
-        shortcuts: const <ShortcutActivator, Intent>{
-          SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
-          SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
-          SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
-        },
+      description: DisableShortcuts(
         child: Form(
           key: _formKey,
           child: ShadInputFormField(

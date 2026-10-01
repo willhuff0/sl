@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/delete_dialog.dart';
+import 'package:sl_editor/widgets/rename_dialog.dart';
 import 'package:sl_editor/widgets/shad_breadcrumb_dropdown.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_editor/client/scenes/node.dart' as editor;
@@ -79,8 +82,27 @@ class _NodeGraphPanelState extends State<NodeGraphPanel> {
           child: Row(
             children: [
               SizedBox(width: 8.0),
-              Text('Node Hierarchy'),
-              Expanded(child: Container()),
+              ShadButton.ghost(
+                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                height: 22.0,
+                child: Text('Node Tree'),
+                onPressed: () {
+                  Client.get().sceneSystem.closeScene();
+                },
+              ),
+              Expanded(
+                child: _root == null
+                    ? Container()
+                    : Row(
+                        children: [
+                          Icon(LucideIcons.chevronRight),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4.0),
+                            child: Text(_root!.name.value),
+                          ),
+                        ],
+                      ),
+              ),
               MyShadDropdown(
                 enabled: _root != null,
                 items: [
@@ -195,6 +217,10 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
   late final StreamSubscription _onSelectionChangedSubscription;
   late final StreamSubscription _onRemoteSelectionChangedSubscription;
 
+  late final ShadContextMenuController _contextMenuController;
+  Offset? _offset;
+  editor.Node? _contextMenuPrimaryNode;
+
   @override
   void initState() {
     _onSelectionChangedSubscription = Selector.onSelectionChanged.listen((_) {
@@ -205,6 +231,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
       if (!mounted) return;
       setState(() {});
     });
+    _contextMenuController = ShadContextMenuController();
     super.initState();
   }
 
@@ -212,7 +239,135 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
   void dispose() {
     _onSelectionChangedSubscription.cancel();
     _onRemoteSelectionChangedSubscription.cancel();
+    _contextMenuController.dispose();
     super.dispose();
+  }
+
+  void _openContextMenu(editor.Node primary, Offset globalPosition) {
+    setState(() {
+      _offset = globalPosition;
+      _contextMenuPrimaryNode = primary;
+    });
+    _contextMenuController.show();
+  }
+
+  void _hideContextMenu() {
+    _contextMenuController.hide();
+  }
+
+  void _showNodeDetails(editor.Node node) {}
+
+  final _random = Random();
+  String _getRandomNeedNameQuip() {
+    const quips = [
+      'Your node needs a name',
+      'Nodes cannot live without names',
+      'Nodes can\'t stand being nameless',
+      'Your node won\'t survive without a name',
+      '"Please name me!" -The Node',
+      'This node isn\'t leaving without a name',
+    ];
+    return quips[_random.nextInt(quips.length)];
+  }
+
+  void _showNodeRename(editor.Node node) {
+    showShadDialog(
+      context: context,
+      builder: (context) => RenameDialog(
+        name: node.name.value,
+        validate: (value) {
+          value = value.trim();
+          if (value.isEmpty) return _getRandomNeedNameQuip();
+          if (value.length > 128) return 'Must be < 128 characters';
+          return null;
+        },
+        onSave: (value) async {
+          node.modifyLocal((builder) {
+            node.name.stage(builder, value);
+          });
+          Client.get().sceneSystem.onNodeAddedOrRemovedController.add(null);
+        },
+      ),
+    );
+  }
+
+  void _showNodeDelete(List<editor.Node> nodes) {
+    final name = nodes.length == 1 ? nodes.first.name.value : '${nodes.length} nodes';
+    showShadDialog(
+      context: context,
+      builder: (context) => DeleteDialog(
+        name: name,
+        onDelete: () {
+          for (final node in nodes) {
+            if (!node.doesExist.value) continue;
+            node.delete();
+          }
+        },
+      ),
+    );
+  }
+
+  List<Widget> _getSingleNodeContextMenuItems(editor.Node node) {
+    return [
+      ShadTooltip(
+        waitDuration: Duration(milliseconds: 1000),
+        builder: (context) {
+          return Text(node.uuid);
+        },
+        child: ShadContextMenuItem(
+          onPressed: () => _showNodeDetails(node),
+          child: Text(node.name.value),
+        ),
+      ),
+      ShadContextMenuItem(
+        onPressed: () => _showNodeRename(node),
+        child: Text('Rename'),
+      ),
+      ShadSeparator.horizontal(
+        margin: EdgeInsets.only(bottom: 4.0, top: 6.0, left: 4.0, right: 4.0),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: ShadContextMenuItem(
+          buttonVariant: ShadButtonVariant.destructive,
+          onPressed: () => _showNodeDelete([node]),
+          child: Text('Delete'),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _multiNodeContextMenuItems() {
+    final nodeCount = Selector.getSelected().length;
+    final nodes = Selector.getSelected().map(
+      (engineNode) => Client.get().sceneSystem.getTrackedFromEngineNode(engineNode),
+    );
+    return [
+      ShadContextMenuItem(
+        child: Text('$nodeCount nodes'),
+      ),
+      ShadSeparator.horizontal(
+        margin: EdgeInsets.only(bottom: 4.0, top: 6.0, left: 4.0, right: 4.0),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: ShadContextMenuItem(
+          buttonVariant: ShadButtonVariant.destructive,
+          onPressed: () => _showNodeDelete(nodes.toList()),
+          child: Text('Delete'),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _getContextMenuItems() {
+    if (_contextMenuPrimaryNode == null) return [];
+
+    if (Selector.getSelected().length > 1 && Selector.getSelected().contains(_contextMenuPrimaryNode!.engineNode)) {
+      return _multiNodeContextMenuItems();
+    }
+
+    return _getSingleNodeContextMenuItems(_contextMenuPrimaryNode!);
   }
 
   List<Widget> _recurseNode(editor.Node node, int depth) {
@@ -249,6 +404,7 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
             }
           }
         },
+        openContextMenu: (globalPosition) => _openContextMenu(node, globalPosition),
       ),
       if (!isCollapsed) ...node.children.values.expand((c) => _recurseNode(c, depth + 1)),
     ];
@@ -256,15 +412,24 @@ class _NodeTreeWidgetState extends State<_NodeTreeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Selector.clear();
-      },
-      child: Container(
-        color: Color(0x00000000),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _recurseNode(widget.root, 0),
+    return ShadContextMenu(
+      controller: _contextMenuController,
+      anchor: _offset == null ? null : ShadGlobalAnchor(_offset!),
+      items: _getContextMenuItems(),
+      child: GestureDetector(
+        onTap: () {
+          Selector.clear();
+          _hideContextMenu();
+        },
+        onSecondaryTap: () {
+          _hideContextMenu();
+        },
+        child: Container(
+          color: Color(0x00000000),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.root.children.values.expand((c) => _recurseNode(c, 0)).toList(),
+          ),
         ),
       ),
     );
@@ -282,6 +447,7 @@ class _NodeWidget extends StatelessWidget {
   final bool isSelected;
   final bool areAnyChildrenSelectedAndIsCollapsed;
   final VoidCallback onSelect;
+  final void Function(Offset globalPosition) openContextMenu;
 
   const _NodeWidget({
     super.key,
@@ -293,6 +459,7 @@ class _NodeWidget extends StatelessWidget {
     required this.isSelected,
     required this.areAnyChildrenSelectedAndIsCollapsed,
     required this.onSelect,
+    required this.openContextMenu,
   });
 
   void _onDropAsset(Asset asset) async {
@@ -335,6 +502,7 @@ class _NodeWidget extends StatelessWidget {
             : ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
         padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
         onPressed: isSelectableAndDraggable ? onSelect : null,
+        onSecondaryTapUp: (details) => openContextMenu(details.globalPosition),
         child: Text(node.name.value),
       ),
     );
@@ -356,10 +524,10 @@ class _NodeWidget extends StatelessWidget {
             Draggable<editor.Node>(
               data: node,
               feedback: Container(
-                padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
+                padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
                 decoration: BoxDecoration(
                   color: ShadTheme.of(context).colorScheme.selection.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(4.0),
+                  borderRadius: BorderRadius.circular(6.0),
                 ),
                 child: Text(node.name.value),
               ),

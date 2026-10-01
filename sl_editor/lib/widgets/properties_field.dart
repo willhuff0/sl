@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:sl_editor/client/state_tracker.dart';
 import 'package:sl_editor/client/tracked_property.dart';
 import 'package:sl_editor/field_boxer.dart';
+import 'package:sl_editor/widgets/disable_shortcuts.dart';
 import 'package:vector_math/vector_math.dart';
 
 class PropertiesFieldWithLabel extends StatelessWidget {
@@ -84,12 +84,7 @@ class PropertiesFieldWithLabel extends StatelessWidget {
       children: [
         Text(label),
         SizedBox(height: 4.0),
-        Shortcuts(
-          shortcuts: const <ShortcutActivator, Intent>{
-            SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
-            SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
-            SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
-          },
+        DisableShortcuts(
           child: field,
         ),
       ],

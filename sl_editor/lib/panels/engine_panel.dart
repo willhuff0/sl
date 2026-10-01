@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sl_editor/client/client.dart';
+import 'package:sl_editor/widgets/disable_shortcuts.dart';
 import 'package:sl_editor/widgets/name_tags.dart';
 import 'package:sl_engine/editor/selector.dart';
 import 'package:sl_engine/editor/sl_editor.dart';
@@ -62,12 +62,7 @@ class _EngineViewState extends State<EnginePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.keyW): DoNothingAndStopPropagationIntent(),
-        SingleActivator(LogicalKeyboardKey.keyE): DoNothingAndStopPropagationIntent(),
-        SingleActivator(LogicalKeyboardKey.keyR): DoNothingAndStopPropagationIntent(),
-      },
+    return DisableShortcuts(
       child: Focus(
         focusNode: _focusNode,
         skipTraversal: true,

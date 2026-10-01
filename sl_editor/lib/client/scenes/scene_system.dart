@@ -101,6 +101,31 @@ class SceneSystem {
     _onSelectionTransformedSubscription = Selector.onSelectionTransformed.listen(_onSelectionTransformed);
   }
 
+  void closeScene() {
+    if (_scene == null) return;
+
+    Client.get().send(
+      CtsSetSceneState(
+        sceneId: null,
+        state: null,
+      ),
+    );
+
+    _scene = null;
+
+    stateTracker?.submitLocalChangesIfPresent();
+    stateTracker = null;
+
+    _engineNodeToTracked.clear();
+
+    setRoot(null);
+
+    _gltfCache.clear();
+    Selector.clearRealNodes();
+
+    _onSelectionTransformedSubscription?.cancel();
+  }
+
   void _onSelectionTransformed(Set<engine.Node> nodes) {
     for (final node in nodes) {
       final trackedNode = getTrackedFromEngineNode(node);
